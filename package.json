@@ -12,7 +12,9 @@
   "main": "./dist/extension.js",
   "l10n": "./l10n",
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onView:agentCowork.folderView",
+    "onCommand:agent-cowork.openWorkspaceFolder"
   ],
   "contributes": {
     "themes": [
@@ -38,8 +40,51 @@
       {
         "command": "agent-cowork.simplifyLayout",
         "title": "%command.simplifyLayout.title%"
+      },
+      {
+        "command": "agent-cowork.openWorkspaceFolder",
+        "title": "%command.openWorkspaceFolder.title%"
+      },
+      {
+        "command": "agent-cowork.refreshFolderView",
+        "title": "%command.refreshFolderView.title%",
+        "icon": "$(refresh)"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentCoworkContainer",
+          "title": "%viewContainer.agentCowork.title%",
+          "icon": "$(folder-library)"
+        }
+      ]
+    },
+    "views": {
+      "agentCoworkContainer": [
+        {
+          "id": "agentCowork.folderView",
+          "name": "%view.folderView.name%",
+          "icon": "$(folder-library)",
+          "contextualTitle": "%view.folderView.contextualTitle%"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "agentCowork.folderView",
+        "contents": "%viewsWelcome.folderView.contents%"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "agent-cowork.refreshFolderView",
+          "when": "view == agentCowork.folderView",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
       "title": "%config.title%",
       "properties": {
@@ -52,6 +97,11 @@
           "type": "boolean",
           "default": true,
           "description": "%config.simplifyLayout%"
+        },
+        "agentCowork.hideGitAndDrawers": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.hideGitAndDrawers%"
         }
       }
     }

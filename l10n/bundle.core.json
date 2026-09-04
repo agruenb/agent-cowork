@@ -2,6 +2,7 @@
   "Willkommen bei Agent Cowork": "Welcome to Agent Cowork",
   "Ihre intuitive Arbeitsumgebung für KI-gestütztes Arbeiten": "Your intuitive workspace for AI-powered collaboration",
   "Erste Schritte": "Getting Started",
+  "Arbeitsordner öffnen": "Open workspace folder",
   "Ordner öffnen": "Open Folder",
   "Wählen Sie einen Arbeitsordner für Ihre Projekte und Dokumente.": "Select a workspace folder for your projects and documents.",
   "Theme aktivieren": "Activate Theme",
@@ -15,5 +16,7 @@
   "Startseite anzeigen": "Show Welcome Page",
   "Hallo von Agent Cowork!": "Hello from Agent Cowork!",
   "Agent Cowork Light Theme angewendet!": "Agent Cowork Light theme applied!",
-  "Vereinfachte Ansicht aktiviert! Seitenleisten-Buttons wurden ausgeblendet.": "Simplified view activated! Side buttons have been hidden."
+  "Vereinfachte Ansicht aktiviert! Seitenleisten-Buttons wurden ausgeblendet.": "Simplified view activated! Side buttons have been hidden.",
+  "Arbeitsordner auswählen": "Select Workspace Folder",
+  "Ordner auswählen": "Select Folder"
 }

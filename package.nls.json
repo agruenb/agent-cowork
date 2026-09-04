@@ -4,7 +4,14 @@
   "command.applyTheme.title": "Agent Cowork: Apply Light Green Theme",
   "command.simplifyLayout.title": "Agent Cowork: Simplify Layout (Hide Buttons)",
   "command.openWelcome.title": "Agent Cowork: Open Welcome Page",
+  "command.openWorkspaceFolder.title": "Agent Cowork: Open Workspace Folder",
+  "command.refreshFolderView.title": "Agent Cowork: Refresh Folder View",
+  "viewContainer.agentCowork.title": "Workspace",
+  "view.folderView.name": "Workspace Folder",
+  "view.folderView.contextualTitle": "Workspace",
+  "viewsWelcome.folderView.contents": "No workspace folder opened.\n[Open Workspace Folder](command:agent-cowork.openWorkspaceFolder)",
   "config.title": "Agent Cowork",
   "config.showWelcomeOnStartup": "Controls whether to show the Agent Cowork welcome page on startup.",
-  "config.simplifyLayout": "Simplifies the user interface by hiding the activity bar icon buttons and keeping the file directory view open."
+  "config.simplifyLayout": "Simplifies the user interface by hiding the activity bar icon buttons and keeping the file directory view open.",
+  "config.hideGitAndDrawers": "Hides Git integration and extra drawers (Clone Repository, Outline, Timeline) for non-technical users."
 }

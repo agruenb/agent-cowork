@@ -51,7 +51,7 @@ export class WelcomePanel {
       async (message) => {
         switch (message.command) {
           case 'openFolder':
-            await vscode.commands.executeCommand('workbench.action.openFolder');
+            await vscode.commands.executeCommand('agent-cowork.openWorkspaceFolder');
             return;
           case 'applyTheme':
             await vscode.commands.executeCommand('agent-cowork.applyTheme');
@@ -95,13 +95,8 @@ export class WelcomePanel {
   private _getHtmlForWebview(showOnStartup: boolean): string {
     const title = vscode.l10n.t('Willkommen bei Agent Cowork');
     const subtitle = vscode.l10n.t('Ihre intuitive Arbeitsumgebung für KI-gestütztes Arbeiten');
-    const gettingStarted = vscode.l10n.t('Erste Schritte');
-    const openFolder = vscode.l10n.t('Ordner öffnen');
+    const openFolder = vscode.l10n.t('Arbeitsordner öffnen');
     const openFolderDesc = vscode.l10n.t('Wählen Sie einen Arbeitsordner für Ihre Projekte und Dokumente.');
-    const activateTheme = vscode.l10n.t('Theme aktivieren');
-    const activateThemeDesc = vscode.l10n.t('Stellen Sie das augenfreundliche, helle Design mit grünen Akzenten ein.');
-    const startAgent = vscode.l10n.t('Agenten starten');
-    const startAgentDesc = vscode.l10n.t('Öffnen Sie die Befehlspalette, um mit Ihren Agenten zu interagieren.');
     const tipsTitle = vscode.l10n.t('Tipps für Einsteiger');
     const tip1 = vscode.l10n.t('Sie benötigen kein Programmierwissen. Formulieren Sie Ihre Aufgaben einfach in natürlicher Sprache.');
     const tip2 = vscode.l10n.t('Alle Ihre Änderungen und erstellten Dokumente bleiben sicher auf Ihrem Computer.');
@@ -195,17 +190,17 @@ export class WelcomePanel {
     }
 
     .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      display: flex;
+      flex-direction: column;
       gap: 16px;
       margin-bottom: 32px;
     }
 
     .card {
       background-color: var(--card-bg);
-      border: 1px solid var(--card-border);
+      border: 1.5px solid var(--primary-border);
       border-radius: 12px;
-      padding: 20px;
+      padding: 24px;
       cursor: pointer;
       transition: all 0.2s ease-in-out;
       display: flex;
@@ -215,45 +210,63 @@ export class WelcomePanel {
 
     .card:hover {
       border-color: var(--primary);
-      box-shadow: 0 4px 14px rgba(5, 150, 105, 0.12);
+      box-shadow: 0 6px 18px rgba(5, 150, 105, 0.15);
       transform: translateY(-2px);
     }
 
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
     .card-icon {
-      width: 40px;
-      height: 40px;
+      width: 48px;
+      height: 48px;
       background-color: #d1fae5;
       color: var(--primary);
-      border-radius: 8px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
-      margin-bottom: 14px;
+      font-size: 24px;
+      flex-shrink: 0;
     }
 
-    .card h3 {
-      font-size: 15px;
+    .card-title-group h3 {
+      font-size: 18px;
       font-weight: 600;
-      margin-bottom: 6px;
       color: var(--text);
+      margin-bottom: 2px;
     }
 
     .card p {
-      font-size: 13px;
+      font-size: 14px;
       color: var(--text-muted);
-      line-height: 1.4;
-      flex-grow: 1;
+      line-height: 1.5;
+      margin-top: 4px;
     }
 
-    .card-action {
-      margin-top: 14px;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--primary);
-      display: flex;
+    .card-action-btn {
+      margin-top: 16px;
+      align-self: flex-start;
+      display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 8px;
+      padding: 10px 20px;
+      background-color: var(--primary);
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .card:hover .card-action-btn {
+      background-color: var(--primary-hover);
     }
 
     .tips-box {
@@ -326,27 +339,18 @@ export class WelcomePanel {
       <p>${subtitle}</p>
     </div>
 
-    <h2 class="section-title">🚀 ${gettingStarted}</h2>
     <div class="grid">
       <div class="card" id="btn-open-folder" role="button" tabindex="0">
-        <div class="card-icon">📁</div>
-        <h3>${openFolder}</h3>
-        <p>${openFolderDesc}</p>
-        <span class="card-action">${openFolder} →</span>
-      </div>
-
-      <div class="card" id="btn-apply-theme" role="button" tabindex="0">
-        <div class="card-icon">🎨</div>
-        <h3>${activateTheme}</h3>
-        <p>${activateThemeDesc}</p>
-        <span class="card-action">${activateTheme} →</span>
-      </div>
-
-      <div class="card" id="btn-open-commands" role="button" tabindex="0">
-        <div class="card-icon">⚡</div>
-        <h3>${startAgent}</h3>
-        <p>${startAgentDesc}</p>
-        <span class="card-action">${startAgent} →</span>
+        <div class="card-header">
+          <div class="card-icon">📁</div>
+          <div class="card-title-group">
+            <h3>${openFolder}</h3>
+            <p>${openFolderDesc}</p>
+          </div>
+        </div>
+        <button class="card-action-btn" type="button">
+          ${openFolder} →
+        </button>
       </div>
     </div>
 
@@ -370,17 +374,18 @@ export class WelcomePanel {
   <script>
     const vscode = acquireVsCodeApi();
 
-    document.getElementById('btn-open-folder').addEventListener('click', () => {
-      vscode.postMessage({ command: 'openFolder' });
-    });
-
-    document.getElementById('btn-apply-theme').addEventListener('click', () => {
-      vscode.postMessage({ command: 'applyTheme' });
-    });
-
-    document.getElementById('btn-open-commands').addEventListener('click', () => {
-      vscode.postMessage({ command: 'openCommands' });
-    });
+    const openFolderBtn = document.getElementById('btn-open-folder');
+    if (openFolderBtn) {
+      openFolderBtn.addEventListener('click', () => {
+        vscode.postMessage({ command: 'openFolder' });
+      });
+      openFolderBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          vscode.postMessage({ command: 'openFolder' });
+        }
+      });
+    }
 
     document.getElementById('chk-startup').addEventListener('change', (e) => {
       vscode.postMessage({ command: 'toggleStartup', value: e.target.checked });

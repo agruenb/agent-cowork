@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { WelcomePanel } from './welcomePanel';
+import { FolderTreeProvider } from './folderTreeProvider';
 
 const THEME_NAME = 'Agent Cowork Light';
 
@@ -63,7 +64,7 @@ async function suppressDefaultWelcome(context: vscode.ExtensionContext): Promise
 /**
  * Simplifies the workbench layout for non-technical users:
  * - Hides the left-hand activity bar button strip (Git, Extensions, Run, etc.)
- * - Ensures the Explorer (directory view) is open and accessible in the sidebar
+ * - Opens our custom Agent Cowork folder view in the sidebar
  */
 async function enforceSimpleLayout(): Promise<void> {
   const workbenchConfig = vscode.workspace.getConfiguration('workbench');
@@ -82,11 +83,38 @@ async function enforceSimpleLayout(): Promise<void> {
     }
   }
 
-  // Ensure the directory/file explorer view is active and visible
+  // Focus our custom Agent Cowork folder view
   try {
-    await vscode.commands.executeCommand('workbench.view.explorer');
+    await vscode.commands.executeCommand('agentCowork.folderView.focus');
   } catch (err) {
-    console.warn('Unable to focus file explorer view:', err);
+    console.warn('Unable to focus Agent Cowork folder view:', err);
+  }
+}
+
+/**
+ * Prompts the user to select a folder from their local file system
+ * and opens it as the active workspace in VS Code.
+ */
+export async function openWorkspaceFolder(): Promise<void> {
+  try {
+    const uris = await vscode.window.showOpenDialog({
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+      openLabel: vscode.l10n.t('Ordner auswählen'),
+      title: vscode.l10n.t('Arbeitsordner auswählen'),
+    });
+
+    if (uris && uris.length > 0) {
+      await vscode.commands.executeCommand('vscode.openFolder', uris[0]);
+    }
+  } catch (error) {
+    console.warn('showOpenDialog failed, falling back to workbench command:', error);
+    try {
+      await vscode.commands.executeCommand('workbench.action.files.openFolder');
+    } catch {
+      await vscode.commands.executeCommand('workbench.action.files.openFileFolder');
+    }
   }
 }
 
@@ -105,11 +133,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Suppress VS Code's default welcome page and tabs
   await suppressDefaultWelcome(context);
 
-  // Simplify layout (hide activity bar buttons, show file explorer) if enabled
+  // Simplify layout (hide activity bar buttons, open our custom view) if enabled
   const simplifyLayout = config.get<boolean>('simplifyLayout', true);
   if (simplifyLayout) {
     await enforceSimpleLayout();
   }
+
+  // Register and wire up the custom folder tree view
+  const folderTreeProvider = new FolderTreeProvider();
+  const folderTreeView = vscode.window.createTreeView('agentCowork.folderView', {
+    treeDataProvider: folderTreeProvider,
+    showCollapseAll: true,
+  });
+  context.subscriptions.push(folderTreeView);
+
+  // Refresh tree when files change on disk
+  const fileWatcher = vscode.workspace.createFileSystemWatcher('**/*', false, true, false);
+  fileWatcher.onDidCreate(() => folderTreeProvider.refresh());
+  fileWatcher.onDidDelete(() => folderTreeProvider.refresh());
+  context.subscriptions.push(fileWatcher);
 
   // Register Welcome panel command
   const openWelcomeCmd = vscode.commands.registerCommand('agent-cowork.openWelcome', () => {
@@ -135,7 +177,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     );
   });
 
-  context.subscriptions.push(openWelcomeCmd, helloWorldCmd, applyThemeCmd, simplifyLayoutCmd);
+  // Register openWorkspaceFolder command
+  const openWorkspaceFolderCmd = vscode.commands.registerCommand('agent-cowork.openWorkspaceFolder', async () => {
+    await openWorkspaceFolder();
+  });
+
+  // Register refreshFolderView command
+  const refreshFolderViewCmd = vscode.commands.registerCommand('agent-cowork.refreshFolderView', () => {
+    folderTreeProvider.refresh();
+  });
+
+  context.subscriptions.push(
+    openWelcomeCmd,
+    helloWorldCmd,
+    applyThemeCmd,
+    simplifyLayoutCmd,
+    openWorkspaceFolderCmd,
+    refreshFolderViewCmd,
+  );
 
   // Show welcome startup page if enabled
   const showWelcomeOnStartup = config.get<boolean>('showWelcomeOnStartup', true);
