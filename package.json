@@ -34,6 +34,10 @@
       {
         "command": "agent-cowork.applyTheme",
         "title": "%command.applyTheme.title%"
+      },
+      {
+        "command": "agent-cowork.simplifyLayout",
+        "title": "%command.simplifyLayout.title%"
       }
     ],
     "configuration": {
@@ -43,6 +47,11 @@
           "type": "boolean",
           "default": true,
           "description": "%config.showWelcomeOnStartup%"
+        },
+        "agentCowork.simplifyLayout": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.simplifyLayout%"
         }
       }
     }

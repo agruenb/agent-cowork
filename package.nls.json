@@ -2,7 +2,9 @@
   "extension.description": "A modern VS Code extension that simplifies AI Agent co-working for non-technical users.",
   "command.helloWorld.title": "Agent Cowork: Hello World",
   "command.applyTheme.title": "Agent Cowork: Apply Light Green Theme",
+  "command.simplifyLayout.title": "Agent Cowork: Simplify Layout (Hide Buttons)",
   "command.openWelcome.title": "Agent Cowork: Open Welcome Page",
   "config.title": "Agent Cowork",
-  "config.showWelcomeOnStartup": "Controls whether to show the Agent Cowork welcome page on startup."
+  "config.showWelcomeOnStartup": "Controls whether to show the Agent Cowork welcome page on startup.",
+  "config.simplifyLayout": "Simplifies the user interface by hiding the activity bar icon buttons and keeping the file directory view open."
 }

@@ -61,17 +61,55 @@ async function suppressDefaultWelcome(context: vscode.ExtensionContext): Promise
 
 
 /**
+ * Simplifies the workbench layout for non-technical users:
+ * - Hides the left-hand activity bar button strip (Git, Extensions, Run, etc.)
+ * - Ensures the Explorer (directory view) is open and accessible in the sidebar
+ */
+async function enforceSimpleLayout(): Promise<void> {
+  const workbenchConfig = vscode.workspace.getConfiguration('workbench');
+
+  // In modern VS Code (>=1.83), 'workbench.activityBar.location' controls whether the activity bar is hidden.
+  // We check workbenchConfig.inspect to ensure the setting exists before attempting to write it.
+  const locationInspection = workbenchConfig.inspect('activityBar.location');
+  if (locationInspection !== undefined) {
+    const currentLocation = workbenchConfig.get<string>('activityBar.location');
+    if (currentLocation !== 'hidden') {
+      try {
+        await workbenchConfig.update('activityBar.location', 'hidden', vscode.ConfigurationTarget.Global);
+      } catch (err) {
+        console.warn('Unable to update workbench.activityBar.location:', err);
+      }
+    }
+  }
+
+  // Ensure the directory/file explorer view is active and visible
+  try {
+    await vscode.commands.executeCommand('workbench.view.explorer');
+  } catch (err) {
+    console.warn('Unable to focus file explorer view:', err);
+  }
+}
+
+/**
  * Called when the extension is activated.
  * The extension is activated the very first time the command is executed or on startup.
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   console.log('Congratulations, your extension "agent-cowork" is now active!');
 
+  const config = vscode.workspace.getConfiguration('agentCowork');
+
   // Force the light green theme
   await enforceTheme();
 
   // Suppress VS Code's default welcome page and tabs
   await suppressDefaultWelcome(context);
+
+  // Simplify layout (hide activity bar buttons, show file explorer) if enabled
+  const simplifyLayout = config.get<boolean>('simplifyLayout', true);
+  if (simplifyLayout) {
+    await enforceSimpleLayout();
+  }
 
   // Register Welcome panel command
   const openWelcomeCmd = vscode.commands.registerCommand('agent-cowork.openWelcome', () => {
@@ -89,10 +127,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.window.showInformationMessage(vscode.l10n.t('Agent Cowork Light Theme angewendet!'));
   });
 
-  context.subscriptions.push(openWelcomeCmd, helloWorldCmd, applyThemeCmd);
+  // Register simplifyLayout command with localization
+  const simplifyLayoutCmd = vscode.commands.registerCommand('agent-cowork.simplifyLayout', async () => {
+    await enforceSimpleLayout();
+    vscode.window.showInformationMessage(
+      vscode.l10n.t('Vereinfachte Ansicht aktiviert! Seitenleisten-Buttons wurden ausgeblendet.')
+    );
+  });
+
+  context.subscriptions.push(openWelcomeCmd, helloWorldCmd, applyThemeCmd, simplifyLayoutCmd);
 
   // Show welcome startup page if enabled
-  const config = vscode.workspace.getConfiguration('agentCowork');
   const showWelcomeOnStartup = config.get<boolean>('showWelcomeOnStartup', true);
   if (showWelcomeOnStartup) {
     WelcomePanel.createOrShow(context.extensionUri);
