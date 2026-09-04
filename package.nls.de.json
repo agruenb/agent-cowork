@@ -1,0 +1,8 @@
+{
+  "extension.description": "Eine moderne VS Code-Erweiterung, die die Zusammenarbeit mit KI-Agenten für nicht-technische Nutzer vereinfacht.",
+  "command.helloWorld.title": "Agent Cowork: Hallo Welt",
+  "command.applyTheme.title": "Agent Cowork: Helles grünes Theme anwenden",
+  "command.openWelcome.title": "Agent Cowork: Startseite öffnen",
+  "config.title": "Agent Cowork",
+  "config.showWelcomeOnStartup": "Legt fest, ob die Agent Cowork Startseite beim Start angezeigt werden soll."
+}

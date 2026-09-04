@@ -1,0 +1,1 @@
+This is a VS Code extension that simplyfies the use for non-technical people of VS Code with AI Agents.

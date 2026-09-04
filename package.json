@@ -1,7 +1,7 @@
 {
   "name": "agent-cowork",
   "displayName": "Agent Cowork",
-  "description": "A modern VS Code extension for agentic co-working workflows.",
+  "description": "%extension.description%",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.85.0"
@@ -10,6 +10,7 @@
     "Other"
   ],
   "main": "./dist/extension.js",
+  "l10n": "./l10n",
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -23,14 +24,28 @@
     ],
     "commands": [
       {
+        "command": "agent-cowork.openWelcome",
+        "title": "%command.openWelcome.title%"
+      },
+      {
         "command": "agent-cowork.helloWorld",
-        "title": "Agent Cowork: Hello World"
+        "title": "%command.helloWorld.title%"
       },
       {
         "command": "agent-cowork.applyTheme",
-        "title": "Agent Cowork: Apply Light Green Theme"
+        "title": "%command.applyTheme.title%"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "%config.title%",
+      "properties": {
+        "agentCowork.showWelcomeOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.showWelcomeOnStartup%"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
