@@ -6,6 +6,7 @@
   "command.openWelcome.title": "Agent Cowork: Open Welcome Page",
   "command.openWorkspaceFolder.title": "Agent Cowork: Open Workspace Folder",
   "command.refreshFolderView.title": "Agent Cowork: Refresh Folder View",
+  "command.newFile.title": "Agent Cowork: New File",
   "viewContainer.agentCowork.title": "Workspace",
   "view.folderView.name": "Workspace Folder",
   "view.folderView.contextualTitle": "Workspace",

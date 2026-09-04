@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { WelcomePanel } from './welcomePanel';
-import { FolderTreeProvider } from './folderTreeProvider';
+import { FolderTreeProvider, FolderItem } from './folderTreeProvider';
 
 const THEME_NAME = 'Agent Cowork Light';
 
@@ -156,6 +157,70 @@ export async function openWorkspaceFolder(): Promise<void> {
 }
 
 /**
+ * Creates a new file in the specified directory or workspace root and opens it.
+ */
+export async function createNewFile(targetFolderUri?: vscode.Uri): Promise<void> {
+  let targetDir = targetFolderUri?.fsPath;
+
+  if (!targetDir) {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders || folders.length === 0) {
+      vscode.window.showWarningMessage(
+        vscode.l10n.t('Bitte öffnen Sie zuerst einen Ordner, um eine Datei zu erstellen.')
+      );
+      return;
+    }
+    targetDir = folders[0].uri.fsPath;
+  }
+
+  const fileName = await vscode.window.showInputBox({
+    prompt: vscode.l10n.t('Dateinamen eingeben (z. B. aufgabe.md)'),
+    placeHolder: 'meine-datei.md',
+    validateInput: (value) => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return vscode.l10n.t('Der Dateiname darf nicht leer sein.');
+      }
+      if (/[/\\?%*:|"<>]/g.test(trimmed)) {
+        return vscode.l10n.t('Der Dateiname enthält ungültige Zeichen.');
+      }
+      return null;
+    },
+  });
+
+  if (!fileName || !fileName.trim()) {
+    return;
+  }
+
+  const filePath = path.join(targetDir, fileName.trim());
+  const fileUri = vscode.Uri.file(filePath);
+
+  try {
+    // Check if file already exists
+    try {
+      await vscode.workspace.fs.stat(fileUri);
+      vscode.window.showErrorMessage(
+        vscode.l10n.t('Eine Datei mit diesem Namen existiert bereits.')
+      );
+      return;
+    } catch {
+      // File does not exist, proceed
+    }
+
+    // Write empty file
+    await vscode.workspace.fs.writeFile(fileUri, new Uint8Array());
+
+    // Open file in editor
+    const document = await vscode.workspace.openTextDocument(fileUri);
+    await vscode.window.showTextDocument(document);
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      vscode.l10n.t('Fehler beim Erstellen der Datei: {0}', String(error))
+    );
+  }
+}
+
+/**
  * Called when the extension is activated.
  * The extension is activated the very first time the command is executed or on startup.
  */
@@ -226,6 +291,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     folderTreeProvider.refresh();
   });
 
+  // Register newFile command (creates at root or prompts)
+  const newFileCmd = vscode.commands.registerCommand('agent-cowork.newFile', async () => {
+    await createNewFile();
+  });
+
+  // Register newFileInFolder command (creates in specific folder item)
+  const newFileInFolderCmd = vscode.commands.registerCommand(
+    'agent-cowork.newFileInFolder',
+    async (item?: FolderItem) => {
+      await createNewFile(item?.uri);
+    }
+  );
+
   context.subscriptions.push(
     openWelcomeCmd,
     helloWorldCmd,
@@ -233,6 +311,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     simplifyLayoutCmd,
     openWorkspaceFolderCmd,
     refreshFolderViewCmd,
+    newFileCmd,
+    newFileInFolderCmd,
   );
 
   // Show welcome startup page if enabled

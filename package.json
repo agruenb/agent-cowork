@@ -49,6 +49,16 @@
         "command": "agent-cowork.refreshFolderView",
         "title": "%command.refreshFolderView.title%",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "agent-cowork.newFile",
+        "title": "%command.newFile.title%",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "agent-cowork.newFileInFolder",
+        "title": "%command.newFile.title%",
+        "icon": "$(new-file)"
       }
     ],
     "viewsContainers": {
@@ -79,9 +89,21 @@
     "menus": {
       "view/title": [
         {
+          "command": "agent-cowork.newFile",
+          "when": "view == agentCowork.folderView",
+          "group": "navigation@1"
+        },
+        {
           "command": "agent-cowork.refreshFolderView",
           "when": "view == agentCowork.folderView",
-          "group": "navigation"
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "agent-cowork.newFileInFolder",
+          "when": "view == agentCowork.folderView && viewItem == folder",
+          "group": "inline"
         }
       ]
     },

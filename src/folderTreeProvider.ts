@@ -60,13 +60,17 @@ export class FolderItem extends vscode.TreeItem {
         this.iconPath = new vscode.ThemeIcon(iconId, new vscode.ThemeColor('charts.yellow'));
       }
     } else {
+      const ext = path.extname(this.uri.fsPath).toLowerCase();
+      const isMarkdown = ext === '.md' || ext === '.markdown' || ext === '.mdown' || ext === '.mkdn';
+
       if (this.extensionUri) {
+        const iconFile = isMarkdown ? 'markdown.svg' : 'file.svg';
         this.iconPath = {
-          light: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', 'file.svg'),
-          dark: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', 'file.svg'),
+          light: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
+          dark: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
         };
       } else {
-        this.iconPath = vscode.ThemeIcon.File;
+        this.iconPath = isMarkdown ? new vscode.ThemeIcon('robot') : vscode.ThemeIcon.File;
       }
     }
   }

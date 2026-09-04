@@ -6,6 +6,7 @@
   "command.openWelcome.title": "Agent Cowork: Startseite öffnen",
   "command.openWorkspaceFolder.title": "Agent Cowork: Arbeitsordner öffnen",
   "command.refreshFolderView.title": "Agent Cowork: Ordneransicht aktualisieren",
+  "command.newFile.title": "Agent Cowork: Neue Datei erstellen",
   "viewContainer.agentCowork.title": "Arbeitsbereich",
   "view.folderView.name": "Arbeitsordner",
   "view.folderView.contextualTitle": "Arbeitsbereich",
