@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Clean readable file icon with dog-ear corner fold -->
+  <path d="M5 3 C4.45 3 4 3.45 4 4 L4 20 C4 20.55 4.45 21 5 21 L19 21 C19.55 21 20 20.55 20 20 L20 8 L15 3 L5 3 Z" fill="#ffffff" stroke="#94a3b8" stroke-width="1.2" />
+  <!-- Corner fold -->
+  <path d="M14.5 3 L14.5 8 L19.5 8 Z" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.2" stroke-linejoin="round" />
+  <!-- Content lines -->
+  <line x1="7.5" y1="11.5" x2="16.5" y2="11.5" stroke="#cbd5e1" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="7.5" y1="14.5" x2="16.5" y2="14.5" stroke="#cbd5e1" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="7.5" y1="17.5" x2="13.5" y2="17.5" stroke="#cbd5e1" stroke-width="1.2" stroke-linecap="round" />
+</svg>

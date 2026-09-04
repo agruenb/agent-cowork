@@ -6,30 +6,69 @@ import * as path from 'path';
  * Represents a single node (file or folder) in the custom folder tree.
  */
 export class FolderItem extends vscode.TreeItem {
+  private _isExpanded: boolean = false;
+
   constructor(
-    public readonly resourceUri: vscode.Uri,
+    public readonly uri: vscode.Uri,
     public readonly isDirectory: boolean,
+    private readonly extensionUri?: vscode.Uri,
+    initiallyExpanded: boolean = false,
   ) {
+    const fileName = path.basename(uri.fsPath);
     super(
-      resourceUri,
+      fileName,
       isDirectory
-        ? vscode.TreeItemCollapsibleState.Collapsed
+        ? (initiallyExpanded
+            ? vscode.TreeItemCollapsibleState.Expanded
+            : vscode.TreeItemCollapsibleState.Collapsed)
         : vscode.TreeItemCollapsibleState.None,
     );
 
-    this.tooltip = resourceUri.fsPath;
+    this.tooltip = uri.fsPath;
+    this._isExpanded = initiallyExpanded;
+    this._updateIcon();
 
     if (!isDirectory) {
+      this.contextValue = 'file';
       // Clicking a file opens it in the editor
       this.command = {
         command: 'vscode.open',
         title: 'Open File',
-        arguments: [resourceUri],
+        arguments: [uri],
       };
+    } else {
+      this.contextValue = 'folder';
     }
+  }
 
-    // Let VS Code assign the icon and label automatically from the file URI
-    this.resourceUri = resourceUri;
+  public setExpanded(expanded: boolean): void {
+    this._isExpanded = expanded;
+    this._updateIcon();
+  }
+
+  private _updateIcon(): void {
+    if (this.isDirectory) {
+      if (this.extensionUri) {
+        const iconName = this._isExpanded ? 'folder-open' : 'folder';
+        const darkIconName = this._isExpanded ? 'folder-open-dark' : 'folder-dark';
+        this.iconPath = {
+          light: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', `${iconName}.svg`),
+          dark: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', `${darkIconName}.svg`),
+        };
+      } else {
+        const iconId = this._isExpanded ? 'folder-opened' : 'folder';
+        this.iconPath = new vscode.ThemeIcon(iconId, new vscode.ThemeColor('charts.yellow'));
+      }
+    } else {
+      if (this.extensionUri) {
+        this.iconPath = {
+          light: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', 'file.svg'),
+          dark: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', 'file.svg'),
+        };
+      } else {
+        this.iconPath = vscode.ThemeIcon.File;
+      }
+    }
   }
 }
 
@@ -41,14 +80,33 @@ export class FolderTreeProvider implements vscode.TreeDataProvider<FolderItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<FolderItem | undefined | null>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-  constructor() {
+  constructor(private readonly extensionUri?: vscode.Uri) {
     // Refresh whenever the workspace folders change
     vscode.workspace.onDidChangeWorkspaceFolders(() => this.refresh());
   }
 
+  private _expandedPaths = new Set<string>();
+
   /** Trigger a full tree refresh */
   refresh(): void {
     this._onDidChangeTreeData.fire(undefined);
+  }
+
+  /** Refresh a single tree item */
+  refreshItem(element: FolderItem): void {
+    this._onDidChangeTreeData.fire(element);
+  }
+
+  onDidExpandElement(element: FolderItem): void {
+    this._expandedPaths.add(element.uri.fsPath);
+    element.setExpanded(true);
+    this.refreshItem(element);
+  }
+
+  onDidCollapseElement(element: FolderItem): void {
+    this._expandedPaths.delete(element.uri.fsPath);
+    element.setExpanded(false);
+    this.refreshItem(element);
   }
 
   getTreeItem(element: FolderItem): vscode.TreeItem {
@@ -70,12 +128,12 @@ export class FolderTreeProvider implements vscode.TreeDataProvider<FolderItem> {
 
       // Multiple root folders — show each as a top-level node
       return folders.map(
-        (f) => new FolderItem(f.uri, true),
+        (f) => new FolderItem(f.uri, true, this.extensionUri, this._expandedPaths.has(f.uri.fsPath)),
       );
     }
 
     // Children of a directory node
-    return this._readDirectory(element.resourceUri.fsPath);
+    return this._readDirectory(element.uri.fsPath);
   }
 
   private _readDirectory(dirPath: string): FolderItem[] {
@@ -103,9 +161,12 @@ export class FolderTreeProvider implements vscode.TreeDataProvider<FolderItem> {
 
       return [...dirs, ...files].map((entry) => {
         const fullPath = path.join(dirPath, entry.name);
+        const isDir = entry.isDirectory();
         return new FolderItem(
           vscode.Uri.file(fullPath),
-          entry.isDirectory(),
+          isDir,
+          this.extensionUri,
+          isDir ? this._expandedPaths.has(fullPath) : false,
         );
       });
     } catch {

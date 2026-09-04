@@ -83,11 +83,48 @@ async function enforceSimpleLayout(): Promise<void> {
     }
   }
 
+  // Enforce comfortable font size and tree spacing for older users / beginners
+  await enforceAccessibilitySettings();
+
   // Focus our custom Agent Cowork folder view
   try {
     await vscode.commands.executeCommand('agentCowork.folderView.focus');
   } catch (err) {
     console.warn('Unable to focus Agent Cowork folder view:', err);
+  }
+}
+
+/**
+ * Sets larger text size, line height, and tree spacing for senior / non-technical users.
+ */
+async function enforceAccessibilitySettings(): Promise<void> {
+  try {
+    const windowConfig = vscode.workspace.getConfiguration('window');
+    // Zoom level 1 increases UI text size across the entire window (sidebar, menus, trees, dialogs)
+    const currentZoom = windowConfig.get<number>('zoomLevel');
+    if (currentZoom === undefined || currentZoom < 1) {
+      await windowConfig.update('zoomLevel', 1, vscode.ConfigurationTarget.Global);
+    }
+
+    // Ensure comfortable tree row indent
+    const workbenchConfig = vscode.workspace.getConfiguration('workbench');
+    const treeIndent = workbenchConfig.get<number>('tree.indent');
+    if (treeIndent === undefined || treeIndent < 16) {
+      await workbenchConfig.update('tree.indent', 16, vscode.ConfigurationTarget.Global);
+    }
+
+    // Set readable editor font size
+    const editorConfig = vscode.workspace.getConfiguration('editor');
+    const editorFontSize = editorConfig.get<number>('fontSize');
+    if (editorFontSize === undefined || editorFontSize < 16) {
+      await editorConfig.update('fontSize', 16, vscode.ConfigurationTarget.Global);
+    }
+    const editorLineHeight = editorConfig.get<number>('lineHeight');
+    if (editorLineHeight === undefined || editorLineHeight < 24) {
+      await editorConfig.update('lineHeight', 24, vscode.ConfigurationTarget.Global);
+    }
+  } catch (err) {
+    console.warn('Unable to enforce accessibility settings:', err);
   }
 }
 
@@ -140,11 +177,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   // Register and wire up the custom folder tree view
-  const folderTreeProvider = new FolderTreeProvider();
+  const folderTreeProvider = new FolderTreeProvider(context.extensionUri);
   const folderTreeView = vscode.window.createTreeView('agentCowork.folderView', {
     treeDataProvider: folderTreeProvider,
     showCollapseAll: true,
   });
+  folderTreeView.onDidExpandElement((e) => folderTreeProvider.onDidExpandElement(e.element));
+  folderTreeView.onDidCollapseElement((e) => folderTreeProvider.onDidCollapseElement(e.element));
   context.subscriptions.push(folderTreeView);
 
   // Refresh tree when files change on disk

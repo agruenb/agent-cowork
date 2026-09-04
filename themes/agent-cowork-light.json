@@ -19,12 +19,12 @@
     "activityBar.activeBorder": "#10b981",
 
     "sideBar.background": "#f8fafc",
-    "sideBar.foreground": "#334155",
+    "sideBar.foreground": "#1e293b",
     "sideBar.border": "#e2e8f0",
-    "sideBarTitle.foreground": "#0f172a",
-    "sideBarSectionHeader.background": "#f1f5f9",
-    "sideBarSectionHeader.foreground": "#0f766e",
-    "sideBarSectionHeader.border": "#e2e8f0",
+    "sideBarTitle.foreground": "#065f46",
+    "sideBarSectionHeader.background": "#e6f4ea",
+    "sideBarSectionHeader.foreground": "#065f46",
+    "sideBarSectionHeader.border": "#cbd5e1",
 
     "editorGroupHeader.tabsBackground": "#f1f5f9",
     "editorGroupHeader.tabsBorder": "#e2e8f0",
@@ -130,7 +130,9 @@
     "breadcrumb.foreground": "#64748b",
     "breadcrumb.focusForeground": "#065f46",
     "breadcrumb.activeSelectionForeground": "#065f46",
-    "breadcrumbPicker.background": "#ffffff"
+    "breadcrumbPicker.background": "#ffffff",
+
+    "charts.yellow": "#d97706"
   },
   "tokenColors": [
     {

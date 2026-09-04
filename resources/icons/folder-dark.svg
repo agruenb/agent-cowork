@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Classic / old-school filled manila folder with tab, subtle border & 3D shadow depth -->
+  <path d="M2.5 5.5 C2.5 4.67 3.17 4 4 4 L9 4 C9.6 4 10.15 4.35 10.4 4.9 L11.5 7 L20 7 C20.83 7 21.5 7.67 21.5 8.5 L21.5 18.5 C21.5 19.33 20.83 20 20 20 L4 20 C3.17 20 2.5 19.33 2.5 18.5 Z" fill="#d97706" />
+  <!-- Folder Back Tab highlight -->
+  <path d="M4 5 C3.72 5 3.5 5.22 3.5 5.5 L3.5 8 L11 8 L9.9 5.8 C9.75 5.45 9.4 5 9 5 Z" fill="#f59e0b" />
+  <!-- Folder Front Pocket / Body -->
+  <path d="M2.5 8.5 C2.5 7.67 3.17 7 4 7 L20 7 C20.83 7 21.5 7.67 21.5 8.5 L21.5 18.5 C21.5 19.33 20.83 20 20 20 L4 20 C3.17 20 2.5 19.33 2.5 18.5 Z" fill="#fbbf24" stroke="#d97706" stroke-width="1" />
+  <!-- Front flap gradient highlight -->
+  <path d="M3.5 9 L20.5 9 L20.5 10 L3.5 10 Z" fill="#fde68a" />
+</svg>
