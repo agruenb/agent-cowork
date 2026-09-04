@@ -1,18 +1,40 @@
 import * as vscode from 'vscode';
 
+const THEME_NAME = 'Agent Cowork Light';
+
+/**
+ * Enforces the light theme with green accents.
+ */
+async function enforceTheme(): Promise<void> {
+  const workbenchConfig = vscode.workspace.getConfiguration('workbench');
+  const currentTheme = workbenchConfig.get<string>('colorTheme');
+
+  if (currentTheme !== THEME_NAME) {
+    await workbenchConfig.update('colorTheme', THEME_NAME, vscode.ConfigurationTarget.Global);
+  }
+}
+
 /**
  * Called when the extension is activated.
- * The extension is activated the very first time the command is executed.
+ * The extension is activated the very first time the command is executed or on startup.
  */
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   console.log('Congratulations, your extension "agent-cowork" is now active!');
 
+  // Force the light green theme
+  await enforceTheme();
+
   // Register command defined in package.json
-  const disposable = vscode.commands.registerCommand('agent-cowork.helloWorld', () => {
+  const helloWorldCmd = vscode.commands.registerCommand('agent-cowork.helloWorld', () => {
     vscode.window.showInformationMessage('Hello from Agent Cowork!');
   });
 
-  context.subscriptions.push(disposable);
+  const applyThemeCmd = vscode.commands.registerCommand('agent-cowork.applyTheme', async () => {
+    await enforceTheme();
+    vscode.window.showInformationMessage('Agent Cowork Light theme applied!');
+  });
+
+  context.subscriptions.push(helloWorldCmd, applyThemeCmd);
 }
 
 /**
