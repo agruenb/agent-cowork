@@ -14,9 +14,22 @@
   "activationEvents": [
     "onStartupFinished",
     "onView:agentCowork.folderView",
-    "onCommand:agent-cowork.openWorkspaceFolder"
+    "onCommand:agent-cowork.openWorkspaceFolder",
+    "onCustomEditor:agentCowork.markdownEditor"
   ],
   "contributes": {
+    "customEditors": [
+      {
+        "viewType": "agentCowork.markdownEditor",
+        "displayName": "%customEditor.markdownEditor.displayName%",
+        "selector": [
+          {
+            "filenamePattern": "*.{md,markdown,mdown,mkdn,mdx}"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
     "themes": [
       {
         "label": "Agent Cowork Light",

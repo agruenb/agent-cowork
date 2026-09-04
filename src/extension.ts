@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { WelcomePanel } from './welcomePanel';
 import { FolderTreeProvider, FolderItem } from './folderTreeProvider';
+import { MarkdownEditorProvider } from './markdownEditorProvider';
 
 const THEME_NAME = 'Agent Cowork Light';
 
@@ -210,9 +211,8 @@ export async function createNewFile(targetFolderUri?: vscode.Uri): Promise<void>
     // Write empty file
     await vscode.workspace.fs.writeFile(fileUri, new Uint8Array());
 
-    // Open file in editor
-    const document = await vscode.workspace.openTextDocument(fileUri);
-    await vscode.window.showTextDocument(document);
+    // Open file in editor (opens in custom markdown editor by default if .md)
+    await vscode.commands.executeCommand('vscode.open', fileUri);
   } catch (error) {
     vscode.window.showErrorMessage(
       vscode.l10n.t('Fehler beim Erstellen der Datei: {0}', String(error))
@@ -304,6 +304,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   );
 
+  // Register custom formatted Markdown Editor
+  const markdownEditorDisposable = MarkdownEditorProvider.register(context);
+
   context.subscriptions.push(
     openWelcomeCmd,
     helloWorldCmd,
@@ -313,6 +316,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     refreshFolderViewCmd,
     newFileCmd,
     newFileInFolderCmd,
+    markdownEditorDisposable,
   );
 
   // Show welcome startup page if enabled

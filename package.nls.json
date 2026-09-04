@@ -14,5 +14,6 @@
   "config.title": "Agent Cowork",
   "config.showWelcomeOnStartup": "Controls whether to show the Agent Cowork welcome page on startup.",
   "config.simplifyLayout": "Simplifies the user interface by hiding the activity bar icon buttons and keeping the file directory view open.",
-  "config.hideGitAndDrawers": "Hides Git integration and extra drawers (Clone Repository, Outline, Timeline) for non-technical users."
+  "config.hideGitAndDrawers": "Hides Git integration and extra drawers (Clone Repository, Outline, Timeline) for non-technical users.",
+  "customEditor.markdownEditor.displayName": "Agent Cowork Markdown Editor"
 }
