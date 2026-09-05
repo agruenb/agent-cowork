@@ -85,6 +85,29 @@ async function enforceSimpleLayout(): Promise<void> {
     }
   }
 
+  // Hide breadcrumbs bar above documents
+  const breadcrumbsConfig = vscode.workspace.getConfiguration('breadcrumbs');
+  if (breadcrumbsConfig.get<boolean>('enabled') !== false) {
+    try {
+      await breadcrumbsConfig.update('enabled', false, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      console.warn('Unable to update breadcrumbs.enabled:', err);
+    }
+  }
+
+  // Hide the view selector / editor actions toolbar in the editor tab/title bar
+  const editorActionInspection = workbenchConfig.inspect('editor.editorActionsLocation');
+  if (editorActionInspection !== undefined) {
+    const currentActionLocation = workbenchConfig.get<string>('editor.editorActionsLocation');
+    if (currentActionLocation !== 'hidden') {
+      try {
+        await workbenchConfig.update('editor.editorActionsLocation', 'hidden', vscode.ConfigurationTarget.Global);
+      } catch (err) {
+        console.warn('Unable to update workbench.editor.editorActionsLocation:', err);
+      }
+    }
+  }
+
   // Enforce comfortable font size and tree spacing for older users / beginners
   await enforceAccessibilitySettings();
 
