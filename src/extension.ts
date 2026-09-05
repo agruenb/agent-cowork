@@ -5,9 +5,10 @@ import { FolderTreeProvider, FolderItem } from './folderTreeProvider';
 import { MarkdownEditorProvider } from './markdownEditorProvider';
 
 const THEME_NAME = 'Agent Cowork Light';
+const ICON_THEME_NAME = 'agent-cowork-icons';
 
 /**
- * Enforces the light theme with green accents.
+ * Enforces the light theme with green accents and custom file icon theme.
  */
 async function enforceTheme(): Promise<void> {
   const workbenchConfig = vscode.workspace.getConfiguration('workbench');
@@ -15,6 +16,15 @@ async function enforceTheme(): Promise<void> {
 
   if (currentTheme !== THEME_NAME) {
     await workbenchConfig.update('colorTheme', THEME_NAME, vscode.ConfigurationTarget.Global);
+  }
+
+  const currentIconTheme = workbenchConfig.get<string>('iconTheme');
+  if (currentIconTheme !== ICON_THEME_NAME) {
+    try {
+      await workbenchConfig.update('iconTheme', ICON_THEME_NAME, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      console.warn('Unable to update workbench.iconTheme:', err);
+    }
   }
 }
 
@@ -144,6 +154,9 @@ async function enforceSimpleLayout(): Promise<void> {
 
 
 
+  // Enforce browser-like tab bar behavior
+  await enforceBrowserTabBar();
+
   // Enforce comfortable font size and tree spacing for older users / beginners
   await enforceAccessibilitySettings();
 
@@ -156,15 +169,168 @@ async function enforceSimpleLayout(): Promise<void> {
 }
 
 /**
+ * Configures the editor tabs to behave like a modern web browser:
+ * - Tabs shrink to fit the window width instead of immediately horizontally scrolling
+ * - Only scroll horizontally when tabs reach minimum width
+ * - Disables preview mode so clicked files open permanently without replacing the active tab
+ * - Keeps tabs on a single clean row (no wrap)
+ * - Ensures close button and tab icons are always visible
+ * - Highlights modified tabs clearly
+ */
+async function enforceBrowserTabBar(): Promise<void> {
+  const workbenchConfig = vscode.workspace.getConfiguration('workbench');
+
+  // Ensure tab height density is default (tallest standard tab height)
+  const windowConfig = vscode.workspace.getConfiguration('window');
+  if (windowConfig.get<string>('density.editorTabHeight') !== 'default') {
+    try {
+      await windowConfig.update('density.editorTabHeight', 'default', vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      console.warn('Unable to update window.density.editorTabHeight:', err);
+    }
+  }
+
+  // Set tab sizing to 'fit' so tabs have generous width to fit icons and labels comfortably without shrinking into tiny slivers
+  const tabSizingInspection = workbenchConfig.inspect('editor.tabSizing');
+  if (tabSizingInspection !== undefined) {
+    if (workbenchConfig.get<string>('editor.tabSizing') !== 'fit') {
+      try {
+        await workbenchConfig.update('editor.tabSizing', 'fit', vscode.ConfigurationTarget.Global);
+      } catch (err) {
+        console.warn('Unable to update workbench.editor.tabSizing:', err);
+      }
+    }
+  }
+
+  // Ensure tabs stay on a single horizontal row (no multi-line wrapping)
+  if (workbenchConfig.get<boolean>('editor.wrapTabs') !== false) {
+    try {
+      await workbenchConfig.update('editor.wrapTabs', false, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      console.warn('Unable to update workbench.editor.wrapTabs:', err);
+    }
+  }
+
+  // Ensure tabs are shown as multiple tabs
+  if (workbenchConfig.get<string>('editor.showTabs') !== 'multiple') {
+    try {
+      await workbenchConfig.update('editor.showTabs', 'multiple', vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      console.warn('Unable to update workbench.editor.showTabs:', err);
+    }
+  }
+
+  // Disable preview mode so clicking files opens permanent tabs like browser tabs
+  if (workbenchConfig.get<boolean>('editor.enablePreview') !== false) {
+    try {
+      await workbenchConfig.update('editor.enablePreview', false, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      console.warn('Unable to update workbench.editor.enablePreview:', err);
+    }
+  }
+  if (workbenchConfig.get<boolean>('editor.enablePreviewFromQuickOpen') !== false) {
+    try {
+      await workbenchConfig.update('editor.enablePreviewFromQuickOpen', false, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      console.warn('Unable to update workbench.editor.enablePreviewFromQuickOpen:', err);
+    }
+  }
+
+  // Ensure tab close button is visible
+  const closeVisibilityInspection = workbenchConfig.inspect('editor.tabActionCloseVisibility');
+  if (closeVisibilityInspection !== undefined) {
+    if (workbenchConfig.get<boolean>('editor.tabActionCloseVisibility') !== true) {
+      try {
+        await workbenchConfig.update('editor.tabActionCloseVisibility', true, vscode.ConfigurationTarget.Global);
+      } catch (err) {
+        console.warn('Unable to update workbench.editor.tabActionCloseVisibility:', err);
+      }
+    }
+  }
+
+  // Ensure tab icons are enabled
+  if (workbenchConfig.get<boolean>('editor.showIcons') !== true) {
+    try {
+      await workbenchConfig.update('editor.showIcons', true, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      console.warn('Unable to update workbench.editor.showIcons:', err);
+    }
+  }
+
+  // Highlight modified tabs
+  if (workbenchConfig.get<boolean>('editor.highlightModifiedTabs') !== true) {
+    try {
+      await workbenchConfig.update('editor.highlightModifiedTabs', true, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      console.warn('Unable to update workbench.editor.highlightModifiedTabs:', err);
+    }
+  }
+
+  // Ensure harmonious, clearly visible browser-style tab colors are applied immediately
+  try {
+    const existingCustomizations = workbenchConfig.get<Record<string, unknown>>('colorCustomizations') || {};
+    const themeKey = `[${THEME_NAME}]`;
+    const currentThemeCustomizations = (existingCustomizations[themeKey] as Record<string, string>) || {};
+
+    const browserTabColors: Record<string, string> = {
+      'editorGroupHeader.tabsBackground': '#e8edf2',
+      'editorGroupHeader.tabsBorder': '#cbd5e1',
+      'editorGroupHeader.border': '#cbd5e1',
+      'editorGroup.border': '#e2e8f0',
+      'tab.activeBackground': '#ffffff',
+      'tab.activeForeground': '#065f46',
+      'tab.activeBorderTop': '#059669',
+      'tab.activeBorder': '#ffffff',
+      'tab.inactiveBackground': '#e8edf2',
+      'tab.inactiveForeground': '#475569',
+      'tab.border': '#cbd5e1',
+      'tab.hoverBackground': '#ffffff',
+      'tab.hoverForeground': '#065f46',
+      'tab.hoverBorder': '#059669',
+      'tab.unfocusedActiveBackground': '#ffffff',
+      'tab.unfocusedActiveForeground': '#334155',
+      'tab.unfocusedActiveBorder': '#ffffff',
+      'tab.unfocusedActiveBorderTop': '#94a3b8',
+      'tab.unfocusedInactiveBackground': '#e8edf2',
+      'tab.unfocusedInactiveForeground': '#64748b',
+      'tab.lastPinnedBorder': '#cbd5e1',
+      'tab.activeModifiedBorder': '#059669',
+    };
+
+    let hasChanges = false;
+    for (const [key, val] of Object.entries(browserTabColors)) {
+      if (currentThemeCustomizations[key] !== val) {
+        hasChanges = true;
+        break;
+      }
+    }
+
+    if (hasChanges) {
+      const updatedThemeCustomizations = {
+        ...currentThemeCustomizations,
+        ...browserTabColors,
+      };
+      const updatedCustomizations = {
+        ...existingCustomizations,
+        [themeKey]: updatedThemeCustomizations,
+      };
+      await workbenchConfig.update('colorCustomizations', updatedCustomizations, vscode.ConfigurationTarget.Global);
+    }
+  } catch (err) {
+    console.warn('Unable to update workbench.colorCustomizations for tabs:', err);
+  }
+}
+
+/**
  * Sets larger text size, line height, and tree spacing for senior / non-technical users.
  */
 async function enforceAccessibilitySettings(): Promise<void> {
   try {
     const windowConfig = vscode.workspace.getConfiguration('window');
-    // Zoom level 1 increases UI text size across the entire window (sidebar, menus, trees, dialogs)
+    // Zoom level 1.4 increases UI, tab height, and icon size for comfortable viewing
     const currentZoom = windowConfig.get<number>('zoomLevel');
-    if (currentZoom === undefined || currentZoom < 1) {
-      await windowConfig.update('zoomLevel', 1, vscode.ConfigurationTarget.Global);
+    if (currentZoom === undefined || currentZoom < 1.4) {
+      await windowConfig.update('zoomLevel', 1.4, vscode.ConfigurationTarget.Global);
     }
 
     // Ensure comfortable tree row indent
@@ -300,6 +466,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await enforceSimpleLayout();
   }
 
+  // Enforce browser-like tab bar if enabled
+  const browserTabs = config.get<boolean>('browserTabs', true);
+  if (browserTabs) {
+    await enforceBrowserTabBar();
+  }
+
   // Register and wire up the custom folder tree view
   const folderTreeProvider = new FolderTreeProvider(context.extensionUri);
   const folderTreeView = vscode.window.createTreeView('agentCowork.folderView', {
@@ -329,12 +501,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Register applyTheme command with localization
   const applyThemeCmd = vscode.commands.registerCommand('agent-cowork.applyTheme', async () => {
     await enforceTheme();
+    await enforceBrowserTabBar();
     vscode.window.showInformationMessage(vscode.l10n.t('Agent Cowork Light Theme angewendet!'));
   });
 
   // Register simplifyLayout command with localization
   const simplifyLayoutCmd = vscode.commands.registerCommand('agent-cowork.simplifyLayout', async () => {
     await enforceSimpleLayout();
+    await enforceBrowserTabBar();
     vscode.window.showInformationMessage(
       vscode.l10n.t('Vereinfachte Ansicht aktiviert! Seitenleisten-Buttons wurden ausgeblendet.')
     );

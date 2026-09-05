@@ -1,0 +1,26 @@
+{
+  "iconDefinitions": {
+    "_file": {
+      "iconPath": "./file.svg"
+    },
+    "_markdown": {
+      "iconPath": "./markdown.svg"
+    },
+    "_folder": {
+      "iconPath": "./folder.svg"
+    },
+    "_folder_open": {
+      "iconPath": "./folder-open.svg"
+    }
+  },
+  "file": "_file",
+  "folder": "_folder",
+  "folderExpanded": "_folder_open",
+  "fileExtensions": {
+    "md": "_markdown",
+    "markdown": "_markdown",
+    "mdown": "_markdown",
+    "mkdn": "_markdown",
+    "mdx": "_markdown"
+  }
+}

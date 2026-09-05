@@ -14,6 +14,7 @@
   "config.title": "Agent Cowork",
   "config.showWelcomeOnStartup": "Legt fest, ob die Agent Cowork Startseite beim Start angezeigt werden soll.",
   "config.simplifyLayout": "Vereinfacht die Benutzeroberfläche, indem die Seitenleisten-Buttons ausgeblendet werden und nur die Dateiübersicht sichtbar bleibt.",
+  "config.browserTabs": "Konfiguriert die Editor-Tabs wie in einem Webbrowser (Tabs passen sich der Fensterbreite an bevor sie horizontal scrollen, Vorschau-Modus deaktiviert).",
   "config.hideGitAndDrawers": "Blendet Git-Funktionen (wie 'Clone Repository') und zusätzliche Schubladen (Gliederung, Zeitachse) für nicht-technische Benutzer aus.",
   "customEditor.markdownEditor.displayName": "Agent Cowork Markdown-Editor"
 }

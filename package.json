@@ -37,6 +37,13 @@
         "path": "./themes/agent-cowork-light.json"
       }
     ],
+    "iconThemes": [
+      {
+        "id": "agent-cowork-icons",
+        "label": "Agent Cowork Icons",
+        "path": "./resources/icons/agent-cowork-icon-theme.json"
+      }
+    ],
     "commands": [
       {
         "command": "agent-cowork.openWelcome",
@@ -132,6 +139,11 @@
           "type": "boolean",
           "default": true,
           "description": "%config.simplifyLayout%"
+        },
+        "agentCowork.browserTabs": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.browserTabs%"
         },
         "agentCowork.hideGitAndDrawers": {
           "type": "boolean",
