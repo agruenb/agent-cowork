@@ -190,12 +190,12 @@ async function enforceBrowserTabBar(): Promise<void> {
     }
   }
 
-  // Set tab sizing to 'fit' so tabs have generous width to fit icons and labels comfortably without shrinking into tiny slivers
+  // Set tab sizing to 'shrink' so tabs shrink to fit the window width instead of horizontally scrolling
   const tabSizingInspection = workbenchConfig.inspect('editor.tabSizing');
   if (tabSizingInspection !== undefined) {
-    if (workbenchConfig.get<string>('editor.tabSizing') !== 'fit') {
+    if (workbenchConfig.get<string>('editor.tabSizing') !== 'shrink') {
       try {
-        await workbenchConfig.update('editor.tabSizing', 'fit', vscode.ConfigurationTarget.Global);
+        await workbenchConfig.update('editor.tabSizing', 'shrink', vscode.ConfigurationTarget.Global);
       } catch (err) {
         console.warn('Unable to update workbench.editor.tabSizing:', err);
       }
@@ -273,28 +273,37 @@ async function enforceBrowserTabBar(): Promise<void> {
     const currentThemeCustomizations = (existingCustomizations[themeKey] as Record<string, string>) || {};
 
     const browserTabColors: Record<string, string> = {
-      'editorGroupHeader.tabsBackground': '#e8edf2',
-      'editorGroupHeader.tabsBorder': '#cbd5e1',
-      'editorGroupHeader.border': '#cbd5e1',
+      'editorGroupHeader.tabsBackground': '#e2e8f0',
+      'editorGroupHeader.tabsBorder': '#00000000',
+      'editorGroupHeader.border': '#00000000',
       'editorGroup.border': '#e2e8f0',
-      'tab.activeBackground': '#ffffff',
-      'tab.activeForeground': '#065f46',
-      'tab.activeBorderTop': '#059669',
-      'tab.activeBorder': '#ffffff',
-      'tab.inactiveBackground': '#e8edf2',
+      'tab.activeBackground': '#059669',
+      'tab.activeForeground': '#ffffff',
+      'tab.activeBorder': '#059669',
+      'tab.activeBorderTop': '#00000000',
+      'tab.selectedBorderTop': '#00000000',
+      'tab.inactiveBackground': '#e2e8f0',
       'tab.inactiveForeground': '#475569',
-      'tab.border': '#cbd5e1',
-      'tab.hoverBackground': '#ffffff',
-      'tab.hoverForeground': '#065f46',
-      'tab.hoverBorder': '#059669',
-      'tab.unfocusedActiveBackground': '#ffffff',
-      'tab.unfocusedActiveForeground': '#334155',
-      'tab.unfocusedActiveBorder': '#ffffff',
-      'tab.unfocusedActiveBorderTop': '#94a3b8',
-      'tab.unfocusedInactiveBackground': '#e8edf2',
+      'tab.border': '#00000000',
+      'tab.hoverBackground': '#059669',
+      'tab.hoverForeground': '#ffffff',
+      'tab.hoverBorder': '#00000000',
+      'tab.unfocusedHoverBackground': '#059669cc',
+      'tab.unfocusedHoverForeground': '#ffffff',
+      'tab.unfocusedActiveBackground': '#059669cc',
+      'tab.unfocusedActiveForeground': '#ffffff',
+      'tab.unfocusedActiveBorder': '#059669cc',
+      'tab.unfocusedActiveBorderTop': '#00000000',
+      'tab.unfocusedInactiveBackground': '#e2e8f0',
       'tab.unfocusedInactiveForeground': '#64748b',
-      'tab.lastPinnedBorder': '#cbd5e1',
-      'tab.activeModifiedBorder': '#059669',
+      'tab.lastPinnedBorder': '#00000000',
+      'tab.activeModifiedBorder': '#ffffff',
+      'tab.inactiveModifiedBorder': '#64748b',
+      'tab.unfocusedActiveModifiedBorder': '#ffffff',
+      'tab.unfocusedInactiveModifiedBorder': '#64748b',
+      'tab.dragAndDropBorder': '#059669',
+      'tab.selectedBackground': '#059669',
+      'tab.selectedForeground': '#ffffff',
     };
 
     let hasChanges = false;
