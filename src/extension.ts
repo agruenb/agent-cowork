@@ -108,6 +108,42 @@ async function enforceSimpleLayout(): Promise<void> {
     }
   }
 
+  // Hide the search bar (Command Center) in the top title bar
+  const windowConfig = vscode.workspace.getConfiguration('window');
+  if (windowConfig.get<boolean>('commandCenter') !== false) {
+    try {
+      await windowConfig.update('commandCenter', false, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      console.warn('Unable to update window.commandCenter:', err);
+    }
+  }
+
+  // Hide layout controls (customize layout buttons) in the top bar
+  const layoutControlInspection = workbenchConfig.inspect('layoutControl.enabled');
+  if (layoutControlInspection !== undefined) {
+    if (workbenchConfig.get<boolean>('layoutControl.enabled') !== false) {
+      try {
+        await workbenchConfig.update('layoutControl.enabled', false, vscode.ConfigurationTarget.Global);
+      } catch (err) {
+        console.warn('Unable to update workbench.layoutControl.enabled:', err);
+      }
+    }
+  }
+
+  // Hide navigation controls (back/forward arrows) in the top title bar if present
+  const navigationControlInspection = workbenchConfig.inspect('navigationControl.enabled');
+  if (navigationControlInspection !== undefined) {
+    if (workbenchConfig.get<boolean>('navigationControl.enabled') !== false) {
+      try {
+        await workbenchConfig.update('navigationControl.enabled', false, vscode.ConfigurationTarget.Global);
+      } catch (err) {
+        console.warn('Unable to update workbench.navigationControl.enabled:', err);
+      }
+    }
+  }
+
+
+
   // Enforce comfortable font size and tree spacing for older users / beginners
   await enforceAccessibilitySettings();
 
