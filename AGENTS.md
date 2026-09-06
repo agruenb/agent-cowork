@@ -7,7 +7,7 @@ This is a VS Code extension that simplifies the use of VS Code with AI Agents fo
 - **Editor Tabs (Tab Bar)**:
   - Configured to behave like a web browser: `workbench.editor.tabSizing: 'shrink'`, `workbench.editor.wrapTabs: false`, `workbench.editor.showTabs: 'multiple'`, `workbench.editor.enablePreview: false`, `workbench.editor.enablePreviewFromQuickOpen: false`, `workbench.editor.tabActionCloseVisibility: true`, `window.density.editorTabHeight: 'default'`.
   - Tab height and legibility are enhanced via `window.zoomLevel: 1.4`, providing tall, easily clickable tabs with large icons and readable labels.
-  - The custom File Icon Theme (`agent-cowork-icons`) ensures tabs display the custom `.md` robot icon (`resources/icons/markdown.svg`) and custom document file icon (`resources/icons/file.svg`), matching the folder tree view.
+  - The custom File Icon Theme (`agent-cowork-icons`) ensures tabs display the custom `.md` brain icon (`resources/icons/markdown.svg`) and custom document file icon (`resources/icons/file.svg`), matching the folder tree view.
   - The Light Green Theme (`Agent Cowork Light`) renders harmonious browser tabs: a darker slate backdrop (`editorGroupHeader.tabsBackground: #e2e8f0`), borderless tab integration (`tab.border: #00000000`, `editorGroupHeader.tabsBorder: #00000000`), and a vibrant green active/selected tab (`tab.activeBackground: #059669`, `tab.activeForeground: #ffffff`).
   - Color customizations are also synced directly into `workbench.colorCustomizations['[Agent Cowork Light]']` so changes render immediately in real-time.
 - **Bottom Bar (Status Bar)**:
