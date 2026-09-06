@@ -3,11 +3,37 @@
   "displayName": "Agent Cowork",
   "description": "%extension.description%",
   "version": "0.0.1",
+  "publisher": "agruenb",
+  "icon": "resources/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agruenb/agent-cowork.git"
+  },
+  "bugs": {
+    "url": "https://github.com/agruenb/agent-cowork/issues"
+  },
+  "homepage": "https://github.com/agruenb/agent-cowork#readme",
+  "galleryBanner": {
+    "color": "#059669",
+    "theme": "dark"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "cowork",
+    "markdown",
+    "theme",
+    "productivity",
+    "simple"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other"
+    "Themes",
+    "Other",
+    "Productivity"
   ],
   "main": "./dist/extension.js",
   "l10n": "./l10n",
@@ -159,6 +185,8 @@
     "watch": "node esbuild.js --watch",
     "dev": "node esbuild.js --watch",
     "package": "node esbuild.js --production",
+    "package-vsix": "vsce package",
+    "publish-extension": "vsce publish",
     "check-types": "tsc --noEmit",
     "lint": "eslint src --ext ts"
   },
@@ -167,6 +195,7 @@
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.20.0",
     "eslint": "^8.57.0",
     "typescript": "^5.3.3"

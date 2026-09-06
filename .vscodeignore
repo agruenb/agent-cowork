@@ -1,0 +1,12 @@
+.vscode/**
+.vscode-test/**
+src/**
+.eslintrc.json
+tsconfig.json
+esbuild.js
+AGENTS.md
+**/*.map
+.git/**
+.gitignore
+*.vsix
+resources/icon.svg

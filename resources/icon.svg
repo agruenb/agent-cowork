@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.18" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded rectangle -->
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="url(#bgGrad)" />
+
+  <!-- Inner subtle border -->
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.25" />
+
+  <!-- Robot / Coworker Icon centered -->
+  <g filter="url(#shadow)" fill="#ffffff">
+    <!-- Antenna -->
+    <rect x="123" y="58" width="10" height="20" rx="5" />
+    <circle cx="128" cy="54" r="9" />
+
+    <!-- Head -->
+    <rect x="64" y="78" width="128" height="96" rx="28" />
+
+    <!-- Ears / Bolts -->
+    <rect x="48" y="112" width="16" height="28" rx="6" />
+    <rect x="192" y="112" width="16" height="28" rx="6" />
+
+    <!-- Neck / Collar -->
+    <path d="M 96 174 L 160 174 C 160 174 154 186 128 186 C 102 186 96 174 96 174 Z" />
+
+    <!-- Shoulders -->
+    <path d="M 60 206 C 60 190 84 186 128 186 C 172 186 196 190 196 206 L 196 208 L 60 208 Z" fill="#ffffff" fill-opacity="0.9" />
+
+    <!-- Eye Visor & Eyes -->
+    <!-- Visor screen cutout -->
+    <rect x="78" y="96" width="100" height="42" rx="14" fill="#064e3b" />
+
+    <!-- Eyes (Glowing emerald) -->
+    <circle cx="106" cy="117" r="10" fill="#34d399" />
+    <circle cx="150" cy="117" r="10" fill="#34d399" />
+    <circle cx="108" cy="115" r="3.5" fill="#ffffff" />
+    <circle cx="152" cy="115" r="3.5" fill="#ffffff" />
+
+    <!-- Friendly Smile -->
+    <path d="M 112 154 Q 128 164 144 154" fill="none" stroke="#047857" stroke-width="4" stroke-linecap="round" />
+  </g>
+</svg>
