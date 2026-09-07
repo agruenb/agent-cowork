@@ -337,10 +337,10 @@ async function enforceBrowserTabBar(): Promise<void> {
 async function enforceAccessibilitySettings(): Promise<void> {
   try {
     const windowConfig = vscode.workspace.getConfiguration('window');
-    // Zoom level 1.4 increases UI, tab height, and icon size for comfortable viewing
+    // Zoom level 1 increases UI, tab height, and icon size for comfortable viewing (VS Code default is 0)
     const currentZoom = windowConfig.get<number>('zoomLevel');
-    if (currentZoom === undefined || currentZoom < 1.4) {
-      await windowConfig.update('zoomLevel', 1.4, vscode.ConfigurationTarget.Global);
+    if (currentZoom === undefined || currentZoom < 1) {
+      await windowConfig.update('zoomLevel', 1, vscode.ConfigurationTarget.Global);
     }
 
     // Ensure comfortable tree row indent
