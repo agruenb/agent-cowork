@@ -3,7 +3,7 @@
   "displayName": "Agent Cowork",
   "description": "%extension.description%",
   "version": "0.0.1",
-  "publisher": "agruenb",
+  "publisher": "AdrianGruenberg",
   "icon": "resources/icon.png",
   "license": "MIT",
   "repository": {
@@ -32,8 +32,7 @@
   },
   "categories": [
     "Themes",
-    "Other",
-    "Productivity"
+    "Other"
   ],
   "main": "./dist/extension.js",
   "l10n": "./l10n",
