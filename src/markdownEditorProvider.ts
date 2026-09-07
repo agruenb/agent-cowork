@@ -90,6 +90,13 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           }
           break;
         }
+        case 'cowork': {
+          if (document.isDirty) {
+            await document.save();
+          }
+          await vscode.commands.executeCommand('agent-cowork.coworkWithFile', document.uri);
+          break;
+        }
       }
     });
 
@@ -174,6 +181,16 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
       <!-- Discreet / un-prominent Raw Markdown source toggle -->
       <button id="btn-toggle-raw" class="raw-toggle-btn" tabindex="-1" title="Markdown-Quelltext anzeigen oder bearbeiten">&lt;/&gt; Raw</button>
+
+      <div class="toolbar-separator"></div>
+
+      <!-- Cowork with AI button -->
+      <button id="btn-cowork" class="cowork-btn" tabindex="-1" title="Mit KI-Agent an diesem Dokument zusammenarbeiten">
+        <span>Cowork</span>
+        <svg class="cowork-arrow-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+          <path fill-rule="evenodd" d="M1 8a.75.75 0 0 1 .75-.75h10.19L8.22 3.53a.75.75 0 0 1 1.06-1.06l5 5a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 0 1-1.06-1.06l3.72-3.72H1.75A.75.75 0 0 1 1 8z"/>
+        </svg>
+      </button>
     </div>
 
     <!-- Document Scroll Area -->

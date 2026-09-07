@@ -104,6 +104,11 @@
         "command": "agent-cowork.newFileInFolder",
         "title": "%command.newFile.title%",
         "icon": "$(new-file)"
+      },
+      {
+        "command": "agent-cowork.coworkWithFile",
+        "title": "%command.coworkWithFile.title%",
+        "icon": "$(comment-discussion)"
       }
     ],
     "viewsContainers": {

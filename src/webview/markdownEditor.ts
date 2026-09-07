@@ -22,6 +22,7 @@ const rawTextarea = document.getElementById('raw-textarea') as HTMLTextAreaEleme
 const rawToggleBtn = document.getElementById('btn-toggle-raw') as HTMLButtonElement;
 const headingSelect = document.getElementById('select-heading') as HTMLSelectElement;
 const wordCountEl = document.getElementById('word-count') as HTMLElement;
+const coworkBtn = document.getElementById('btn-cowork') as HTMLButtonElement;
 
 let isRawMode = false;
 let currentMarkdown = '';
@@ -460,6 +461,25 @@ headingSelect?.addEventListener('change', (e) => {
 // Raw toggle
 rawToggleBtn?.addEventListener('click', () => {
   toggleRawMode();
+});
+
+// Cowork with AI button
+coworkBtn?.addEventListener('click', () => {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+    isInternalChange = true;
+    vscode.postMessage({
+      type: 'edit',
+      text: currentMarkdown,
+    });
+    setTimeout(() => {
+      isInternalChange = false;
+    }, 150);
+  }
+  vscode.postMessage({
+    type: 'cowork',
+  });
 });
 
 // Update heading select value based on selection change

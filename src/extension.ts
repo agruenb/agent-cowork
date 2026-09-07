@@ -3,6 +3,7 @@ import * as path from 'path';
 import { WelcomePanel } from './welcomePanel';
 import { FolderTreeProvider, FolderItem } from './folderTreeProvider';
 import { MarkdownEditorProvider } from './markdownEditorProvider';
+import { coworkWithFile } from './coworkChat';
 
 const THEME_NAME = 'Agent Cowork Light';
 const ICON_THEME_NAME = 'agent-cowork-icons';
@@ -546,6 +547,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   );
 
+  // Register coworkWithFile command (links file to new AI conversation)
+  const coworkWithFileCmd = vscode.commands.registerCommand(
+    'agent-cowork.coworkWithFile',
+    async (targetUri?: vscode.Uri) => {
+      await coworkWithFile(targetUri);
+    }
+  );
+
   // Register custom formatted Markdown Editor
   const markdownEditorDisposable = MarkdownEditorProvider.register(context);
 
@@ -558,6 +567,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     refreshFolderViewCmd,
     newFileCmd,
     newFileInFolderCmd,
+    coworkWithFileCmd,
     markdownEditorDisposable,
   );
 
