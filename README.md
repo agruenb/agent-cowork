@@ -56,6 +56,80 @@ Agent Cowork includes customizable preferences under `Settings > Extensions > Ag
 
 ---
 
+## 🛠️ Development & Build Tutorial
+
+Follow these steps to set up the project locally, build the extension, run tests, and package a `.vsix` file.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18 or later recommended)
+- [npm](https://www.npmjs.com/)
+- [Visual Studio Code](https://code.visualstudio.com/) (v1.85.0 or later)
+
+### 1. Clone & Install Dependencies
+
+```bash
+git clone https://github.com/agruenb/agent-cowork.git
+cd agent-cowork
+npm install
+```
+
+### 2. Development & Watching
+
+To start incremental compilation and watch for changes in both the extension host and webview bundles:
+
+```bash
+npm run watch
+# or
+npm run dev
+```
+
+### 3. Debugging in VS Code
+
+1. Open the project folder in VS Code:
+   ```bash
+   code .
+   ```
+2. Press <kbd>F5</kbd> (or open the **Run & Debug** view and select **Run Extension**).
+3. A new **Extension Development Host** window will open with the Agent Cowork extension active.
+
+### 4. Running Tests & Type Checking
+
+Ensure types and tests pass:
+
+```bash
+# Type check TypeScript
+npm run check-types
+
+# Run linter
+npm run lint
+
+# Run unit tests (Mocha with tsx)
+npm test
+```
+
+### 5. Production Build & Packaging (.vsix)
+
+To create an optimized production build:
+
+```bash
+npm run package
+```
+
+To package the extension into an installable `.vsix` file (for local installation or distribution):
+
+```bash
+npm run package-vsix
+```
+
+This generates `agent-cowork-<version>.vsix` in the project root. You can install it directly in VS Code using:
+
+```bash
+code --install-extension agent-cowork-*.vsix
+```
+
+---
+
 ## 📄 License
 
 Distributed under the [MIT License](LICENSE).
