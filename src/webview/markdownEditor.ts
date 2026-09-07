@@ -1,5 +1,12 @@
 import { markdownToHtml } from '../markdown/parser';
 import { domToMarkdown } from '../markdown/serializer';
+import {
+  indentListItem,
+  outdentListItem,
+  indentRawText,
+  outdentRawText,
+  isCursorAtStartOfListItem,
+} from '../markdown/listOperations';
 
 declare function acquireVsCodeApi(): {
   postMessage(message: unknown): void;
@@ -230,34 +237,140 @@ editorCanvas.addEventListener('input', () => {
   emitEdit(md);
 });
 
+function saveSelection(): { container: Node; offset: number } | null {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    return { container: range.startContainer, offset: range.startOffset };
+  }
+  return null;
+}
+
+function restoreSelection(saved: { container: Node; offset: number } | null): void {
+  if (!saved) return;
+  const sel = window.getSelection();
+  if (sel) {
+    try {
+      const range = document.createRange();
+      const maxOffset = saved.container.textContent?.length || 0;
+      range.setStart(saved.container, Math.min(saved.offset, maxOffset));
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch {
+      // Ignore if DOM node hierarchy shifted
+    }
+  }
+}
+
 // Raw textarea input listener
 rawTextarea.addEventListener('input', () => {
   emitEdit(rawTextarea.value);
 });
 
+// Raw textarea Tab and Shift+Tab keydown listener
+rawTextarea.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const result = e.shiftKey
+      ? outdentRawText(rawTextarea.value, rawTextarea.selectionStart, rawTextarea.selectionEnd)
+      : indentRawText(rawTextarea.value, rawTextarea.selectionStart, rawTextarea.selectionEnd);
+
+    rawTextarea.value = result.value;
+    rawTextarea.selectionStart = result.selectionStart;
+    rawTextarea.selectionEnd = result.selectionEnd;
+    emitEdit(rawTextarea.value);
+  }
+});
+
 // Keyboard shortcuts inside formatted editor canvas
 editorCanvas.addEventListener('keydown', (e: KeyboardEvent) => {
-  // Enter key handling in task items
+  // Tab / Shift+Tab for list indentation / outdenting
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const anchorNode = selection.anchorNode;
+      const li = anchorNode instanceof Element ? anchorNode.closest('li') : anchorNode?.parentElement?.closest('li');
+      if (li && editorCanvas.contains(li)) {
+        if (e.shiftKey) {
+          const saved = saveSelection();
+          outdentListItem(li);
+          wireTaskCheckboxes();
+          restoreSelection(saved);
+          const md = domToMarkdown(editorCanvas);
+          emitEdit(md);
+          return;
+        }
+
+        // Only indent the list item if cursor is at the beginning of the item or text is selected
+        if (!selection.isCollapsed || isCursorAtStartOfListItem(li, selection)) {
+          const saved = saveSelection();
+          indentListItem(li);
+          wireTaskCheckboxes();
+          restoreSelection(saved);
+          const md = domToMarkdown(editorCanvas);
+          emitEdit(md);
+          return;
+        }
+
+        // Inside list item but cursor is in the middle or at the end: insert 2 spaces
+        document.execCommand('insertText', false, '  ');
+        const md = domToMarkdown(editorCanvas);
+        emitEdit(md);
+        return;
+      }
+
+      // If not in a list item and not Shift+Tab, insert 2 spaces
+      if (!e.shiftKey) {
+        document.execCommand('insertText', false, '  ');
+        const md = domToMarkdown(editorCanvas);
+        emitEdit(md);
+        return;
+      }
+    }
+    return;
+  }
+
+  // Enter key handling in list items
   if (e.key === 'Enter' && !e.shiftKey) {
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const anchorNode = selection.anchorNode;
-      const li = anchorNode instanceof Element ? anchorNode.closest('.task-item') : anchorNode?.parentElement?.closest('.task-item');
-      if (li) {
-        e.preventDefault();
-        const contentEl = li.querySelector('.task-content');
-        const text = contentEl?.textContent?.trim();
+      const li = anchorNode instanceof Element ? anchorNode.closest('li') : anchorNode?.parentElement?.closest('li');
+      if (li && editorCanvas.contains(li)) {
+        const isTask =
+          li.classList.contains('task-item') ||
+          li.parentElement?.classList.contains('task-list') ||
+          li.querySelector(':scope > input[type="checkbox"]') !== null;
+        const contentEl = isTask ? (li.querySelector('.task-content') || li) : li;
+        const text = contentEl.textContent?.trim() || '';
 
-        // If empty task item, exit task list and insert a paragraph
+        // If empty list item: outdent if nested, or exit list if at root
         if (!text) {
-          const ul = li.closest('ul');
+          e.preventDefault();
+          const currentList = li.parentElement;
+          const parentLi = currentList?.closest('li');
+          if (parentLi) {
+            outdentListItem(li);
+            wireTaskCheckboxes();
+            const md = domToMarkdown(editorCanvas);
+            emitEdit(md);
+            return;
+          }
+
+          // Top-level empty list item: exit list and insert a paragraph
           li.remove();
+          if (currentList && currentList.children.length === 0) {
+            currentList.remove();
+          }
+
           const p = document.createElement('p');
           p.className = 'editor-block';
           p.setAttribute('data-block-type', 'paragraph');
           p.innerHTML = '<br>';
-          if (ul && ul.parentNode) {
-            ul.parentNode.insertBefore(p, ul.nextSibling);
+          if (currentList && currentList.parentNode) {
+            currentList.parentNode.insertBefore(p, currentList.nextSibling);
           } else {
             editorCanvas.appendChild(p);
           }
@@ -266,37 +379,47 @@ editorCanvas.addEventListener('keydown', (e: KeyboardEvent) => {
           range.collapse(true);
           selection.removeAllRanges();
           selection.addRange(range);
+
+          const md = domToMarkdown(editorCanvas);
+          emitEdit(md);
           return;
         }
 
-        // Otherwise insert a new task item
-        const newLi = document.createElement('li');
-        newLi.className = 'task-item';
-        newLi.setAttribute('data-checked', 'false');
+        if (isTask) {
+          // Only for task checklists: insert a new task item with checkbox
+          e.preventDefault();
+          const newLi = document.createElement('li');
+          newLi.className = 'task-item';
+          newLi.setAttribute('data-checked', 'false');
 
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.className = 'task-checkbox';
-        cb.contentEditable = 'false';
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'task-checkbox';
+          cb.contentEditable = 'false';
 
-        const span = document.createElement('span');
-        span.className = 'task-content';
-        span.innerHTML = '<br>';
+          const span = document.createElement('span');
+          span.className = 'task-content';
+          span.innerHTML = '<br>';
 
-        newLi.appendChild(cb);
-        newLi.appendChild(span);
+          newLi.appendChild(cb);
+          newLi.appendChild(span);
 
-        li.after(newLi);
-        wireTaskCheckboxes();
+          li.after(newLi);
+          wireTaskCheckboxes();
 
-        const range = document.createRange();
-        range.setStart(span, 0);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
+          const range = document.createRange();
+          range.setStart(span, 0);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
 
-        const md = domToMarkdown(editorCanvas);
-        emitEdit(md);
+          const md = domToMarkdown(editorCanvas);
+          emitEdit(md);
+          return;
+        }
+
+        // For regular bullet or ordered lists with text:
+        // Native contenteditable handles Enter by creating a new <li> of the current list type.
       }
     }
   }

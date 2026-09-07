@@ -13,17 +13,22 @@ export function serializeInlineNodes(container: Node): string {
   for (let i = 0; i < container.childNodes.length; i++) {
     const node = container.childNodes[i];
 
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (node.nodeType === 3 /* Node.TEXT_NODE */) {
       text += node.nodeValue || '';
       continue;
     }
 
-    if (node.nodeType === Node.ELEMENT_NODE) {
+    if (node.nodeType === 1 /* Node.ELEMENT_NODE */) {
       const el = node as HTMLElement;
       const tagName = el.tagName.toLowerCase();
 
       // Skip task checkboxes in inline serialization
       if (tagName === 'input' && (el as HTMLInputElement).type === 'checkbox') {
+        continue;
+      }
+
+      // Skip nested lists in inline serialization (handled by list block serializer)
+      if (tagName === 'ul' || tagName === 'ol') {
         continue;
       }
 
@@ -84,6 +89,80 @@ export function serializeInlineNodes(container: Node): string {
 }
 
 /**
+ * Recursively serializes a list element (ul or ol) and all its nested sublists into Markdown lines.
+ */
+export function serializeListBlock(listEl: HTMLElement, indentLevel = 0): string[] {
+  const lines: string[] = [];
+  const indent = '  '.repeat(indentLevel);
+  const isOrdered =
+    listEl.tagName.toLowerCase() === 'ol' ||
+    listEl.getAttribute('data-block-type') === 'ordered_list' ||
+    listEl.classList.contains('ordered-list');
+
+  let orderIndex = 1;
+
+  for (let i = 0; i < listEl.children.length; i++) {
+    const child = listEl.children[i] as HTMLElement;
+    const childTag = child.tagName.toLowerCase();
+
+    // Handle browser-quirk where a sublist is placed directly inside parent list instead of inside li
+    if (childTag === 'ul' || childTag === 'ol') {
+      const subLines = serializeListBlock(child, indentLevel + 1);
+      lines.push(...subLines);
+      continue;
+    }
+
+    if (childTag === 'li') {
+      const isTaskItem =
+        child.classList.contains('task-item') ||
+        child.getAttribute('data-checked') !== null ||
+        child.querySelector(':scope > input[type="checkbox"]') !== null;
+
+      let prefix = '';
+      if (isTaskItem) {
+        const checkbox = child.querySelector(':scope > input[type="checkbox"]') as HTMLInputElement | null;
+        const isChecked = checkbox ? checkbox.checked : child.getAttribute('data-checked') === 'true';
+        prefix = `- [${isChecked ? 'x' : ' '}] `;
+      } else if (isOrdered) {
+        prefix = `${orderIndex}. `;
+        orderIndex++;
+      } else {
+        prefix = '- ';
+      }
+
+      const contentEl = child.querySelector(':scope > .task-content') || child;
+      const text = serializeInlineNodes(contentEl).trim();
+      lines.push(`${indent}${prefix}${text}`);
+
+      // Inspect any nested lists inside this li (child ul/ol or inside task-content)
+      const nestedLists: HTMLElement[] = [];
+      for (let j = 0; j < child.children.length; j++) {
+        const liChild = child.children[j] as HTMLElement;
+        const liChildTag = liChild.tagName.toLowerCase();
+        if (liChildTag === 'ul' || liChildTag === 'ol') {
+          nestedLists.push(liChild);
+        } else if (liChild.classList.contains('task-content')) {
+          for (let k = 0; k < liChild.children.length; k++) {
+            const taskChild = liChild.children[k] as HTMLElement;
+            const taskChildTag = taskChild.tagName.toLowerCase();
+            if (taskChildTag === 'ul' || taskChildTag === 'ol') {
+              nestedLists.push(taskChild);
+            }
+          }
+        }
+      }
+
+      for (const subList of nestedLists) {
+        const subLines = serializeListBlock(subList, indentLevel + 1);
+        lines.push(...subLines);
+      }
+    }
+  }
+
+  return lines;
+}
+
+/**
  * Serializes the entire editor DOM container into standard Markdown.
  */
 export function domToMarkdown(editorRoot: HTMLElement): string {
@@ -137,45 +216,18 @@ export function domToMarkdown(editorRoot: HTMLElement): string {
       continue;
     }
 
-    // Task List
-    if (blockEl.classList.contains('task-list') || blockType === 'task_list') {
-      const taskLines: string[] = [];
-      const items = blockEl.querySelectorAll('li');
-      items.forEach((li) => {
-        const checkbox = li.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
-        const isChecked = checkbox ? checkbox.checked : li.getAttribute('data-checked') === 'true';
-        const contentEl = li.querySelector('.task-content') || li;
-        const text = serializeInlineNodes(contentEl).trim();
-        taskLines.push(`- [${isChecked ? 'x' : ' '}] ${text}`);
-      });
-      if (taskLines.length > 0) {
-        blocks.push(taskLines.join('\n'));
-      }
-      continue;
-    }
-
-    // Unordered Bullet List
-    if (tagName === 'ul' || blockType === 'unordered_list') {
-      const listLines: string[] = [];
-      const items = blockEl.querySelectorAll(':scope > li');
-      items.forEach((li) => {
-        const text = serializeInlineNodes(li).trim();
-        listLines.push(`- ${text}`);
-      });
-      if (listLines.length > 0) {
-        blocks.push(listLines.join('\n'));
-      }
-      continue;
-    }
-
-    // Ordered List
-    if (tagName === 'ol' || blockType === 'ordered_list') {
-      const listLines: string[] = [];
-      const items = blockEl.querySelectorAll(':scope > li');
-      items.forEach((li, index) => {
-        const text = serializeInlineNodes(li).trim();
-        listLines.push(`${index + 1}. ${text}`);
-      });
+    // Lists (Unordered, Ordered, Task Lists, and nested variations)
+    if (
+      tagName === 'ul' ||
+      tagName === 'ol' ||
+      blockType === 'unordered_list' ||
+      blockType === 'ordered_list' ||
+      blockType === 'task_list' ||
+      blockEl.classList.contains('task-list') ||
+      blockEl.classList.contains('bullet-list') ||
+      blockEl.classList.contains('ordered-list')
+    ) {
+      const listLines = serializeListBlock(blockEl, 0);
       if (listLines.length > 0) {
         blocks.push(listLines.join('\n'));
       }

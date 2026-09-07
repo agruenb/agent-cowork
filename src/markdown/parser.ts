@@ -44,6 +44,12 @@ export function parseInlineMarkdown(text: string): string {
   return result;
 }
 
+export interface MarkdownListItem {
+  text: string;
+  checked?: boolean;
+  children?: MarkdownBlock[];
+}
+
 export interface MarkdownBlock {
   type:
     | 'heading'
@@ -57,10 +63,66 @@ export interface MarkdownBlock {
     | 'hr';
   level?: number;
   content?: string;
-  items?: { text: string; checked?: boolean }[];
+  items?: MarkdownListItem[];
   language?: string;
   headers?: string[];
   rows?: string[][];
+}
+
+interface ParsedListLine {
+  indent: number;
+  listType: 'task_list' | 'unordered_list' | 'ordered_list';
+  checked?: boolean;
+  text: string;
+}
+
+function matchListItem(line: string): ParsedListLine | null {
+  const expanded = line.replace(/\t/g, '  ');
+  const indentMatch = expanded.match(/^(\s*)/);
+  const indent = indentMatch ? indentMatch[1].length : 0;
+  const trimmed = line.trim();
+
+  // Task list item: - [ ] or - [x] or * [ ] or + [ ]
+  const taskMatch = trimmed.match(/^[-*+]\s+\[([ xX])\]\s*(.*)$/);
+  if (taskMatch) {
+    return {
+      indent,
+      listType: 'task_list',
+      checked: taskMatch[1].toLowerCase() === 'x',
+      text: taskMatch[2],
+    };
+  }
+
+  // Unordered list item: - or * or + (exclude horizontal rules ---, ***, ___)
+  const hrMatch = /^(\*{3,}|-{3,}|_{3,})$/.test(trimmed);
+  if (!hrMatch) {
+    const unorderedMatch = trimmed.match(/^[-*+]\s+(.*)$/);
+    if (unorderedMatch) {
+      return {
+        indent,
+        listType: 'unordered_list',
+        text: unorderedMatch[1],
+      };
+    }
+  }
+
+  // Ordered list item: 1. or 1)
+  const orderedMatch = trimmed.match(/^\d+[.)]\s+(.*)$/);
+  if (orderedMatch) {
+    return {
+      indent,
+      listType: 'ordered_list',
+      text: orderedMatch[1],
+    };
+  }
+
+  return null;
+}
+
+interface ListStackFrame {
+  indent: number;
+  block: MarkdownBlock;
+  currentItem: MarkdownListItem;
 }
 
 /**
@@ -161,60 +223,133 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
       continue;
     }
 
-    // Task list: - [ ] or - [x] or * [ ] or * [x]
-    if (/^[-*+]\s+\[([ xX])\]\s+(.*)$/.test(trimmed)) {
-      const items: { text: string; checked: boolean }[] = [];
-      while (i < lines.length) {
-        const match = lines[i].trim().match(/^[-*+]\s+\[([ xX])\]\s+(.*)$/);
-        if (!match) {
-          break;
-        }
-        items.push({
-          checked: match[1].toLowerCase() === 'x',
-          text: match[2],
-        });
-        i++;
-      }
-      blocks.push({
-        type: 'task_list',
-        items,
-      });
-      continue;
-    }
+    // List item (Task list, Unordered list, or Ordered list) with nested support
+    const initialListLine = matchListItem(line);
+    if (initialListLine) {
+      const rootBlock: MarkdownBlock = {
+        type: initialListLine.listType,
+        items: [],
+      };
+      const firstItem: MarkdownListItem = {
+        text: initialListLine.text,
+        ...(initialListLine.checked !== undefined ? { checked: initialListLine.checked } : {}),
+      };
+      rootBlock.items!.push(firstItem);
 
-    // Unordered list: - or * or + (not task list)
-    if (/^[-*+]\s+(.*)$/.test(trimmed)) {
-      const items: { text: string }[] = [];
-      while (i < lines.length) {
-        const match = lines[i].trim().match(/^[-*+]\s+(.*)$/);
-        if (!match || /^[-*+]\s+\[([ xX])\]/.test(lines[i].trim())) {
-          break;
-        }
-        items.push({ text: match[1] });
-        i++;
-      }
-      blocks.push({
-        type: 'unordered_list',
-        items,
-      });
-      continue;
-    }
+      const stack: ListStackFrame[] = [
+        {
+          indent: initialListLine.indent,
+          block: rootBlock,
+          currentItem: firstItem,
+        },
+      ];
 
-    // Ordered list: 1. item
-    if (/^\d+\.\s+(.*)$/.test(trimmed)) {
-      const items: { text: string }[] = [];
+      i++;
+
       while (i < lines.length) {
-        const match = lines[i].trim().match(/^\d+\.\s+(.*)$/);
-        if (!match) {
+        const curLine = lines[i];
+        const curTrimmed = curLine.trim();
+
+        if (!curTrimmed) {
+          // Check if list continues after blank line
+          let nextIdx = i + 1;
+          while (nextIdx < lines.length && !lines[nextIdx].trim()) {
+            nextIdx++;
+          }
+          if (nextIdx < lines.length && matchListItem(lines[nextIdx])) {
+            i = nextIdx;
+            continue;
+          }
+          // Blank line ends list
           break;
         }
-        items.push({ text: match[1] });
-        i++;
+
+        const parsed = matchListItem(curLine);
+        if (parsed) {
+          const newItem: MarkdownListItem = {
+            text: parsed.text,
+            ...(parsed.checked !== undefined ? { checked: parsed.checked } : {}),
+          };
+
+          if (parsed.indent > stack[stack.length - 1].indent) {
+            // Nested child list
+            const parentFrame = stack[stack.length - 1];
+            const subBlock: MarkdownBlock = {
+              type: parsed.listType,
+              items: [newItem],
+            };
+            if (!parentFrame.currentItem.children) {
+              parentFrame.currentItem.children = [];
+            }
+            parentFrame.currentItem.children.push(subBlock);
+            stack.push({
+              indent: parsed.indent,
+              block: subBlock,
+              currentItem: newItem,
+            });
+          } else {
+            // Unwind stack to matching indent
+            while (stack.length > 1 && parsed.indent < stack[stack.length - 1].indent) {
+              stack.pop();
+            }
+
+            const topFrame = stack[stack.length - 1];
+            if (parsed.indent < topFrame.indent) {
+              // Indented less than root list -> end of list
+              break;
+            }
+
+            if (topFrame.block.type === parsed.listType) {
+              topFrame.block.items!.push(newItem);
+              topFrame.currentItem = newItem;
+            } else {
+              // Sibling list of different type
+              if (stack.length === 1) {
+                // Different list type at root level ends current list block
+                break;
+              } else {
+                const parentFrame = stack[stack.length - 2];
+                const subBlock: MarkdownBlock = {
+                  type: parsed.listType,
+                  items: [newItem],
+                };
+                if (!parentFrame.currentItem.children) {
+                  parentFrame.currentItem.children = [];
+                }
+                parentFrame.currentItem.children.push(subBlock);
+                stack[stack.length - 1] = {
+                  indent: parsed.indent,
+                  block: subBlock,
+                  currentItem: newItem,
+                };
+              }
+            }
+          }
+
+          i++;
+          continue;
+        }
+
+        // Check if line is an indented continuation text of current item
+        const curIndentMatch = curLine.replace(/\t/g, '  ').match(/^(\s*)/);
+        const curIndent = curIndentMatch ? curIndentMatch[1].length : 0;
+        if (
+          curIndent > stack[0].indent &&
+          !curTrimmed.startsWith('#') &&
+          !curTrimmed.startsWith('```') &&
+          !curTrimmed.startsWith('>')
+        ) {
+          const currentItem = stack[stack.length - 1].currentItem;
+          currentItem.text += ' ' + curTrimmed;
+          i++;
+          continue;
+        }
+
+        // Not a list item or continuation -> end list
+        break;
       }
-      blocks.push({
-        type: 'ordered_list',
-        items,
-      });
+
+      blocks.push(rootBlock);
       continue;
     }
 
@@ -231,8 +366,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         cur.startsWith('>') ||
         cur.startsWith('|') ||
         /^(\*{3,}|-{3,}|_{3,})$/.test(cur) ||
-        /^[-*+]\s+/.test(cur) ||
-        /^\d+\.\s+/.test(cur)
+        matchListItem(lines[i]) !== null
       ) {
         break;
       }
@@ -252,9 +386,9 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
 /**
  * Converts parsed MarkdownBlocks into an editable HTML structure.
  */
-export function blocksToHtml(blocks: MarkdownBlock[]): string {
+export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string {
   if (blocks.length === 0) {
-    return '<p class="editor-block" data-block-type="paragraph"><br></p>';
+    return isNested ? '' : '<p class="editor-block" data-block-type="paragraph"><br></p>';
   }
 
   const htmlParts: string[] = [];
@@ -301,33 +435,48 @@ export function blocksToHtml(blocks: MarkdownBlock[]): string {
       }
 
       case 'task_list': {
+        const blockClass = isNested ? 'task-list' : 'editor-block task-list';
         const itemHtmls = (block.items || []).map((item) => {
           const checkedAttr = item.checked ? 'checked' : '';
           const checkedClass = item.checked ? ' is-checked' : '';
-          return `<li class="task-item${checkedClass}" data-checked="${item.checked ? 'true' : 'false'}"><input type="checkbox" class="task-checkbox" ${checkedAttr} contenteditable="false"><span class="task-content">${parseInlineMarkdown(item.text)}</span></li>`;
+          let childHtml = '';
+          if (item.children && item.children.length > 0) {
+            childHtml = blocksToHtml(item.children, true);
+          }
+          return `<li class="task-item${checkedClass}" data-checked="${item.checked ? 'true' : 'false'}"><input type="checkbox" class="task-checkbox" ${checkedAttr} contenteditable="false"><span class="task-content">${parseInlineMarkdown(item.text)}</span>${childHtml}</li>`;
         });
         htmlParts.push(
-          `<ul class="editor-block task-list" data-block-type="task_list">${itemHtmls.join('')}</ul>`
+          `<ul class="${blockClass}" data-block-type="task_list">${itemHtmls.join('')}</ul>`
         );
         break;
       }
 
       case 'unordered_list': {
-        const itemHtmls = (block.items || []).map(
-          (item) => `<li class="list-item">${parseInlineMarkdown(item.text)}</li>`
-        );
+        const blockClass = isNested ? 'bullet-list' : 'editor-block bullet-list';
+        const itemHtmls = (block.items || []).map((item) => {
+          let childHtml = '';
+          if (item.children && item.children.length > 0) {
+            childHtml = blocksToHtml(item.children, true);
+          }
+          return `<li class="list-item">${parseInlineMarkdown(item.text)}${childHtml}</li>`;
+        });
         htmlParts.push(
-          `<ul class="editor-block bullet-list" data-block-type="unordered_list">${itemHtmls.join('')}</ul>`
+          `<ul class="${blockClass}" data-block-type="unordered_list">${itemHtmls.join('')}</ul>`
         );
         break;
       }
 
       case 'ordered_list': {
-        const itemHtmls = (block.items || []).map(
-          (item) => `<li class="list-item">${parseInlineMarkdown(item.text)}</li>`
-        );
+        const blockClass = isNested ? 'ordered-list' : 'editor-block ordered-list';
+        const itemHtmls = (block.items || []).map((item) => {
+          let childHtml = '';
+          if (item.children && item.children.length > 0) {
+            childHtml = blocksToHtml(item.children, true);
+          }
+          return `<li class="list-item">${parseInlineMarkdown(item.text)}${childHtml}</li>`;
+        });
         htmlParts.push(
-          `<ol class="editor-block ordered-list" data-block-type="ordered_list">${itemHtmls.join('')}</ol>`
+          `<ol class="${blockClass}" data-block-type="ordered_list">${itemHtmls.join('')}</ol>`
         );
         break;
       }

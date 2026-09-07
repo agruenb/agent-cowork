@@ -276,6 +276,29 @@ ul.bullet-list li, ol.ordered-list li {
   line-height: 1.6;
 }
 
+/* Nested lists margin reset */
+ul.bullet-list ul, ul.bullet-list ol,
+ol.ordered-list ul, ol.ordered-list ol,
+ul.task-list ul, ul.task-list ol {
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+/* Hierarchical list bullets & numbering */
+ul.bullet-list ul {
+  list-style-type: circle;
+}
+ul.bullet-list ul ul {
+  list-style-type: square;
+}
+
+ol.ordered-list ol {
+  list-style-type: lower-alpha;
+}
+ol.ordered-list ol ol {
+  list-style-type: lower-roman;
+}
+
 /* Task Checklists */
 ul.task-list {
   list-style-type: none;
@@ -283,12 +306,23 @@ ul.task-list {
   margin-bottom: 16px;
 }
 
+ul.task-list .task-list {
+  padding-left: 24px;
+}
+
 .task-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 10px;
   margin-bottom: 8px;
   line-height: 1.5;
+}
+
+.task-item > ul,
+.task-item > ol {
+  flex-basis: 100%;
+  width: 100%;
 }
 
 .task-checkbox {
@@ -304,7 +338,7 @@ ul.task-list {
   flex: 1;
 }
 
-.task-item.is-checked .task-content {
+.task-item.is-checked > .task-content {
   text-decoration: line-through;
   color: var(--text-muted);
 }

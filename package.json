@@ -187,9 +187,12 @@
     "package-vsix": "vsce package",
     "publish-extension": "vsce publish",
     "check-types": "tsc --noEmit",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "test": "mocha -r tsx 'test/**/*.test.ts'"
   },
   "devDependencies": {
+    "@types/jsdom": "^30.0.0",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^20.x",
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
@@ -197,6 +200,9 @@
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.20.0",
     "eslint": "^8.57.0",
+    "jsdom": "^29.1.1",
+    "mocha": "^12.0.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.3.3"
   }
 }

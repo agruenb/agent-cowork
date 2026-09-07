@@ -123,7 +123,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     <div class="toolbar" role="toolbar" aria-label="Editor Werkzeugleiste">
       <!-- Heading Select -->
       <div class="toolbar-group">
-        <select id="select-heading" class="tb-select" title="Textformatierung">
+        <select id="select-heading" class="tb-select" tabindex="-1" title="Textformatierung">
           <option value="p">Normaler Text</option>
           <option value="h1">Überschrift 1 (Groß)</option>
           <option value="h2">Überschrift 2 (Mittel)</option>
@@ -135,36 +135,36 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
       <!-- Basic Formatting -->
       <div class="toolbar-group">
-        <button id="btn-bold" class="tb-btn" title="Fett (Cmd+B)"><strong>B</strong></button>
-        <button id="btn-italic" class="tb-btn" title="Kursiv (Cmd+I)"><em>I</em></button>
-        <button id="btn-strike" class="tb-btn" title="Durchgestrichen"><del>S</del></button>
+        <button id="btn-bold" class="tb-btn" tabindex="-1" title="Fett (Cmd+B)"><strong>B</strong></button>
+        <button id="btn-italic" class="tb-btn" tabindex="-1" title="Kursiv (Cmd+I)"><em>I</em></button>
+        <button id="btn-strike" class="tb-btn" tabindex="-1" title="Durchgestrichen"><del>S</del></button>
       </div>
 
       <div class="toolbar-separator"></div>
 
       <!-- Lists & Structure -->
       <div class="toolbar-group">
-        <button id="btn-task" class="tb-btn" title="Aufgabenliste (Checkliste)">☑ Aufgabe</button>
-        <button id="btn-bullet" class="tb-btn" title="Aufzählungsliste">• Liste</button>
-        <button id="btn-ordered" class="tb-btn" title="Nummerierte Liste">1. Liste</button>
+        <button id="btn-task" class="tb-btn" tabindex="-1" title="Aufgabenliste (Checkliste)">☑ Aufgabe</button>
+        <button id="btn-bullet" class="tb-btn" tabindex="-1" title="Aufzählungsliste">• Liste</button>
+        <button id="btn-ordered" class="tb-btn" tabindex="-1" title="Nummerierte Liste">1. Liste</button>
       </div>
 
       <div class="toolbar-separator"></div>
 
       <!-- Insert Elements -->
       <div class="toolbar-group">
-        <button id="btn-quote" class="tb-btn" title="Zitat / Info-Kasten">❝ Zitat</button>
-        <button id="btn-table" class="tb-btn" title="Tabelle einfügen">田 Tabelle</button>
-        <button id="btn-code" class="tb-btn" title="Code-Block">&lt;&gt; Code</button>
-        <button id="btn-hr" class="tb-btn" title="Trennlinie">—</button>
+        <button id="btn-quote" class="tb-btn" tabindex="-1" title="Zitat / Info-Kasten">❝ Zitat</button>
+        <button id="btn-table" class="tb-btn" tabindex="-1" title="Tabelle einfügen">田 Tabelle</button>
+        <button id="btn-code" class="tb-btn" tabindex="-1" title="Code-Block">&lt;&gt; Code</button>
+        <button id="btn-hr" class="tb-btn" tabindex="-1" title="Trennlinie">—</button>
       </div>
 
       <div class="toolbar-separator"></div>
 
       <!-- Undo / Redo -->
       <div class="toolbar-group">
-        <button id="btn-undo" class="tb-btn" title="Rückgängig (Cmd+Z)">↺</button>
-        <button id="btn-redo" class="tb-btn" title="Wiederholen (Cmd+Shift+Z)">↻</button>
+        <button id="btn-undo" class="tb-btn" tabindex="-1" title="Rückgängig (Cmd+Z)">↺</button>
+        <button id="btn-redo" class="tb-btn" tabindex="-1" title="Wiederholen (Cmd+Shift+Z)">↻</button>
       </div>
 
       <div class="toolbar-spacer"></div>
@@ -173,7 +173,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       <span id="word-count" class="word-count">0 Wörter</span>
 
       <!-- Discreet / un-prominent Raw Markdown source toggle -->
-      <button id="btn-toggle-raw" class="raw-toggle-btn" title="Markdown-Quelltext anzeigen oder bearbeiten">&lt;/&gt; Raw</button>
+      <button id="btn-toggle-raw" class="raw-toggle-btn" tabindex="-1" title="Markdown-Quelltext anzeigen oder bearbeiten">&lt;/&gt; Raw</button>
     </div>
 
     <!-- Document Scroll Area -->

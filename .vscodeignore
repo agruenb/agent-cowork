@@ -1,6 +1,7 @@
 .vscode/**
 .vscode-test/**
 src/**
+test/**
 .eslintrc.json
 tsconfig.json
 esbuild.js
