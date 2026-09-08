@@ -238,6 +238,35 @@ editorCanvas.addEventListener('input', () => {
   emitEdit(md);
 });
 
+// Paste listener to ensure formatting is always stripped and text is pasted as plain text
+editorCanvas.addEventListener('paste', (e: ClipboardEvent) => {
+  e.preventDefault();
+  const text = e.clipboardData?.getData('text/plain') ?? '';
+  if (!text) {
+    return;
+  }
+
+  // Use execCommand('insertText') to preserve native undo stack and proper selection replacement
+  const success = document.execCommand('insertText', false, text);
+  if (!success) {
+    // Fallback using Selection/Range API if execCommand fails
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const textNode = document.createTextNode(text);
+      range.insertNode(textNode);
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  }
+
+  const md = domToMarkdown(editorCanvas);
+  emitEdit(md);
+});
+
 function saveSelection(): { container: Node; offset: number } | null {
   const sel = window.getSelection();
   if (sel && sel.rangeCount > 0) {
