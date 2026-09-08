@@ -68,6 +68,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       }
     });
 
+    let autoSaveTimer: NodeJS.Timeout | null = null;
+
     // Handle messages sent from the webview editor
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
       switch (message.type) {
@@ -83,6 +85,19 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             );
             edit.replace(document.uri, fullRange, message.text);
             await vscode.workspace.applyEdit(edit);
+
+            // If autoSave is enabled in configuration, automatically save after edit
+            const config = vscode.workspace.getConfiguration('agentCowork');
+            if (config.get<boolean>('autoSave', true)) {
+              if (autoSaveTimer) {
+                clearTimeout(autoSaveTimer);
+              }
+              autoSaveTimer = setTimeout(async () => {
+                if (document.isDirty) {
+                  await document.save();
+                }
+              }, 1000);
+            }
           } finally {
             setTimeout(() => {
               isInternalEdit = false;
@@ -101,6 +116,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     });
 
     webviewPanel.onDidDispose(() => {
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+      }
       changeDocumentSubscription.dispose();
     });
   }

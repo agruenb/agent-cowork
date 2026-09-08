@@ -17,5 +17,6 @@
   "config.simplifyLayout": "Simplifies the user interface by hiding the activity bar icon buttons and keeping the file directory view open.",
   "config.browserTabs": "Configures editor tabs to behave like a web browser (tabs shrink to fit window width before scrolling horizontally, no preview replacement mode).",
   "config.hideGitAndDrawers": "Hides Git integration and extra drawers (Clone Repository, Outline, Timeline) for non-technical users.",
+  "config.autoSave": "Automatically saves files when modified (files.autoSave: afterDelay).",
   "customEditor.markdownEditor.displayName": "Agent Cowork Markdown Editor"
 }

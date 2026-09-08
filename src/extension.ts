@@ -298,10 +298,10 @@ async function enforceBrowserTabBar(): Promise<void> {
       'tab.unfocusedInactiveBackground': '#e2e8f0',
       'tab.unfocusedInactiveForeground': '#64748b',
       'tab.lastPinnedBorder': '#00000000',
-      'tab.activeModifiedBorder': '#ffffff',
-      'tab.inactiveModifiedBorder': '#64748b',
-      'tab.unfocusedActiveModifiedBorder': '#ffffff',
-      'tab.unfocusedInactiveModifiedBorder': '#64748b',
+      'tab.activeModifiedBorder': '#00000000',
+      'tab.inactiveModifiedBorder': '#00000000',
+      'tab.unfocusedActiveModifiedBorder': '#00000000',
+      'tab.unfocusedInactiveModifiedBorder': '#00000000',
       'tab.dragAndDropBorder': '#059669',
       'tab.selectedBackground': '#059669',
       'tab.selectedForeground': '#ffffff',
@@ -362,6 +362,21 @@ async function enforceAccessibilitySettings(): Promise<void> {
     }
   } catch (err) {
     console.warn('Unable to enforce accessibility settings:', err);
+  }
+}
+
+/**
+ * Enforces autosaving files by default (files.autoSave: afterDelay, files.autoSaveDelay: 1000).
+ */
+async function enforceAutoSave(): Promise<void> {
+  try {
+    const filesConfig = vscode.workspace.getConfiguration('files');
+    const currentAutoSave = filesConfig.get<string>('autoSave');
+    if (currentAutoSave !== 'afterDelay' && currentAutoSave !== 'onFocusChange' && currentAutoSave !== 'onWindowChange') {
+      await filesConfig.update('autoSave', 'afterDelay', vscode.ConfigurationTarget.Global);
+    }
+  } catch (err) {
+    console.warn('Unable to enforce files.autoSave:', err);
   }
 }
 
@@ -480,6 +495,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const browserTabs = config.get<boolean>('browserTabs', true);
   if (browserTabs) {
     await enforceBrowserTabBar();
+  }
+
+  // Enforce autosave by default if enabled
+  const autoSave = config.get<boolean>('autoSave', true);
+  if (autoSave) {
+    await enforceAutoSave();
   }
 
   // Register and wire up the custom folder tree view

@@ -17,5 +17,6 @@
   "config.simplifyLayout": "Vereinfacht die Benutzeroberfläche, indem die Seitenleisten-Buttons ausgeblendet werden und nur die Dateiübersicht sichtbar bleibt.",
   "config.browserTabs": "Konfiguriert die Editor-Tabs wie in einem Webbrowser (Tabs passen sich der Fensterbreite an bevor sie horizontal scrollen, Vorschau-Modus deaktiviert).",
   "config.hideGitAndDrawers": "Blendet Git-Funktionen (wie 'Clone Repository') und zusätzliche Schubladen (Gliederung, Zeitachse) für nicht-technische Benutzer aus.",
+  "config.autoSave": "Speichert geänderte Dateien automatisch (files.autoSave: afterDelay).",
   "customEditor.markdownEditor.displayName": "Agent Cowork Markdown-Editor"
 }

@@ -10,6 +10,10 @@ This is a VS Code extension that simplifies the use of VS Code with AI Agents fo
   - The custom File Icon Theme (`agent-cowork-icons`) ensures tabs display the custom `.md` brain icon (`resources/icons/markdown.svg`) and custom document file icon (`resources/icons/file.svg`), matching the folder tree view.
   - The Light Green Theme (`Agent Cowork Light`) renders harmonious browser tabs: a darker slate backdrop (`editorGroupHeader.tabsBackground: #e2e8f0`), borderless tab integration (`tab.border: #00000000`, `editorGroupHeader.tabsBorder: #00000000`), and a vibrant green active/selected tab (`tab.activeBackground: #059669`, `tab.activeForeground: #ffffff`).
   - Color customizations are also synced directly into `workbench.colorCustomizations['[Agent Cowork Light]']` so changes render immediately in real-time.
+- **Auto-saving**:
+  - Automatically enabled by default via `agentCowork.autoSave: true`.
+  - Configures `files.autoSave: 'afterDelay'` globally for seamless background saving.
+  - The custom Markdown Editor automatically debounces and saves the underlying document (`document.save()`) 1 second after edits to keep files perpetually saved without requiring manual shortcuts.
 - **Bottom Bar (Status Bar)**:
   - VS Code does not provide declarative settings (`settings.json` or extension APIs) to hide individual built-in status bar items (such as the Remote Connect indicator `status.host`, Problems / Error counts `status.problems`, or Notifications `status.notifications`).
   - VS Code stores individual status bar visibility preferences internally in SQLite storage (`workbench.statusbar.hidden` in `state.vscdb`), toggled by the user via right-clicking the status bar items.
