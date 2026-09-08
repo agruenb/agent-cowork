@@ -3,7 +3,7 @@ import * as path from 'path';
 import { WelcomePanel } from './welcomePanel';
 import { FolderTreeProvider, FolderItem } from './folderTreeProvider';
 import { MarkdownEditorProvider } from './markdownEditorProvider';
-import { coworkWithFile } from './coworkChat';
+import { coworkWithFile, coworkWithFolder } from './coworkChat';
 
 const THEME_NAME = 'Agent Cowork Light';
 const ICON_THEME_NAME = 'agent-cowork-icons';
@@ -471,6 +471,66 @@ export async function createNewFile(targetFolderUri?: vscode.Uri): Promise<void>
 }
 
 /**
+ * Creates a new folder in the specified directory or workspace root.
+ */
+export async function createNewFolder(targetFolderUri?: vscode.Uri): Promise<void> {
+  let targetDir = targetFolderUri?.fsPath;
+
+  if (!targetDir) {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders || folders.length === 0) {
+      vscode.window.showWarningMessage(
+        vscode.l10n.t('Bitte öffnen Sie zuerst einen Ordner, um einen Ordner zu erstellen.')
+      );
+      return;
+    }
+    targetDir = folders[0].uri.fsPath;
+  }
+
+  const folderName = await vscode.window.showInputBox({
+    prompt: vscode.l10n.t('Ordnernamen eingeben'),
+    placeHolder: 'neuer-ordner',
+    validateInput: (value) => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return vscode.l10n.t('Der Ordnername darf nicht leer sein.');
+      }
+      if (/[/\\?%*:|"<>]/g.test(trimmed)) {
+        return vscode.l10n.t('Der Ordnername enthält ungültige Zeichen.');
+      }
+      return null;
+    },
+  });
+
+  if (!folderName || !folderName.trim()) {
+    return;
+  }
+
+  const folderPath = path.join(targetDir, folderName.trim());
+  const folderUri = vscode.Uri.file(folderPath);
+
+  try {
+    // Check if folder or file already exists
+    try {
+      await vscode.workspace.fs.stat(folderUri);
+      vscode.window.showErrorMessage(
+        vscode.l10n.t('Ein Ordner oder eine Datei mit diesem Namen existiert bereits.')
+      );
+      return;
+    } catch {
+      // Element does not exist, proceed
+    }
+
+    // Create directory
+    await vscode.workspace.fs.createDirectory(folderUri);
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      vscode.l10n.t('Fehler beim Erstellen des Ordners: {0}', String(error))
+    );
+  }
+}
+
+/**
  * Called when the extension is activated.
  * The extension is activated the very first time the command is executed or on startup.
  */
@@ -558,21 +618,54 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Register newFile command (creates at root or prompts)
   const newFileCmd = vscode.commands.registerCommand('agent-cowork.newFile', async () => {
     await createNewFile();
+    folderTreeProvider.refresh();
   });
 
   // Register newFileInFolder command (creates in specific folder item)
   const newFileInFolderCmd = vscode.commands.registerCommand(
     'agent-cowork.newFileInFolder',
     async (item?: FolderItem) => {
+      if (item) {
+        folderTreeProvider.onDidExpandElement(item);
+      }
       await createNewFile(item?.uri);
+      folderTreeProvider.refresh();
+    }
+  );
+
+  // Register newFolder command (creates at root or prompts)
+  const newFolderCmd = vscode.commands.registerCommand('agent-cowork.newFolder', async () => {
+    await createNewFolder();
+    folderTreeProvider.refresh();
+  });
+
+  // Register newFolderInFolder command (creates in specific folder item)
+  const newFolderInFolderCmd = vscode.commands.registerCommand(
+    'agent-cowork.newFolderInFolder',
+    async (item?: FolderItem) => {
+      if (item) {
+        folderTreeProvider.onDidExpandElement(item);
+      }
+      await createNewFolder(item?.uri);
+      folderTreeProvider.refresh();
     }
   );
 
   // Register coworkWithFile command (links file to new AI conversation)
   const coworkWithFileCmd = vscode.commands.registerCommand(
     'agent-cowork.coworkWithFile',
-    async (targetUri?: vscode.Uri) => {
-      await coworkWithFile(targetUri);
+    async (target?: vscode.Uri | FolderItem) => {
+      const uri = target instanceof vscode.Uri ? target : target?.uri;
+      await coworkWithFile(uri);
+    }
+  );
+
+  // Register coworkWithFolder command (links folder to new AI conversation)
+  const coworkWithFolderCmd = vscode.commands.registerCommand(
+    'agent-cowork.coworkWithFolder',
+    async (target?: vscode.Uri | FolderItem) => {
+      const uri = target instanceof vscode.Uri ? target : target?.uri;
+      await coworkWithFolder(uri);
     }
   );
 
@@ -588,7 +681,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     refreshFolderViewCmd,
     newFileCmd,
     newFileInFolderCmd,
+    newFolderCmd,
+    newFolderInFolderCmd,
     coworkWithFileCmd,
+    coworkWithFolderCmd,
     markdownEditorDisposable,
   );
 

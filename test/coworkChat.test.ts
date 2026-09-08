@@ -31,4 +31,19 @@ describe('Cowork Chat - File Reference Formatting', () => {
     const ref = formatFileReference('/some/path/to/my notes.md', '');
     assert.strictEqual(ref, '#file:"my notes.md"');
   });
+
+  it('formats directory reference path without spaces using #folder:', () => {
+    const ref = formatFileReference('/workspace/project/docs', 'docs', true);
+    assert.strictEqual(ref, '#folder:docs');
+  });
+
+  it('formats directory reference path with spaces using #folder:', () => {
+    const ref = formatFileReference('/workspace/project/my notes', 'my notes', true);
+    assert.strictEqual(ref, '#folder:"my notes"');
+  });
+
+  it('falls back to folder basename when relativePath is empty for directory', () => {
+    const ref = formatFileReference('/some/path/to/my folder', '', true);
+    assert.strictEqual(ref, '#folder:"my folder"');
+  });
 });

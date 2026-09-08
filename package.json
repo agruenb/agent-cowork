@@ -106,8 +106,23 @@
         "icon": "$(new-file)"
       },
       {
+        "command": "agent-cowork.newFolder",
+        "title": "%command.newFolder.title%",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "agent-cowork.newFolderInFolder",
+        "title": "%command.newFolder.title%",
+        "icon": "$(new-folder)"
+      },
+      {
         "command": "agent-cowork.coworkWithFile",
         "title": "%command.coworkWithFile.title%",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "agent-cowork.coworkWithFolder",
+        "title": "%command.coworkWithFolder.title%",
         "icon": "$(comment-discussion)"
       }
     ],
@@ -144,16 +159,36 @@
           "group": "navigation@1"
         },
         {
-          "command": "agent-cowork.refreshFolderView",
+          "command": "agent-cowork.newFolder",
           "when": "view == agentCowork.folderView",
           "group": "navigation@2"
+        },
+        {
+          "command": "agent-cowork.refreshFolderView",
+          "when": "view == agentCowork.folderView",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
         {
           "command": "agent-cowork.newFileInFolder",
           "when": "view == agentCowork.folderView && viewItem == folder",
-          "group": "inline"
+          "group": "inline@1"
+        },
+        {
+          "command": "agent-cowork.newFolderInFolder",
+          "when": "view == agentCowork.folderView && viewItem == folder",
+          "group": "inline@2"
+        },
+        {
+          "command": "agent-cowork.coworkWithFolder",
+          "when": "view == agentCowork.folderView && viewItem == folder",
+          "group": "inline@3"
+        },
+        {
+          "command": "agent-cowork.coworkWithFile",
+          "when": "view == agentCowork.folderView && viewItem == file",
+          "group": "inline@1"
         }
       ]
     },
