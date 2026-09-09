@@ -74,6 +74,24 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
       switch (message.type) {
         case 'edit': {
+          if (typeof message.text !== 'string') {
+            return;
+          }
+
+          // Safety guard: Prevent accidental file blanking.
+          // If the existing document has content, but the incoming edit is empty,
+          // only allow it if explicitly marked by the user (e.g. deliberate Select All + Backspace).
+          const currentText = document.getText();
+          if (currentText.trim().length > 0 && message.text.trim().length === 0) {
+            if (!message.isExplicitEmpty) {
+              console.warn('Agent Cowork: Blocked unexpected empty edit on non-empty document.');
+              vscode.window.showWarningMessage(
+                'Agent Cowork: Ein leerer Inhalt wurde abgefangen, um Datenverlust zu verhindern. Bitte verwenden Sie den Quelltext-Modus (Raw), falls Sie den Text absichtlich gelöscht haben.'
+              );
+              return;
+            }
+          }
+
           isInternalEdit = true;
           try {
             const edit = new vscode.WorkspaceEdit();
@@ -103,6 +121,18 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
               isInternalEdit = false;
             }, 60);
           }
+          break;
+        }
+        case 'parseError': {
+          vscode.window.showWarningMessage(
+            `Agent Cowork: Formatierungsfehler im Markdown-Dokument (${message.error || 'Syntax-Fehler'}). Es wurde in den Raw-Modus gewechselt, um Datenverlust zu verhindern.`
+          );
+          break;
+        }
+        case 'serializationError': {
+          vscode.window.showErrorMessage(
+            `Agent Cowork: Fehler beim Konvertieren der Formatierung (${message.error || 'DOM-Fehler'}). Die Änderung wurde nicht gespeichert, um Datenverlust zu verhindern.`
+          );
           break;
         }
         case 'cowork': {
@@ -209,6 +239,13 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           <path fill-rule="evenodd" d="M1 8a.75.75 0 0 1 .75-.75h10.19L8.22 3.53a.75.75 0 0 1 1.06-1.06l5 5a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 0 1-1.06-1.06l3.72-3.72H1.75A.75.75 0 0 1 1 8z"/>
         </svg>
       </button>
+    </div>
+
+    <!-- Error/Warning Banner -->
+    <div id="error-banner" class="error-banner" style="display: none;" role="alert">
+      <span class="error-banner-icon">⚠️</span>
+      <span id="error-banner-text" class="error-banner-text"></span>
+      <button id="error-banner-dismiss" class="error-banner-dismiss" title="Schließen">✕</button>
     </div>
 
     <!-- Document Scroll Area -->

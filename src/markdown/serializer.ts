@@ -271,3 +271,29 @@ export function domToMarkdown(editorRoot: HTMLElement): string {
 
   return blocks.join('\n\n') + (blocks.length > 0 ? '\n' : '');
 }
+
+/**
+ * Safe wrapper around domToMarkdown that intercepts any serialization exceptions
+ * and guards against returning an empty Markdown string when the DOM container
+ * contains visible text or substantive block elements.
+ */
+export function safeDomToMarkdown(container: HTMLElement): { markdown: string; error?: Error } {
+  try {
+    const markdown = domToMarkdown(container);
+    const visibleText = (container.textContent || '').trim();
+    // If the DOM has text content but serializer produced empty markdown, flag an anomaly
+    if (visibleText.length > 0 && markdown.trim().length === 0) {
+      return {
+        markdown: '',
+        error: new Error('Serializer produced empty Markdown despite non-empty DOM content.'),
+      };
+    }
+    return { markdown };
+  } catch (err) {
+    return {
+      markdown: '',
+      error: err instanceof Error ? err : new Error(String(err)),
+    };
+  }
+}
+

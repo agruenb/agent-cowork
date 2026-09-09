@@ -514,3 +514,27 @@ export function markdownToHtml(markdown: string): string {
   const blocks = parseMarkdownToBlocks(markdown);
   return blocksToHtml(blocks);
 }
+
+/**
+ * Safe wrapper around markdownToHtml that intercepts any parser exceptions
+ * and guards against returning an empty HTML string when the source Markdown
+ * contains non-whitespace content.
+ */
+export function safeMarkdownToHtml(markdown: string): { html: string; error?: Error } {
+  try {
+    const html = markdownToHtml(markdown);
+    if (markdown.trim().length > 0 && html.trim().length === 0) {
+      return {
+        html: '',
+        error: new Error('Parser produced empty HTML for non-empty Markdown content.'),
+      };
+    }
+    return { html };
+  } catch (err) {
+    return {
+      html: '',
+      error: err instanceof Error ? err : new Error(String(err)),
+    };
+  }
+}
+

@@ -1,5 +1,5 @@
-import { markdownToHtml } from '../markdown/parser';
-import { domToMarkdown } from '../markdown/serializer';
+import { safeMarkdownToHtml } from '../markdown/parser';
+import { safeDomToMarkdown } from '../markdown/serializer';
 import {
   indentListItem,
   outdentListItem,
@@ -23,16 +23,98 @@ const rawToggleBtn = document.getElementById('btn-toggle-raw') as HTMLButtonElem
 const headingSelect = document.getElementById('select-heading') as HTMLSelectElement;
 const wordCountEl = document.getElementById('word-count') as HTMLElement;
 const coworkBtn = document.getElementById('btn-cowork') as HTMLButtonElement;
+const errorBanner = document.getElementById('error-banner') as HTMLElement | null;
+const errorBannerText = document.getElementById('error-banner-text') as HTMLElement | null;
+const errorBannerDismiss = document.getElementById('error-banner-dismiss') as HTMLButtonElement | null;
 
 let isRawMode = false;
 let currentMarkdown = '';
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let isInternalChange = false;
+let hasParseError = false;
+
+/**
+ * Displays the error / warning banner in the editor.
+ */
+function showErrorBanner(message: string): void {
+  if (errorBanner && errorBannerText) {
+    errorBannerText.textContent = message;
+    errorBanner.style.display = 'flex';
+  }
+}
+
+/**
+ * Hides the error / warning banner in the editor.
+ */
+function hideErrorBanner(): void {
+  if (errorBanner) {
+    errorBanner.style.display = 'none';
+  }
+}
+
+errorBannerDismiss?.addEventListener('click', () => {
+  hideErrorBanner();
+});
+
+/**
+ * Checks if the current empty state is user-initiated (e.g. cleared canvas or raw textarea)
+ * rather than a corrupted DOM or error state.
+ */
+function isUserInitiatedEmpty(): boolean {
+  if (hasParseError) {
+    return false;
+  }
+  if (isRawMode) {
+    return rawTextarea.value.trim().length === 0;
+  }
+  return (editorCanvas.textContent || '').trim().length === 0;
+}
+
+/**
+ * Safely converts editorCanvas DOM into Markdown with error handling and anomaly detection.
+ * Returns null if serialization failed or produced an anomaly.
+ */
+function getMarkdownFromCanvas(): string | null {
+  if (hasParseError) {
+    return null;
+  }
+  const { markdown, error } = safeDomToMarkdown(editorCanvas);
+  if (error) {
+    console.error('Agent Cowork DOM Serializer anomaly/error:', error);
+    showErrorBanner(
+      'Fehler beim Konvertieren der Formatierung. Die Änderung wurde zum Schutz Ihrer Daten nicht gespeichert.'
+    );
+    vscode.postMessage({
+      type: 'serializationError',
+      error: error.message,
+    });
+    return null;
+  }
+  return markdown;
+}
+
+/**
+ * Serializes the canvas and emits an edit if serialization succeeded.
+ */
+function emitCanvasEdit(): void {
+  const md = getMarkdownFromCanvas();
+  if (md !== null) {
+    emitEdit(md);
+  }
+}
 
 /**
  * Sends updated markdown text to the VS Code extension host.
+ * @param markdown The serialized markdown text
+ * @param isExplicitEmpty Whether this edit is an intentional, user-driven deletion of all text
  */
-function emitEdit(markdown: string): void {
+function emitEdit(markdown: string, isExplicitEmpty: boolean = false): void {
+  // Safety guard: Suppress emitting edits from formatted mode if parser failed and canvas is corrupted
+  if (hasParseError && !isRawMode) {
+    console.warn('Agent Cowork: Suppressing edit emission due to active parser error.');
+    return;
+  }
+
   currentMarkdown = markdown;
   updateWordCount(markdown);
 
@@ -45,6 +127,7 @@ function emitEdit(markdown: string): void {
     vscode.postMessage({
       type: 'edit',
       text: currentMarkdown,
+      isExplicitEmpty: isExplicitEmpty || (currentMarkdown.trim().length === 0 && isUserInitiatedEmpty()),
     });
     // Reset flag after brief delay
     setTimeout(() => {
@@ -65,14 +148,43 @@ function updateWordCount(text: string): void {
 }
 
 /**
- * Renders markdown text into the formatted contenteditable canvas.
+ * Renders markdown text into the formatted contenteditable canvas with safe error boundaries.
+ * Returns true if parsing succeeded, or false if parser encountered an error and fell back.
  */
-function setContentFormatted(markdown: string): void {
+function setContentFormatted(markdown: string): boolean {
+  const { html, error } = safeMarkdownToHtml(markdown);
+  if (error) {
+    console.error('Agent Cowork Parser error in setContentFormatted:', error);
+    hasParseError = true;
+    currentMarkdown = markdown;
+    rawTextarea.value = markdown;
+    updateWordCount(markdown);
+    showErrorBanner(
+      'Warnung: Formatierungsfehler im Dokument. Um Datenverlust zu verhindern, wurde in den Quelltext-Modus gewechselt.'
+    );
+    // Switch to raw mode safely WITHOUT calling domToMarkdown(editorCanvas)
+    if (!isRawMode) {
+      isRawMode = true;
+      editorCanvas.style.display = 'none';
+      rawTextarea.style.display = 'block';
+      rawToggleBtn.classList.add('is-active');
+      rawToggleBtn.textContent = '📄 Formatiert';
+    }
+    vscode.postMessage({
+      type: 'parseError',
+      error: error.message,
+    });
+    return false;
+  }
+
+  hasParseError = false;
+  hideErrorBanner();
   currentMarkdown = markdown;
-  editorCanvas.innerHTML = markdownToHtml(markdown);
+  editorCanvas.innerHTML = html;
   rawTextarea.value = markdown;
   updateWordCount(markdown);
   wireTaskCheckboxes();
+  return true;
 }
 
 /**
@@ -92,8 +204,7 @@ function wireTaskCheckboxes(): void {
           li.classList.remove('is-checked');
           li.setAttribute('data-checked', 'false');
         }
-        const updatedMd = domToMarkdown(editorCanvas);
-        emitEdit(updatedMd);
+        emitCanvasEdit();
       }
     };
   });
@@ -107,8 +218,11 @@ function toggleRawMode(): void {
 
   if (isRawMode) {
     // Switch to Raw Mode
-    const md = domToMarkdown(editorCanvas);
-    rawTextarea.value = md;
+    const md = getMarkdownFromCanvas();
+    if (md !== null) {
+      rawTextarea.value = md;
+      currentMarkdown = md;
+    }
     editorCanvas.style.display = 'none';
     rawTextarea.style.display = 'block';
     rawToggleBtn.classList.add('is-active');
@@ -117,7 +231,16 @@ function toggleRawMode(): void {
   } else {
     // Switch to Formatted Mode
     const md = rawTextarea.value;
-    setContentFormatted(md);
+    const success = setContentFormatted(md);
+    if (!success) {
+      // Keep in raw mode if parsing failed
+      isRawMode = true;
+      editorCanvas.style.display = 'none';
+      rawTextarea.style.display = 'block';
+      rawToggleBtn.classList.add('is-active');
+      rawToggleBtn.textContent = '📄 Formatiert';
+      return;
+    }
     rawTextarea.style.display = 'none';
     editorCanvas.style.display = 'block';
     rawToggleBtn.classList.remove('is-active');
@@ -134,8 +257,7 @@ function toggleRawMode(): void {
 function executeCommand(cmd: string, val: string = ''): void {
   editorCanvas.focus();
   document.execCommand(cmd, false, val);
-  const md = domToMarkdown(editorCanvas);
-  emitEdit(md);
+  emitCanvasEdit();
 }
 
 function handleHeadingChange(val: string): void {
@@ -145,9 +267,9 @@ function handleHeadingChange(val: string): void {
   } else {
     document.execCommand('formatBlock', false, `<${val}>`);
   }
-  const md = domToMarkdown(editorCanvas);
-  emitEdit(md);
+  emitCanvasEdit();
 }
+
 
 function insertTaskItem(): void {
   editorCanvas.focus();
@@ -189,8 +311,7 @@ function insertTaskItem(): void {
   selection.addRange(newRange);
 
   wireTaskCheckboxes();
-  const md = domToMarkdown(editorCanvas);
-  emitEdit(md);
+  emitCanvasEdit();
 }
 
 function insertTable(): void {
@@ -210,8 +331,7 @@ function insertTable(): void {
     <p class="editor-block" data-block-type="paragraph"><br></p>
   `;
   document.execCommand('insertHTML', false, tableHtml);
-  const md = domToMarkdown(editorCanvas);
-  emitEdit(md);
+  emitCanvasEdit();
 }
 
 function insertCodeBlock(): void {
@@ -224,8 +344,7 @@ function insertCodeBlock(): void {
     <p class="editor-block" data-block-type="paragraph"><br></p>
   `;
   document.execCommand('insertHTML', false, codeHtml);
-  const md = domToMarkdown(editorCanvas);
-  emitEdit(md);
+  emitCanvasEdit();
 }
 
 // -------------------------------------------------------------
@@ -234,8 +353,7 @@ function insertCodeBlock(): void {
 
 // Formatted canvas input listener
 editorCanvas.addEventListener('input', () => {
-  const md = domToMarkdown(editorCanvas);
-  emitEdit(md);
+  emitCanvasEdit();
 });
 
 // Paste listener to ensure formatting is always stripped and text is pasted as plain text
@@ -263,8 +381,7 @@ editorCanvas.addEventListener('paste', (e: ClipboardEvent) => {
     }
   }
 
-  const md = domToMarkdown(editorCanvas);
-  emitEdit(md);
+  emitCanvasEdit();
 });
 
 function saveSelection(): { container: Node; offset: number } | null {
@@ -295,7 +412,7 @@ function restoreSelection(saved: { container: Node; offset: number } | null): vo
 
 // Raw textarea input listener
 rawTextarea.addEventListener('input', () => {
-  emitEdit(rawTextarea.value);
+  emitEdit(rawTextarea.value, rawTextarea.value.trim().length === 0);
 });
 
 // Raw textarea Tab and Shift+Tab keydown listener
@@ -328,8 +445,7 @@ editorCanvas.addEventListener('keydown', (e: KeyboardEvent) => {
           outdentListItem(li);
           wireTaskCheckboxes();
           restoreSelection(saved);
-          const md = domToMarkdown(editorCanvas);
-          emitEdit(md);
+          emitCanvasEdit();
           return;
         }
 
@@ -339,23 +455,20 @@ editorCanvas.addEventListener('keydown', (e: KeyboardEvent) => {
           indentListItem(li);
           wireTaskCheckboxes();
           restoreSelection(saved);
-          const md = domToMarkdown(editorCanvas);
-          emitEdit(md);
+          emitCanvasEdit();
           return;
         }
 
         // Inside list item but cursor is in the middle or at the end: insert 2 spaces
         document.execCommand('insertText', false, '  ');
-        const md = domToMarkdown(editorCanvas);
-        emitEdit(md);
+        emitCanvasEdit();
         return;
       }
 
       // If not in a list item and not Shift+Tab, insert 2 spaces
       if (!e.shiftKey) {
         document.execCommand('insertText', false, '  ');
-        const md = domToMarkdown(editorCanvas);
-        emitEdit(md);
+        emitCanvasEdit();
         return;
       }
     }
@@ -384,8 +497,7 @@ editorCanvas.addEventListener('keydown', (e: KeyboardEvent) => {
           if (parentLi) {
             outdentListItem(li);
             wireTaskCheckboxes();
-            const md = domToMarkdown(editorCanvas);
-            emitEdit(md);
+            emitCanvasEdit();
             return;
           }
 
@@ -410,8 +522,7 @@ editorCanvas.addEventListener('keydown', (e: KeyboardEvent) => {
           selection.removeAllRanges();
           selection.addRange(range);
 
-          const md = domToMarkdown(editorCanvas);
-          emitEdit(md);
+          emitCanvasEdit();
           return;
         }
 
@@ -443,8 +554,7 @@ editorCanvas.addEventListener('keydown', (e: KeyboardEvent) => {
           selection.removeAllRanges();
           selection.addRange(range);
 
-          const md = domToMarkdown(editorCanvas);
-          emitEdit(md);
+          emitCanvasEdit();
           return;
         }
 
@@ -497,14 +607,17 @@ coworkBtn?.addEventListener('click', () => {
   if (debounceTimer) {
     clearTimeout(debounceTimer);
     debounceTimer = null;
-    isInternalChange = true;
-    vscode.postMessage({
-      type: 'edit',
-      text: currentMarkdown,
-    });
-    setTimeout(() => {
-      isInternalChange = false;
-    }, 150);
+    if (!hasParseError || isRawMode) {
+      isInternalChange = true;
+      vscode.postMessage({
+        type: 'edit',
+        text: currentMarkdown,
+        isExplicitEmpty: currentMarkdown.trim().length === 0 && isUserInitiatedEmpty(),
+      });
+      setTimeout(() => {
+        isInternalChange = false;
+      }, 150);
+    }
   }
   vscode.postMessage({
     type: 'cowork',
