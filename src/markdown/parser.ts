@@ -361,10 +361,10 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         break;
       }
       if (
-        cur.startsWith('#') ||
+        /^#{1,6}\s/.test(cur) ||
         cur.startsWith('```') ||
         cur.startsWith('>') ||
-        cur.startsWith('|') ||
+        (cur.startsWith('|') && i + 1 < lines.length && lines[i + 1].trim().startsWith('|') && /\|[\s-:]+\|/.test(lines[i + 1].trim())) ||
         /^(\*{3,}|-{3,}|_{3,})$/.test(cur) ||
         matchListItem(lines[i]) !== null
       ) {
