@@ -2,7 +2,7 @@
   "name": "agent-cowork",
   "displayName": "Agent Cowork",
   "description": "%extension.description%",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "AdrianGruenberg",
   "icon": "resources/icon.png",
   "license": "MIT",
