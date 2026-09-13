@@ -562,8 +562,6 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
   // Clear previous buttons/handles while preserving drop indicators
   controls.innerHTML = '';
 
-  const tableRect = getRelativeRect(table, wrapper);
-
   // Drop indicators
   const rowIndicator = doc.createElement('div');
   rowIndicator.className = 'table-drop-indicator-row';
@@ -719,9 +717,14 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
       colDragBtn.style.transition = 'none';
       updateVisibility();
 
+      const thRect = getRelativeRect(th, wrapper);
+      const colCenterX = thRect.left + thRect.width / 2;
+      const liveTableRect = getRelativeRect(table, wrapper);
+
       colIndicator.style.display = 'block';
-      colIndicator.style.top = `${tableRect.top}px`;
-      colIndicator.style.height = `${tableRect.height}px`;
+      colIndicator.style.left = `${colCenterX - 1}px`;
+      colIndicator.style.top = `${liveTableRect.top}px`;
+      colIndicator.style.height = `${liveTableRect.height}px`;
 
       const btnRect = colDragBtn.getBoundingClientRect();
       const grabOffsetX = e.clientX - btnRect.left;
@@ -900,9 +903,14 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
       rowDragBtn.style.transition = 'none';
       updateVisibility();
 
+      const trRect = getRelativeRect(tr, wrapper);
+      const trCenterY = trRect.top + trRect.height / 2;
+      const liveTableRect = getRelativeRect(table, wrapper);
+
       rowIndicator.style.display = 'block';
-      rowIndicator.style.left = `${tableRect.left}px`;
-      rowIndicator.style.width = `${tableRect.width}px`;
+      rowIndicator.style.left = `${liveTableRect.left}px`;
+      rowIndicator.style.width = `${liveTableRect.width}px`;
+      rowIndicator.style.top = `${trCenterY - 1}px`;
 
       const btnRect = rowDragBtn.getBoundingClientRect();
       const grabOffsetY = e.clientY - btnRect.top;

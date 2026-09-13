@@ -1181,6 +1181,33 @@ describe('Editor Interactions', () => {
         const mouseupEvent = new dom.window.MouseEvent('mouseup', { bubbles: true });
         document.dispatchEvent(mouseupEvent);
       });
+
+      it('initial row mousedown positions indicator at handle height', () => {
+        const input = '| Col1 |\n| --- |\n| Row 0 |\n| Row 1 |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        updateTableControls(wrapper, () => {});
+
+        const rowDragBtns = wrapper.querySelectorAll('.table-row-drag-btn') as NodeListOf<HTMLElement>;
+        const rowIndicator = wrapper.querySelector('.table-drop-indicator-row') as HTMLElement;
+
+        // Click row 1 drag handle
+        const mousedownEvent = new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true });
+        rowDragBtns[1].dispatchEvent(mousedownEvent);
+
+        assert.strictEqual(rowIndicator.style.display, 'block');
+        assert.ok(rowIndicator.style.top.includes('px'));
+        const indicatorTop = parseFloat(rowIndicator.style.top);
+        const handleTop = parseFloat(rowDragBtns[1].style.top);
+        // Indicator top should be at handle height (within handleTop to handleTop + 18px)
+        assert.ok(
+          indicatorTop >= handleTop && indicatorTop <= handleTop + 18,
+          `Indicator top (${indicatorTop}) should be at handle height (handleTop: ${handleTop})`
+        );
+
+        const mouseupEvent = new dom.window.MouseEvent('mouseup', { bubbles: true });
+        document.dispatchEvent(mouseupEvent);
+      });
     });
   });
 });
