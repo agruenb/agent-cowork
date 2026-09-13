@@ -437,11 +437,11 @@ code.inline-code {
   position: relative;
   overflow-x: auto;
   overflow-y: visible;
-  margin-bottom: 24px;
+  margin-bottom: 4px;
   padding-top: 52px;
   padding-left: 60px;
   padding-right: 16px;
-  padding-bottom: 8px;
+  padding-bottom: 28px;
   margin-top: -52px;
   margin-left: -60px;
   margin-right: -16px;

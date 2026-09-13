@@ -540,6 +540,18 @@ export function repositionTableControls(wrapper: HTMLElement): void {
       insertRowBtn.style.left = `${trRect.left - 28 + wrapper.scrollLeft}px`;
     }
   });
+
+  if (tbodyTrs.length === 0) {
+    const theadEl = table.querySelector('thead');
+    if (theadEl) {
+      const theadRect = getRelativeRect(theadEl, wrapper);
+      const addRowBtn = controls.querySelector<HTMLElement>('.row-insert-btn');
+      if (addRowBtn) {
+        addRowBtn.style.top = `${theadRect.top + theadRect.height - 9}px`;
+        addRowBtn.style.left = `${theadRect.left - 28 + wrapper.scrollLeft}px`;
+      }
+    }
+  }
 }
 
 /**
