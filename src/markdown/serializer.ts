@@ -238,16 +238,26 @@ export function domToMarkdown(editorRoot: HTMLElement): string {
     if (blockEl.classList.contains('table-wrapper') || tagName === 'table' || blockType === 'table') {
       const table = blockEl.tagName.toLowerCase() === 'table' ? blockEl : blockEl.querySelector('table');
       if (table) {
+        const serializeCell = (cell: HTMLElement): string => {
+          const cb = cell.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
+          const inlineText = serializeInlineNodes(cell).trim();
+          if (cell.classList.contains('table-checkbox-cell') || (cb && !inlineText)) {
+            const isChecked = cb ? cb.checked : cell.getAttribute('data-checked') === 'true';
+            return `[${isChecked ? 'x' : ' '}]`;
+          }
+          return inlineText || ' ';
+        };
+
         const headerCells = table.querySelectorAll('thead th');
         const headers: string[] = [];
-        headerCells.forEach((th) => headers.push(serializeInlineNodes(th).trim() || ' '));
+        headerCells.forEach((th) => headers.push(serializeCell(th as HTMLElement)));
 
         const bodyRows = table.querySelectorAll('tbody tr');
         const rows: string[][] = [];
         bodyRows.forEach((tr) => {
           const rowCells: string[] = [];
           tr.querySelectorAll('td').forEach((td) => {
-            rowCells.push(serializeInlineNodes(td).trim() || ' ');
+            rowCells.push(serializeCell(td as HTMLElement));
           });
           rows.push(rowCells);
         });

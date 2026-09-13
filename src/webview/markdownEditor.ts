@@ -7,6 +7,7 @@ import {
   outdentRawText,
   isCursorAtStartOfListItem,
 } from '../markdown/listOperations';
+import { wireTableInteractions, handleTableKeyDown } from './tableInteractions';
 
 declare function acquireVsCodeApi(): {
   postMessage(message: unknown): void;
@@ -184,6 +185,7 @@ function setContentFormatted(markdown: string): boolean {
   rawTextarea.value = markdown;
   updateWordCount(markdown);
   wireTaskCheckboxes();
+  wireTableInteractions(editorCanvas, () => emitCanvasEdit());
   return true;
 }
 
@@ -331,6 +333,7 @@ function insertTable(): void {
     <p class="editor-block" data-block-type="paragraph"><br></p>
   `;
   document.execCommand('insertHTML', false, tableHtml);
+  wireTableInteractions(editorCanvas, () => emitCanvasEdit());
   emitCanvasEdit();
 }
 
@@ -354,6 +357,25 @@ function insertCodeBlock(): void {
 // Formatted canvas input listener
 editorCanvas.addEventListener('input', () => {
   emitCanvasEdit();
+});
+
+// Click listener on formatted editor canvas for table checkbox cells
+editorCanvas.addEventListener('click', (e: MouseEvent) => {
+  const cell = (e.target as HTMLElement).closest('.table-checkbox-cell') as HTMLElement | null;
+  if (cell && editorCanvas.contains(cell)) {
+    e.preventDefault();
+    const cb = cell.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    if (cb) {
+      cb.checked = !cb.checked;
+      cell.setAttribute('data-checked', cb.checked ? 'true' : 'false');
+      if (cb.checked) {
+        cell.classList.add('is-checked');
+      } else {
+        cell.classList.remove('is-checked');
+      }
+      emitCanvasEdit();
+    }
+  }
 });
 
 // Paste listener to ensure formatting is always stripped and text is pasted as plain text
@@ -432,8 +454,12 @@ rawTextarea.addEventListener('keydown', (e: KeyboardEvent) => {
 
 // Keyboard shortcuts inside formatted editor canvas
 editorCanvas.addEventListener('keydown', (e: KeyboardEvent) => {
-  // Tab / Shift+Tab for list indentation / outdenting
+  // Tab / Shift+Tab for tables or list indentation / outdenting
   if (e.key === 'Tab') {
+    if (handleTableKeyDown(e, editorCanvas, () => emitCanvasEdit())) {
+      return;
+    }
+
     e.preventDefault();
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {

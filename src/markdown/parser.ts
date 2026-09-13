@@ -482,12 +482,25 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
       }
 
       case 'table': {
+        const renderCell = (content: string, isHeader: boolean) => {
+          const trimmed = content.trim();
+          const checkboxMatch = trimmed.match(/^([-*+]?\s*)?\[([ xX])\]$/);
+          const tag = isHeader ? 'th' : 'td';
+          if (checkboxMatch) {
+            const isChecked = checkboxMatch[2].toLowerCase() === 'x';
+            const checkedAttr = isChecked ? 'checked' : '';
+            const checkedClass = isChecked ? ' is-checked' : '';
+            return `<${tag} class="table-checkbox-cell${checkedClass}" data-checked="${isChecked ? 'true' : 'false'}"><input type="checkbox" class="table-cell-checkbox" ${checkedAttr} contenteditable="false"></${tag}>`;
+          }
+          return `<${tag}>${parseInlineMarkdown(content)}</${tag}>`;
+        };
+
         const headers = (block.headers || [])
-          .map((h) => `<th>${parseInlineMarkdown(h)}</th>`)
+          .map((h) => renderCell(h, true))
           .join('');
         const rows = (block.rows || [])
           .map((row) => {
-            const cells = row.map((c) => `<td>${parseInlineMarkdown(c)}</td>`).join('');
+            const cells = row.map((c) => renderCell(c, false)).join('');
             return `<tr>${cells}</tr>`;
           })
           .join('');

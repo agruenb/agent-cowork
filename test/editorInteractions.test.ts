@@ -25,6 +25,20 @@ import { JSDOM } from 'jsdom';
 import { markdownToHtml } from '../src/markdown/parser';
 import { domToMarkdown } from '../src/markdown/serializer';
 import { indentListItem, outdentListItem } from '../src/markdown/listOperations';
+import {
+  moveTableRow,
+  moveTableColumn,
+  addTableRow,
+  addTableColumn,
+  removeTableRow,
+  removeTableColumn,
+  rowHasContent,
+  columnHasContent,
+  handleTableKeyDown,
+  updateTableControls,
+  repositionTableControls,
+  showDeleteConfirmPopup,
+} from '../src/webview/tableInteractions';
 
 describe('Editor Interactions', () => {
   let dom: JSDOM;
@@ -623,6 +637,550 @@ describe('Editor Interactions', () => {
 
       const md = serialize(editor);
       assert.ok(md.includes('**bold**'));
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // ADVANCED TABLE INTERACTIONS
+  // Tests checkbox-only cells, row/column reordering, add/remove rows/cols,
+  // content confirmation logic, and keyboard cell navigation.
+  // -------------------------------------------------------------------
+  describe('Advanced Table Interactions', () => {
+    describe('Checkbox cell interactions', () => {
+      it('cell with only a checkbox parses as table-checkbox-cell', () => {
+        const input = '| Task | Done |\n| --- | --- |\n| Buy milk | [x] |\n| Clean desk | [ ] |';
+        const editor = setupEditor(input);
+
+        const checkboxCells = editor.querySelectorAll('.table-checkbox-cell');
+        assert.strictEqual(checkboxCells.length, 2);
+
+        const firstCbCell = checkboxCells[0] as HTMLElement;
+        assert.strictEqual(firstCbCell.getAttribute('data-checked'), 'true');
+        assert.ok(firstCbCell.classList.contains('is-checked'));
+        const firstInput = firstCbCell.querySelector('input[type="checkbox"]') as HTMLInputElement;
+        assert.ok(firstInput && firstInput.checked);
+
+        const secondCbCell = checkboxCells[1] as HTMLElement;
+        assert.strictEqual(secondCbCell.getAttribute('data-checked'), 'false');
+        assert.ok(!secondCbCell.classList.contains('is-checked'));
+        const secondInput = secondCbCell.querySelector('input[type="checkbox"]') as HTMLInputElement;
+        assert.ok(secondInput && !secondInput.checked);
+      });
+
+      it('toggling checkbox cell state serializes back cleanly', () => {
+        const input = '| Task | Done |\n| --- | --- |\n| Buy milk | [ ] |';
+        const editor = setupEditor(input);
+
+        const cbCell = editor.querySelector('.table-checkbox-cell') as HTMLElement;
+        const cbInput = cbCell.querySelector('input[type="checkbox"]') as HTMLInputElement;
+
+        // Simulate toggling to checked
+        cbInput.checked = true;
+        cbCell.setAttribute('data-checked', 'true');
+        cbCell.classList.add('is-checked');
+
+        let md = serialize(editor);
+        assert.ok(md.includes('| Buy milk | [x] |'));
+
+        // Simulate toggling back to unchecked
+        cbInput.checked = false;
+        cbCell.setAttribute('data-checked', 'false');
+        cbCell.classList.remove('is-checked');
+
+        md = serialize(editor);
+        assert.ok(md.includes('| Buy milk | [ ] |'));
+      });
+
+      it('supports - [x] and - [ ] bullet prefix inside checkbox cells', () => {
+        const input = '| Item | Status |\n| --- | --- |\n| Test | - [x] |';
+        const editor = setupEditor(input);
+
+        const cbCell = editor.querySelector('.table-checkbox-cell') as HTMLElement;
+        assert.ok(cbCell);
+        assert.strictEqual(cbCell.getAttribute('data-checked'), 'true');
+
+        const md = serialize(editor);
+        assert.ok(md.includes('| Test | [x] |'));
+      });
+
+      it('cell with checkbox and additional text is not treated as a checkbox-only cell', () => {
+        const input = '| Item |\n| --- |\n| [x] with extra text |';
+        const editor = setupEditor(input);
+
+        const cbCell = editor.querySelector('.table-checkbox-cell');
+        assert.strictEqual(cbCell, null);
+      });
+    });
+
+    describe('Row and column reordering', () => {
+      it('moveTableRow reorders rows in the table body', () => {
+        const input = '| ID | Name |\n| --- | --- |\n| 1 | Alice |\n| 2 | Bob |\n| 3 | Charlie |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+        const tbody = table.querySelector('tbody')!;
+
+        // Move row 0 (Alice) to row 2 (after Charlie)
+        moveTableRow(tbody, 0, 2);
+
+        const md = serialize(editor);
+        const rows = md.split('\n').filter((l) => l.startsWith('|'));
+        assert.ok(rows[2].includes('Bob'));
+        assert.ok(rows[3].includes('Charlie'));
+        assert.ok(rows[4].includes('Alice'));
+      });
+
+      it('moveTableColumn reorders columns across headers and all body rows', () => {
+        const input = '| ColA | ColB | ColC |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+
+        // Move column 0 (ColA) to column 1 (between ColB and ColC)
+        moveTableColumn(table, 0, 1);
+
+        const md = serialize(editor);
+        assert.ok(md.includes('| ColB | ColA | ColC |'));
+        assert.ok(md.includes('| 2 | 1 | 3 |'));
+        assert.ok(md.includes('| 5 | 4 | 6 |'));
+      });
+
+      it('moveTableColumn moving last column to first column', () => {
+        const input = '| ColA | ColB | ColC |\n| --- | --- | --- |\n| 1 | 2 | 3 |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+
+        // Move column 2 (ColC) to index 0
+        moveTableColumn(table, 2, 0);
+
+        const md = serialize(editor);
+        assert.ok(md.includes('| ColC | ColA | ColB |'));
+        assert.ok(md.includes('| 3 | 1 | 2 |'));
+      });
+    });
+
+    describe('Adding rows and columns', () => {
+      it('addTableRow adds a row at the end with matching column count', () => {
+        const input = '| Header 1 | Header 2 |\n| --- | --- |\n| A | B |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+
+        addTableRow(table);
+
+        const tbody = table.querySelector('tbody')!;
+        assert.strictEqual(tbody.children.length, 2);
+        assert.strictEqual(tbody.children[1].children.length, 2);
+
+        const md = serialize(editor);
+        assert.ok(md.includes('| Header 1 | Header 2 |'));
+        assert.ok(md.includes('| A | B |'));
+        assert.ok(md.includes('|   |   |'));
+      });
+
+      it('addTableRow with insertAtIndex inserts row between existing rows', () => {
+        const input = '| N |\n| --- |\n| Row 1 |\n| Row 2 |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+
+        // Insert at index 1 (between Row 1 and Row 2)
+        const newRow = addTableRow(table, 1);
+        const td = newRow.querySelector('td')!;
+        td.textContent = 'Inserted Row';
+
+        const md = serialize(editor);
+        const lines = md.split('\n').filter((l) => l.startsWith('|'));
+        assert.ok(lines[2].includes('Row 1'));
+        assert.ok(lines[3].includes('Inserted Row'));
+        assert.ok(lines[4].includes('Row 2'));
+      });
+
+      it('addTableColumn adds a column at the end across headers and rows', () => {
+        const input = '| H1 | H2 |\n| --- | --- |\n| A | B |\n| C | D |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+
+        addTableColumn(table);
+
+        const thead = table.querySelector('thead tr')!;
+        assert.strictEqual(thead.children.length, 3);
+        assert.strictEqual(thead.children[2].textContent, 'Spalte 3');
+
+        const tbodyRows = table.querySelectorAll('tbody tr');
+        assert.strictEqual(tbodyRows[0].children.length, 3);
+        assert.strictEqual(tbodyRows[1].children.length, 3);
+
+        const md = serialize(editor);
+        assert.ok(md.includes('| H1 | H2 | Spalte 3 |'));
+        assert.ok(md.includes('| A | B |   |'));
+        assert.ok(md.includes('| C | D |   |'));
+      });
+
+      it('addTableColumn with insertAtIndex inserts column between existing columns', () => {
+        const input = '| Col1 | Col2 |\n| --- | --- |\n| A | B |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+
+        // Insert at index 1 (between Col1 and Col2)
+        addTableColumn(table, 1);
+
+        const headerCells = table.querySelectorAll('thead th');
+        assert.strictEqual(headerCells.length, 3);
+        assert.strictEqual(headerCells[0].textContent, 'Col1');
+        assert.strictEqual(headerCells[1].textContent, 'Spalte 3');
+        assert.strictEqual(headerCells[2].textContent, 'Col2');
+
+        const md = serialize(editor);
+        assert.ok(md.includes('| Col1 | Spalte 3 | Col2 |'));
+        assert.ok(md.includes('| A |   | B |'));
+      });
+    });
+
+    describe('Removing rows and columns with content checks', () => {
+      it('rowHasContent accurately detects empty vs non-empty rows', () => {
+        const input = '| A | B |\n| --- | --- |\n| Hello |   |\n|   |   |';
+        const editor = setupEditor(input);
+        const rows = editor.querySelectorAll('tbody tr');
+
+        assert.strictEqual(rowHasContent(rows[0] as HTMLTableRowElement), true);
+        assert.strictEqual(rowHasContent(rows[1] as HTMLTableRowElement), false);
+      });
+
+      it('rowHasContent detects checked checkboxes as content', () => {
+        const input = '| Task |\n| --- |\n| [x] |\n| [ ] |';
+        const editor = setupEditor(input);
+        const rows = editor.querySelectorAll('tbody tr');
+
+        assert.strictEqual(rowHasContent(rows[0] as HTMLTableRowElement), true);
+        assert.strictEqual(rowHasContent(rows[1] as HTMLTableRowElement), false);
+      });
+
+      it('columnHasContent detects text in header or body cells', () => {
+        const input = '| Title | EmptyCol |\n| --- | --- |\n| Text |   |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+
+        assert.strictEqual(columnHasContent(table, 0), true);
+        // EmptyCol header has text "EmptyCol", so it's non-empty
+        assert.strictEqual(columnHasContent(table, 1), true);
+
+        // Clear header text for column 1
+        table.querySelectorAll('thead th')[1].textContent = '';
+        assert.strictEqual(columnHasContent(table, 1), false);
+      });
+
+      it('removeTableRow deletes row and serializes cleanly', () => {
+        const input = '| A |\n| --- |\n| 1 |\n| 2 |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+
+        // Non-empty row without force should not delete
+        assert.strictEqual(removeTableRow(table, 0, false), false);
+
+        // Non-empty row with force should delete
+        const removed = removeTableRow(table, 0, true);
+        assert.strictEqual(removed, true);
+
+        const md = serialize(editor);
+        assert.ok(!md.includes('| 1 |'));
+        assert.ok(md.includes('| 2 |'));
+      });
+
+      it('removeTableColumn deletes column across headers and all rows', () => {
+        const input = '| Col1 | Col2 |\n| --- | --- |\n| A | B |\n| C | D |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+
+        // Non-empty column without force should not delete
+        assert.strictEqual(removeTableColumn(table, 0, false), false);
+
+        // Non-empty column with force should delete
+        const removed = removeTableColumn(table, 0, true);
+        assert.strictEqual(removed, true);
+
+        const md = serialize(editor);
+        assert.ok(!md.includes('Col1'));
+        assert.ok(md.includes('| Col2 |'));
+        assert.ok(md.includes('| B |'));
+        assert.ok(md.includes('| D |'));
+      });
+
+      it('removeTableColumn prevents deleting the last remaining column', () => {
+        const input = '| SingleCol |\n| --- |\n| Val |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+
+        const removed = removeTableColumn(table, 0);
+        assert.strictEqual(removed, false);
+
+        const md = serialize(editor);
+        assert.ok(md.includes('| SingleCol |'));
+      });
+    });
+
+    describe('Keyboard Tab navigation', () => {
+      it('pressing Tab in the last cell adds a new row and triggers edit', () => {
+        const input = '| A | B |\n| --- | --- |\n| 1 | 2 |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+        const lastCell = table.querySelectorAll('td')[1];
+
+        // Position selection in last cell
+        const range = document.createRange();
+        range.selectNodeContents(lastCell);
+        const sel = dom.window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+
+        let editEmitted = false;
+        const event = new dom.window.KeyboardEvent('keydown', { key: 'Tab' });
+
+        const handled = handleTableKeyDown(event, editor, () => {
+          editEmitted = true;
+        });
+
+        assert.strictEqual(handled, true);
+        assert.strictEqual(editEmitted, true);
+
+        const tbodyRows = table.querySelectorAll('tbody tr');
+        assert.strictEqual(tbodyRows.length, 2);
+      });
+    });
+
+    describe('Extracted Delete Buttons & Confirmation Popup', () => {
+      it('drag button and delete button are separate independent DOM elements', () => {
+        const input = '| Col1 | Col2 |\n| --- | --- |\n| Cell1 | Cell2 |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        assert.ok(wrapper, 'Table wrapper should exist');
+
+        let edits = 0;
+        updateTableControls(wrapper, () => edits++);
+
+        const controls = wrapper.querySelector('.table-controls')!;
+        assert.ok(controls, 'Table controls should exist');
+
+        // Column drag and delete buttons
+        const colDragBtns = controls.querySelectorAll('.table-col-drag-btn');
+        const colDelBtns = controls.querySelectorAll('.table-col-del-btn');
+        assert.strictEqual(colDragBtns.length, 2, 'Should have 2 column drag buttons');
+        assert.strictEqual(colDelBtns.length, 2, 'Should have 2 column delete buttons');
+
+        // Verify drag button does NOT contain the delete button (they are separate)
+        colDragBtns.forEach((dragBtn) => {
+          assert.strictEqual(dragBtn.querySelector('.table-col-del-btn'), null);
+          assert.strictEqual(dragBtn.querySelector('.table-btn-del'), null);
+        });
+
+        // Row drag and delete buttons
+        const rowDragBtns = controls.querySelectorAll('.table-row-drag-btn');
+        const rowDelBtns = controls.querySelectorAll('.table-row-del-btn');
+        assert.strictEqual(rowDragBtns.length, 1, 'Should have 1 row drag button');
+        assert.strictEqual(rowDelBtns.length, 1, 'Should have 1 row delete button');
+
+        // Verify row drag button does NOT contain the delete button
+        rowDragBtns.forEach((dragBtn) => {
+          assert.strictEqual(dragBtn.querySelector('.table-row-del-btn'), null);
+          assert.strictEqual(dragBtn.querySelector('.table-btn-del'), null);
+        });
+      });
+
+      it('clicking column delete with content opens confirmation popup and can be cancelled', () => {
+        const input = '| Col1 | Col2 |\n| --- | --- |\n| Text | Text2 |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        let edits = 0;
+        updateTableControls(wrapper, () => edits++);
+
+        const colDelBtn = wrapper.querySelector('.table-col-del-btn') as HTMLButtonElement;
+        assert.ok(colDelBtn);
+
+        // Click delete button
+        colDelBtn.click();
+
+        // Popup should appear
+        const popup = wrapper.querySelector('.table-confirm-popup') as HTMLElement;
+        assert.ok(popup, 'Confirmation popup should appear');
+        assert.ok(popup.textContent?.includes('Spalte löschen?'));
+
+        // Click "Abbrechen"
+        const cancelBtn = popup.querySelector('.table-confirm-cancel') as HTMLButtonElement;
+        assert.ok(cancelBtn);
+        cancelBtn.click();
+
+        // Popup should be removed and column not deleted
+        assert.strictEqual(wrapper.querySelector('.table-confirm-popup'), null);
+        const headers = wrapper.querySelectorAll('thead th');
+        assert.strictEqual(headers.length, 2, 'Both columns should still exist');
+        assert.strictEqual(edits, 0);
+      });
+
+      it('confirming column delete in popup removes column and triggers edit', () => {
+        const input = '| Col1 | Col2 |\n| --- | --- |\n| Text | Text2 |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        let edits = 0;
+        updateTableControls(wrapper, () => edits++);
+
+        const colDelBtn = wrapper.querySelector('.table-col-del-btn') as HTMLButtonElement;
+        colDelBtn.click();
+
+        const popup = wrapper.querySelector('.table-confirm-popup') as HTMLElement;
+        assert.ok(popup);
+
+        const deleteBtn = popup.querySelector('.table-confirm-delete') as HTMLButtonElement;
+        assert.ok(deleteBtn);
+        deleteBtn.click();
+
+        // Popup dismissed, column removed, edit emitted
+        assert.strictEqual(wrapper.querySelector('.table-confirm-popup'), null);
+        const headers = wrapper.querySelectorAll('thead th');
+        assert.strictEqual(headers.length, 1);
+        assert.strictEqual(edits, 1);
+      });
+
+      it('clicking row delete with content opens confirmation popup and can be closed with Escape', () => {
+        const input = '| Col1 |\n| --- |\n| RowText |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        let edits = 0;
+        updateTableControls(wrapper, () => edits++);
+
+        const rowDelBtn = wrapper.querySelector('.table-row-del-btn') as HTMLButtonElement;
+        assert.ok(rowDelBtn);
+        rowDelBtn.click();
+
+        const popup = wrapper.querySelector('.table-confirm-popup') as HTMLElement;
+        assert.ok(popup, 'Confirmation popup should appear for row');
+        assert.ok(popup.textContent?.includes('Zeile löschen?'));
+
+        // Press Escape on document
+        const escEvent = new dom.window.KeyboardEvent('keydown', { key: 'Escape' });
+        document.dispatchEvent(escEvent);
+
+        assert.strictEqual(wrapper.querySelector('.table-confirm-popup'), null);
+        const bodyRows = wrapper.querySelectorAll('tbody tr');
+        assert.strictEqual(bodyRows.length, 1, 'Row should still exist after Escape');
+      });
+
+      it('empty row deletes immediately without showing confirmation popup', () => {
+        const input = '| Col1 |\n| --- |\n|   |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        let edits = 0;
+        updateTableControls(wrapper, () => edits++);
+
+        const rowDelBtn = wrapper.querySelector('.table-row-del-btn') as HTMLButtonElement;
+        assert.ok(rowDelBtn);
+        rowDelBtn.click();
+
+        // Should NOT show popup
+        assert.strictEqual(wrapper.querySelector('.table-confirm-popup'), null);
+        // Row should be deleted immediately
+        const bodyRows = wrapper.querySelectorAll('tbody tr');
+        assert.strictEqual(bodyRows.length, 0);
+        assert.strictEqual(edits, 1);
+      });
+
+      it('repositionTableControls updates row handles with scrollLeft offset', () => {
+        const input = '| Col1 | Col2 |\n| --- | --- |\n| A | B |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        updateTableControls(wrapper, () => {});
+
+        // Simulate horizontal scroll
+        wrapper.scrollLeft = 120;
+        repositionTableControls(wrapper);
+
+        const rowDragBtn = wrapper.querySelector('.table-row-drag-btn') as HTMLElement;
+        const rowDelBtn = wrapper.querySelector('.table-row-del-btn') as HTMLElement;
+        assert.ok(rowDragBtn.style.left.includes('px'));
+        assert.ok(rowDelBtn.style.left.includes('px'));
+      });
+
+      it('column delete button is positioned above the drag handle and both are centered', () => {
+        const input = '| Col1 | Col2 |\n| --- | --- |\n| A | B |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        updateTableControls(wrapper, () => {});
+
+        const colDragBtn = wrapper.querySelector('.table-col-drag-btn[data-col-idx="0"]') as HTMLElement;
+        const colDelBtn = wrapper.querySelector('.table-col-del-btn[data-col-idx="0"]') as HTMLElement;
+
+        assert.ok(colDragBtn);
+        assert.ok(colDelBtn);
+
+        const dragTop = parseFloat(colDragBtn.style.top);
+        const delTop = parseFloat(colDelBtn.style.top);
+
+        // Delete button should be positioned above the drag handle (smaller top value)
+        assert.ok(delTop < dragTop, `Delete button top (${delTop}) should be above drag handle top (${dragTop})`);
+
+        // Both should share the same horizontal center (left offset)
+        assert.strictEqual(colDragBtn.style.left, colDelBtn.style.left);
+      });
+
+      it('row drag button and add row button are centrally aligned horizontally', () => {
+        const input = '| Col1 |\n| --- |\n| A |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        updateTableControls(wrapper, () => {});
+
+        const rowDragBtn = wrapper.querySelector('.table-row-drag-btn[data-row-idx="0"]') as HTMLElement;
+        const insertRowBtn = wrapper.querySelector('.row-insert-btn[data-row-idx="0"]') as HTMLElement;
+
+        assert.ok(rowDragBtn);
+        assert.ok(insertRowBtn);
+
+        // Row drag handle and insert row button share identical left coordinates
+        assert.strictEqual(rowDragBtn.style.left, insertRowBtn.style.left);
+      });
+
+      it('controls contain SVG icons for pixel-perfect alignment without baseline variation', () => {
+        const input = '| Col1 | Col2 |\n| --- | --- |\n| A | B |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        updateTableControls(wrapper, () => {});
+
+        const colDragGrip = wrapper.querySelector('.col-grip svg');
+        const colDelIcon = wrapper.querySelector('.table-col-del-btn svg');
+        const colInsertIcon = wrapper.querySelector('.col-insert-btn svg');
+        const rowDragGrip = wrapper.querySelector('.row-grip svg');
+        const rowDelIcon = wrapper.querySelector('.table-row-del-btn svg');
+        const rowInsertIcon = wrapper.querySelector('.row-insert-btn svg');
+
+        assert.ok(colDragGrip, 'Col drag grip should have SVG icon');
+        assert.ok(colDelIcon, 'Col delete button should have SVG icon');
+        assert.ok(colInsertIcon, 'Col insert button should have SVG icon');
+        assert.ok(rowDragGrip, 'Row drag grip should have SVG icon');
+        assert.ok(rowDelIcon, 'Row delete button should have SVG icon');
+        assert.ok(rowInsertIcon, 'Row insert button should have SVG icon');
+      });
+
+      it('during row drag only the active dragged handle is visible', () => {
+        const input = '| Col1 |\n| --- |\n| Row 0 |\n| Row 1 |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        updateTableControls(wrapper, () => {});
+
+        const rowDragBtns = wrapper.querySelectorAll('.table-row-drag-btn') as NodeListOf<HTMLElement>;
+        assert.strictEqual(rowDragBtns.length, 2);
+
+        // Dispatch mousedown on row 0 drag button
+        const mousedownEvent = new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true });
+        rowDragBtns[0].dispatchEvent(mousedownEvent);
+
+        // Row 0 should be visible, row 1 should be hidden
+        assert.strictEqual(rowDragBtns[0].style.display, 'flex');
+        assert.strictEqual(rowDragBtns[1].style.display, 'none');
+
+        // Delete and insert buttons should be hidden during drag
+        const rowDelBtns = wrapper.querySelectorAll('.table-row-del-btn') as NodeListOf<HTMLElement>;
+        rowDelBtns.forEach((btn) => {
+          assert.strictEqual(btn.style.display, 'none');
+        });
+
+        // Release drag
+        const mouseupEvent = new dom.window.MouseEvent('mouseup', { bubbles: true });
+        document.dispatchEvent(mouseupEvent);
+      });
     });
   });
 });
