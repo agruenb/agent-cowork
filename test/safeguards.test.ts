@@ -98,19 +98,20 @@ describe('Data Loss Safeguards & Anomaly Detection', () => {
   });
 
   describe('Provider-level Empty File Overwrite Protection', () => {
+    // Uses the same hasVisibleContent utility as the real provider guard
+    const { hasVisibleContent } = require('../src/utils/markdownContent');
+
     // Simulates the guard logic applied in markdownEditorProvider.ts onDidReceiveMessage('edit')
+    // Edits that erase all visible content from a document with visible content are blocked.
     function simulateEditGuard(
       currentDocText: string,
       incomingText: string,
-      isExplicitEmpty?: boolean
     ): { applied: boolean; reason?: string } {
       if (typeof incomingText !== 'string') {
         return { applied: false, reason: 'Invalid payload type' };
       }
-      if (currentDocText.trim().length > 0 && incomingText.trim().length === 0) {
-        if (!isExplicitEmpty) {
-          return { applied: false, reason: 'Blocked accidental empty wipeout on non-empty document' };
-        }
+      if (hasVisibleContent(currentDocText) && !hasVisibleContent(incomingText)) {
+        return { applied: false, reason: 'Blocked content-erasing edit on document with visible content' };
       }
       return { applied: true };
     }
@@ -125,21 +126,138 @@ describe('Data Loss Safeguards & Anomaly Detection', () => {
       assert.strictEqual(result.applied, true);
     });
 
-    it('blocks unexpected empty edit when document has existing content', () => {
-      const result = simulateEditGuard('# Important Document\nDo not delete', '', false);
-      assert.strictEqual(result.applied, false);
-      assert.strictEqual(result.reason, 'Blocked accidental empty wipeout on non-empty document');
-    });
-
-    it('blocks unexpected empty edit when isExplicitEmpty is undefined (e.g. unhandled error state)', () => {
+    it('blocks completely empty edit when document has existing content', () => {
       const result = simulateEditGuard('# Important Document\nDo not delete', '');
       assert.strictEqual(result.applied, false);
-      assert.strictEqual(result.reason, 'Blocked accidental empty wipeout on non-empty document');
     });
 
-    it('allows empty edit when user explicitly and deliberately cleared the document', () => {
-      const result = simulateEditGuard('# Important Document\nDo not delete', '', true);
+    it('blocks edit with only whitespace when document has visible content', () => {
+      const result = simulateEditGuard('# Important Document\nDo not delete', '   \n  \n  ');
+      assert.strictEqual(result.applied, false);
+    });
+
+    it('blocks edit with only residual heading markers but no text', () => {
+      const result = simulateEditGuard('# Real Title\nSome paragraph text', '# \n## \n### ');
+      assert.strictEqual(result.applied, false);
+    });
+
+    it('blocks edit with only horizontal rules and no visible text', () => {
+      const result = simulateEditGuard('Important content here', '---\n\n---');
+      assert.strictEqual(result.applied, false);
+    });
+
+    it('blocks edit with only empty list markers', () => {
+      const result = simulateEditGuard('A real paragraph', '- \n- \n- ');
+      assert.strictEqual(result.applied, false);
+    });
+
+    it('blocks edit with only table separator syntax', () => {
+      const result = simulateEditGuard('Real content', '| | |\n| --- | --- |');
+      assert.strictEqual(result.applied, false);
+    });
+
+    it('blocks edit with only code fences and no code', () => {
+      const result = simulateEditGuard('Real content', '```\n\n```');
+      assert.strictEqual(result.applied, false);
+    });
+
+    it('blocks edit with only blockquote markers', () => {
+      const result = simulateEditGuard('Real content', '> \n> ');
+      assert.strictEqual(result.applied, false);
+    });
+
+    it('blocks edit with only empty task checkboxes', () => {
+      const result = simulateEditGuard('Real content', '- [ ] \n- [x] ');
+      assert.strictEqual(result.applied, false);
+    });
+
+    it('allows edit that replaces content with different visible content', () => {
+      const result = simulateEditGuard('Old text', 'New text');
       assert.strictEqual(result.applied, true);
+    });
+
+    it('allows edit that has visible text inside markdown structures', () => {
+      const result = simulateEditGuard('Old text', '# New Heading\n\nNew paragraph');
+      assert.strictEqual(result.applied, true);
+    });
+
+    it('allows writing content to an empty document', () => {
+      const result = simulateEditGuard('', '# New Document');
+      assert.strictEqual(result.applied, true);
+    });
+
+    it('allows empty-to-empty edits (no-op)', () => {
+      const result = simulateEditGuard('', '');
+      assert.strictEqual(result.applied, true);
+    });
+  });
+
+  describe('hasVisibleContent utility', () => {
+    const { hasVisibleContent } = require('../src/utils/markdownContent');
+
+    it('returns true for plain text', () => {
+      assert.strictEqual(hasVisibleContent('Hello world'), true);
+    });
+
+    it('returns true for text with markdown formatting', () => {
+      assert.strictEqual(hasVisibleContent('**bold** and *italic*'), true);
+    });
+
+    it('returns true for heading with text', () => {
+      assert.strictEqual(hasVisibleContent('# My Title'), true);
+    });
+
+    it('returns true for list with text', () => {
+      assert.strictEqual(hasVisibleContent('- Item one\n- Item two'), true);
+    });
+
+    it('returns true for code block with code', () => {
+      assert.strictEqual(hasVisibleContent('```js\nconsole.log("hi")\n```'), true);
+    });
+
+    it('returns true for table with cell text', () => {
+      assert.strictEqual(hasVisibleContent('| Name | Age |\n| --- | --- |\n| Alice | 30 |'), true);
+    });
+
+    it('returns false for empty string', () => {
+      assert.strictEqual(hasVisibleContent(''), false);
+    });
+
+    it('returns false for whitespace only', () => {
+      assert.strictEqual(hasVisibleContent('   \n\n  \t  '), false);
+    });
+
+    it('returns false for empty heading markers', () => {
+      assert.strictEqual(hasVisibleContent('# \n## \n### '), false);
+    });
+
+    it('returns false for only horizontal rules', () => {
+      assert.strictEqual(hasVisibleContent('---\n\n***\n\n___'), false);
+    });
+
+    it('returns false for only empty list markers', () => {
+      assert.strictEqual(hasVisibleContent('- \n- \n* \n+ '), false);
+    });
+
+    it('returns false for only blockquote markers', () => {
+      assert.strictEqual(hasVisibleContent('> \n> \n>> '), false);
+    });
+
+    it('returns false for only code fences', () => {
+      assert.strictEqual(hasVisibleContent('```\n\n```'), false);
+    });
+
+    it('returns false for only table syntax with no text', () => {
+      assert.strictEqual(hasVisibleContent('| | |\n| --- | --- |\n| | |'), false);
+    });
+
+    it('returns false for only task checkbox markers', () => {
+      assert.strictEqual(hasVisibleContent('- [ ] \n- [x] '), false);
+    });
+
+    it('returns false for null/undefined', () => {
+      assert.strictEqual(hasVisibleContent(null), false);
+      assert.strictEqual(hasVisibleContent(undefined), false);
     });
   });
 });

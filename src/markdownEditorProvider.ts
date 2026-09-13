@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { hasVisibleContent } from './utils/markdownContent';
 
 /**
  * Provider for the built-in formatted and editable Markdown editor in Agent Cowork.
@@ -69,6 +70,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     });
 
     let autoSaveTimer: NodeJS.Timeout | null = null;
+    let hasParseError = false;
 
     // Handle messages sent from the webview editor
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
@@ -79,17 +81,22 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           }
 
           // Safety guard: Prevent accidental file blanking.
-          // If the existing document has content, but the incoming edit is empty,
-          // only allow it if explicitly marked by the user (e.g. deliberate Select All + Backspace).
+          // If the existing document has visible content, but the incoming edit has none,
+          // always block — user-initiated full deletions are not allowed to protect against
+          // content loss during view mode switches (rendered ↔ raw).
           const currentText = document.getText();
-          if (currentText.trim().length > 0 && message.text.trim().length === 0) {
-            if (!message.isExplicitEmpty) {
-              console.warn('Agent Cowork: Blocked unexpected empty edit on non-empty document.');
-              vscode.window.showWarningMessage(
-                'Agent Cowork: Ein leerer Inhalt wurde abgefangen, um Datenverlust zu verhindern. Bitte verwenden Sie den Quelltext-Modus (Raw), falls Sie den Text absichtlich gelöscht haben.'
-              );
-              return;
-            }
+          if (hasVisibleContent(currentText) && !hasVisibleContent(message.text)) {
+            console.warn('Agent Cowork: Blocked content-erasing edit on document with visible content.');
+            vscode.window.showWarningMessage(
+              'Agent Cowork: Der gesamte Inhalt kann nicht gelöscht werden. Um den Text zu bearbeiten, verwenden Sie den Quelltext-Modus (Raw).'
+            );
+            return;
+          }
+
+          // Clear parse error state when a valid edit with visible content comes through,
+          // indicating the user has recovered from the error state.
+          if (hasParseError && hasVisibleContent(message.text)) {
+            hasParseError = false;
           }
 
           isInternalEdit = true;
@@ -104,14 +111,29 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             edit.replace(document.uri, fullRange, message.text);
             await vscode.workspace.applyEdit(edit);
 
-            // If autoSave is enabled in configuration, automatically save after edit
+            // If autoSave is enabled in configuration, automatically save after edit.
+            // Auto-save is suppressed while a parse error is active to prevent saving
+            // corrupted or empty content that resulted from a failed view switch.
             const config = vscode.workspace.getConfiguration('agentCowork');
-            if (config.get<boolean>('autoSave', true)) {
+            if (config.get<boolean>('autoSave', true) && !hasParseError) {
               if (autoSaveTimer) {
                 clearTimeout(autoSaveTimer);
               }
               autoSaveTimer = setTimeout(async () => {
                 if (document.isDirty) {
+                  // Safety check: Always confirm before saving a document with no visible content
+                  const docText = document.getText();
+                  if (!hasVisibleContent(docText)) {
+                    const answer = await vscode.window.showWarningMessage(
+                      'Agent Cowork: Das Dokument hat keinen Inhalt. Möchten Sie die leere Datei wirklich speichern?',
+                      { modal: true },
+                      'Speichern',
+                      'Abbrechen'
+                    );
+                    if (answer !== 'Speichern') {
+                      return;
+                    }
+                  }
                   await document.save();
                 }
               }, 1000);
@@ -124,6 +146,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           break;
         }
         case 'parseError': {
+          hasParseError = true;
+          if (autoSaveTimer) {
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = null;
+          }
           vscode.window.showWarningMessage(
             `Agent Cowork: Formatierungsfehler im Markdown-Dokument (${message.error || 'Syntax-Fehler'}). Es wurde in den Raw-Modus gewechselt, um Datenverlust zu verhindern.`
           );

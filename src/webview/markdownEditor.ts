@@ -57,19 +57,6 @@ errorBannerDismiss?.addEventListener('click', () => {
   hideErrorBanner();
 });
 
-/**
- * Checks if the current empty state is user-initiated (e.g. cleared canvas or raw textarea)
- * rather than a corrupted DOM or error state.
- */
-function isUserInitiatedEmpty(): boolean {
-  if (hasParseError) {
-    return false;
-  }
-  if (isRawMode) {
-    return rawTextarea.value.trim().length === 0;
-  }
-  return (editorCanvas.textContent || '').trim().length === 0;
-}
 
 /**
  * Safely converts editorCanvas DOM into Markdown with error handling and anomaly detection.
@@ -105,14 +92,59 @@ function emitCanvasEdit(): void {
 }
 
 /**
+ * Checks whether a markdown string contains any visible, readable text
+ * beyond pure syntax characters (heading markers, list bullets, fences, etc.)
+ * and whitespace. Used as a client-side guard against content erasure.
+ */
+function hasVisibleContent(markdown: string): boolean {
+  if (!markdown) {
+    return false;
+  }
+  let text = markdown;
+  // Remove fenced code block markers
+  text = text.replace(/^[ \t]*(`{3,}|~{3,})[ \t]*\w*[ \t]*$/gm, '');
+  // Remove horizontal rules
+  text = text.replace(/^[ \t]*([-*_][ \t]*){3,}[ \t]*$/gm, '');
+  // Remove table separator rows
+  text = text.replace(/^[ \t]*\|?[ \t]*(:?-{2,}:?[ \t]*\|[ \t]*)*:?-{2,}:?[ \t]*\|?[ \t]*$/gm, '');
+  // Remove heading markers
+  text = text.replace(/^[ \t]*#{1,6}[ \t]*/gm, '');
+  // Remove blockquote markers
+  text = text.replace(/^[ \t]*>+[ \t]*/gm, '');
+  // Remove list markers
+  text = text.replace(/^[ \t]*[-*+][ \t]+/gm, '');
+  text = text.replace(/^[ \t]*\d+[.)]\s+/gm, '');
+  // Remove task checkbox markers
+  text = text.replace(/\[[ xX]\]/g, '');
+  // Remove inline formatting syntax
+  text = text.replace(/[*_~`]/g, '');
+  // Remove table pipe characters
+  text = text.replace(/\|/g, '');
+  // Remove link/image syntax brackets
+  text = text.replace(/[[\]()!]/g, '');
+  return text.trim().length > 0;
+}
+
+/**
  * Sends updated markdown text to the VS Code extension host.
  * @param markdown The serialized markdown text
- * @param isExplicitEmpty Whether this edit is an intentional, user-driven deletion of all text
  */
-function emitEdit(markdown: string, isExplicitEmpty: boolean = false): void {
+function emitEdit(markdown: string): void {
   // Safety guard: Suppress emitting edits from formatted mode if parser failed and canvas is corrupted
   if (hasParseError && !isRawMode) {
     console.warn('Agent Cowork: Suppressing edit emission due to active parser error.');
+    return;
+  }
+
+  // Safety guard: Block edits that would erase all visible content from a document
+  // that currently has visible content. This catches content loss at the source,
+  // before the edit reaches the provider — covering raw textarea input, view mode
+  // switches, and canvas mutations.
+  if (hasVisibleContent(currentMarkdown) && !hasVisibleContent(markdown)) {
+    console.warn('Agent Cowork: Blocked content-erasing edit in webview.');
+    showErrorBanner(
+      'Der gesamte Inhalt kann nicht gelöscht werden. Ihre Daten wurden geschützt.'
+    );
     return;
   }
 
@@ -128,7 +160,6 @@ function emitEdit(markdown: string, isExplicitEmpty: boolean = false): void {
     vscode.postMessage({
       type: 'edit',
       text: currentMarkdown,
-      isExplicitEmpty: isExplicitEmpty || (currentMarkdown.trim().length === 0 && isUserInitiatedEmpty()),
     });
     // Reset flag after brief delay
     setTimeout(() => {
@@ -434,7 +465,7 @@ function restoreSelection(saved: { container: Node; offset: number } | null): vo
 
 // Raw textarea input listener
 rawTextarea.addEventListener('input', () => {
-  emitEdit(rawTextarea.value, rawTextarea.value.trim().length === 0);
+  emitEdit(rawTextarea.value);
 });
 
 // Raw textarea Tab and Shift+Tab keydown listener
@@ -638,7 +669,6 @@ coworkBtn?.addEventListener('click', () => {
       vscode.postMessage({
         type: 'edit',
         text: currentMarkdown,
-        isExplicitEmpty: currentMarkdown.trim().length === 0 && isUserInitiatedEmpty(),
       });
       setTimeout(() => {
         isInternalChange = false;
