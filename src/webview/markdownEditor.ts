@@ -5,9 +5,16 @@ import {
   outdentListItem,
   indentRawText,
   outdentRawText,
-  isCursorAtStartOfListItem,
 } from '../markdown/listOperations';
 import { wireTableInteractions, handleTableKeyDown } from './tableInteractions';
+import {
+  toggleListBlock,
+  indentActiveListItem,
+  outdentActiveListItem,
+  insertBlockElement,
+  applyHeading,
+  applyRawFormatting,
+} from './toolbarOperations';
 
 declare function acquireVsCodeApi(): {
   postMessage(message: unknown): void;
@@ -288,66 +295,73 @@ function toggleRawMode(): void {
 // -------------------------------------------------------------
 
 function executeCommand(cmd: string, val: string = ''): void {
+  if (isRawMode) {
+    applyRawFormatting(rawTextarea, cmd, val);
+    return;
+  }
   editorCanvas.focus();
-  document.execCommand(cmd, false, val);
+  if (cmd === 'strike') {
+    document.execCommand('strikeThrough', false, val);
+  } else if (cmd === 'quote') {
+    document.execCommand('formatBlock', false, '<blockquote>');
+  } else if (cmd === 'hr') {
+    document.execCommand('insertHorizontalRule', false, val);
+  } else {
+    document.execCommand(cmd, false, val);
+  }
   emitCanvasEdit();
 }
 
 function handleHeadingChange(val: string): void {
-  editorCanvas.focus();
-  if (val === 'p') {
-    document.execCommand('formatBlock', false, '<p>');
-  } else {
-    document.execCommand('formatBlock', false, `<${val}>`);
-  }
-  emitCanvasEdit();
-}
-
-
-function insertTaskItem(): void {
-  editorCanvas.focus();
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) {
+  if (isRawMode) {
+    applyRawFormatting(rawTextarea, 'heading', val);
     return;
   }
+  editorCanvas.focus();
+  applyHeading(editorCanvas, val, () => emitCanvasEdit());
+}
 
-  const range = selection.getRangeAt(0);
-  const taskUl = document.createElement('ul');
-  taskUl.className = 'editor-block task-list';
-  taskUl.setAttribute('data-block-type', 'task_list');
+function handleListToggle(type: 'bullet' | 'ordered' | 'task'): void {
+  if (isRawMode) {
+    applyRawFormatting(rawTextarea, type);
+    return;
+  }
+  editorCanvas.focus();
+  toggleListBlock(editorCanvas, type, () => {
+    wireTaskCheckboxes();
+    emitCanvasEdit();
+  });
+}
 
-  const taskLi = document.createElement('li');
-  taskLi.className = 'task-item';
-  taskLi.setAttribute('data-checked', 'false');
+function handleIndent(): void {
+  if (isRawMode) {
+    applyRawFormatting(rawTextarea, 'indent');
+    return;
+  }
+  editorCanvas.focus();
+  indentActiveListItem(editorCanvas, () => {
+    wireTaskCheckboxes();
+    emitCanvasEdit();
+  });
+}
 
-  const checkbox = document.createElement('input');
-  checkbox.type = 'checkbox';
-  checkbox.className = 'task-checkbox';
-  checkbox.contentEditable = 'false';
-
-  const contentSpan = document.createElement('span');
-  contentSpan.className = 'task-content';
-  contentSpan.innerHTML = range.toString() || 'Aufgabe...';
-
-  taskLi.appendChild(checkbox);
-  taskLi.appendChild(contentSpan);
-  taskUl.appendChild(taskLi);
-
-  range.deleteContents();
-  range.insertNode(taskUl);
-
-  // Position cursor inside contentSpan
-  const newRange = document.createRange();
-  newRange.selectNodeContents(contentSpan);
-  newRange.collapse(false);
-  selection.removeAllRanges();
-  selection.addRange(newRange);
-
-  wireTaskCheckboxes();
-  emitCanvasEdit();
+function handleOutdent(): void {
+  if (isRawMode) {
+    applyRawFormatting(rawTextarea, 'outdent');
+    return;
+  }
+  editorCanvas.focus();
+  outdentActiveListItem(editorCanvas, () => {
+    wireTaskCheckboxes();
+    emitCanvasEdit();
+  });
 }
 
 function insertTable(): void {
+  if (isRawMode) {
+    applyRawFormatting(rawTextarea, 'table');
+    return;
+  }
   editorCanvas.focus();
   const tableHtml = `
     <div class="editor-block table-wrapper" data-block-type="table">
@@ -363,12 +377,17 @@ function insertTable(): void {
     </div>
     <p class="editor-block" data-block-type="paragraph"><br></p>
   `;
-  document.execCommand('insertHTML', false, tableHtml);
-  wireTableInteractions(editorCanvas, () => emitCanvasEdit());
-  emitCanvasEdit();
+  insertBlockElement(editorCanvas, tableHtml, () => {
+    wireTableInteractions(editorCanvas, () => emitCanvasEdit());
+    emitCanvasEdit();
+  });
 }
 
 function insertCodeBlock(): void {
+  if (isRawMode) {
+    applyRawFormatting(rawTextarea, 'code');
+    return;
+  }
   editorCanvas.focus();
   const codeHtml = `
     <div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="markdown">
@@ -377,8 +396,9 @@ function insertCodeBlock(): void {
     </div>
     <p class="editor-block" data-block-type="paragraph"><br></p>
   `;
-  document.execCommand('insertHTML', false, codeHtml);
-  emitCanvasEdit();
+  insertBlockElement(editorCanvas, codeHtml, () => {
+    emitCanvasEdit();
+  });
 }
 
 // -------------------------------------------------------------
@@ -506,17 +526,16 @@ editorCanvas.addEventListener('keydown', (e: KeyboardEvent) => {
           return;
         }
 
-        // Only indent the list item if cursor is at the beginning of the item or text is selected
-        if (!selection.isCollapsed || isCursorAtStartOfListItem(li, selection)) {
-          const saved = saveSelection();
-          indentListItem(li);
+        const saved = saveSelection();
+        const didIndent = indentListItem(li);
+        if (didIndent) {
           wireTaskCheckboxes();
           restoreSelection(saved);
           emitCanvasEdit();
           return;
         }
 
-        // Inside list item but cursor is in the middle or at the end: insert 2 spaces
+        // Inside first list item that cannot be indented further: insert 2 spaces
         document.execCommand('insertText', false, '  ');
         emitCanvasEdit();
         return;
@@ -634,19 +653,44 @@ editorCanvas.addEventListener('keydown', (e: KeyboardEvent) => {
   }
 });
 
+// Prevent mousedown on formatting toolbar buttons from blurring the editor selection
+document.querySelector('.toolbar')?.addEventListener('mousedown', (e) => {
+  const target = e.target as HTMLElement;
+  const btn = target.closest('button, .tb-btn');
+  if (btn && btn.id !== 'btn-toggle-raw' && btn.id !== 'btn-cowork') {
+    e.preventDefault();
+  }
+});
+
 // Hook up toolbar buttons
 document.getElementById('btn-bold')?.addEventListener('click', () => executeCommand('bold'));
 document.getElementById('btn-italic')?.addEventListener('click', () => executeCommand('italic'));
-document.getElementById('btn-strike')?.addEventListener('click', () => executeCommand('strikeThrough'));
-document.getElementById('btn-bullet')?.addEventListener('click', () => executeCommand('insertUnorderedList'));
-document.getElementById('btn-ordered')?.addEventListener('click', () => executeCommand('insertOrderedList'));
-document.getElementById('btn-task')?.addEventListener('click', () => insertTaskItem());
-document.getElementById('btn-quote')?.addEventListener('click', () => executeCommand('formatBlock', '<blockquote>'));
+document.getElementById('btn-strike')?.addEventListener('click', () => executeCommand('strike'));
+document.getElementById('btn-bullet')?.addEventListener('click', () => handleListToggle('bullet'));
+document.getElementById('btn-ordered')?.addEventListener('click', () => handleListToggle('ordered'));
+document.getElementById('btn-task')?.addEventListener('click', () => handleListToggle('task'));
+document.getElementById('btn-outdent')?.addEventListener('click', () => handleOutdent());
+document.getElementById('btn-indent')?.addEventListener('click', () => handleIndent());
+document.getElementById('btn-quote')?.addEventListener('click', () => executeCommand('quote'));
 document.getElementById('btn-table')?.addEventListener('click', () => insertTable());
 document.getElementById('btn-code')?.addEventListener('click', () => insertCodeBlock());
-document.getElementById('btn-hr')?.addEventListener('click', () => executeCommand('insertHorizontalRule'));
-document.getElementById('btn-undo')?.addEventListener('click', () => executeCommand('undo'));
-document.getElementById('btn-redo')?.addEventListener('click', () => executeCommand('redo'));
+document.getElementById('btn-hr')?.addEventListener('click', () => executeCommand('hr'));
+document.getElementById('btn-undo')?.addEventListener('click', () => {
+  if (isRawMode) {
+    rawTextarea.focus();
+    document.execCommand('undo');
+  } else {
+    executeCommand('undo');
+  }
+});
+document.getElementById('btn-redo')?.addEventListener('click', () => {
+  if (isRawMode) {
+    rawTextarea.focus();
+    document.execCommand('redo');
+  } else {
+    executeCommand('redo');
+  }
+});
 
 // Heading select
 headingSelect?.addEventListener('change', (e) => {

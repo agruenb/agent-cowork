@@ -229,6 +229,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         <button id="btn-task" class="tb-btn" tabindex="-1" title="Aufgabenliste (Checkliste)">☑ Aufgabe</button>
         <button id="btn-bullet" class="tb-btn" tabindex="-1" title="Aufzählungsliste">• Liste</button>
         <button id="btn-ordered" class="tb-btn" tabindex="-1" title="Nummerierte Liste">1. Liste</button>
+        <button id="btn-outdent" class="tb-btn" tabindex="-1" title="Einzug verringern (Shift+Tab)">⇤</button>
+        <button id="btn-indent" class="tb-btn" tabindex="-1" title="Einzug vergrößern (Tab)">⇥</button>
       </div>
 
       <div class="toolbar-separator"></div>
