@@ -3,7 +3,7 @@ import * as path from 'path';
 import { WelcomePanel } from './welcomePanel';
 import { FolderTreeProvider, FolderItem } from './folderTreeProvider';
 import { MarkdownEditorProvider } from './markdownEditorProvider';
-import { coworkWithFile, coworkWithFolder } from './coworkChat';
+import { coworkWithFile, coworkWithFolder, CoworkChatOptions } from './coworkChat';
 
 const THEME_NAME = 'Agent Cowork Light';
 const ICON_THEME_NAME = 'agent-cowork-icons';
@@ -567,6 +567,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const folderTreeProvider = new FolderTreeProvider(context.extensionUri);
   const folderTreeView = vscode.window.createTreeView('agentCowork.folderView', {
     treeDataProvider: folderTreeProvider,
+    dragAndDropController: folderTreeProvider,
     showCollapseAll: true,
   });
   folderTreeView.onDidExpandElement((e) => folderTreeProvider.onDidExpandElement(e.element));
@@ -651,21 +652,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   );
 
-  // Register coworkWithFile command (links file to new AI conversation)
+  // Register coworkWithFile command (links file to AI conversation)
   const coworkWithFileCmd = vscode.commands.registerCommand(
     'agent-cowork.coworkWithFile',
-    async (target?: vscode.Uri | FolderItem) => {
+    async (target?: vscode.Uri | FolderItem, options?: CoworkChatOptions) => {
       const uri = target instanceof vscode.Uri ? target : target?.uri;
-      await coworkWithFile(uri);
+      await coworkWithFile(uri, options);
     }
   );
 
-  // Register coworkWithFolder command (links folder to new AI conversation)
+  // Register coworkWithFolder command (links folder to AI conversation)
   const coworkWithFolderCmd = vscode.commands.registerCommand(
     'agent-cowork.coworkWithFolder',
-    async (target?: vscode.Uri | FolderItem) => {
+    async (target?: vscode.Uri | FolderItem, options?: CoworkChatOptions) => {
       const uri = target instanceof vscode.Uri ? target : target?.uri;
-      await coworkWithFolder(uri);
+      await coworkWithFolder(uri, options);
     }
   );
 

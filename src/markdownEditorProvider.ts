@@ -166,7 +166,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           if (document.isDirty) {
             await document.save();
           }
-          await vscode.commands.executeCommand('agent-cowork.coworkWithFile', document.uri);
+          await vscode.commands.executeCommand('agent-cowork.coworkWithFile', document.uri, {
+            newConversation: true,
+          });
           break;
         }
       }

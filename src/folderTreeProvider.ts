@@ -1,6 +1,18 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import {
+  isSameOrDescendant,
+  resolveDropTargetDirectory,
+  formatUriList,
+  parseUriList,
+  FOLDER_TREE_DRAG_MIME_TYPES,
+  FOLDER_TREE_DROP_MIME_TYPES,
+  TREE_VIEW_MIME_TYPE,
+  URI_LIST_MIME_TYPE,
+} from './utils/dragAndDrop';
+
+export { isSameOrDescendant };
 
 /**
  * Represents a single node (file or folder) in the custom folder tree.
@@ -24,6 +36,8 @@ export class FolderItem extends vscode.TreeItem {
         : vscode.TreeItemCollapsibleState.None,
     );
 
+    this.id = uri.fsPath;
+    this.resourceUri = uri;
     this.tooltip = uri.fsPath;
     this._isExpanded = initiallyExpanded;
     this._updateIcon();
@@ -77,10 +91,29 @@ export class FolderItem extends vscode.TreeItem {
 }
 
 /**
- * Provides the tree data for the Agent Cowork custom folder view.
+ * Resolves the drop target directory URI based on the target item.
+ */
+export function resolveDropTargetUri(
+  target: { uri: vscode.Uri; isDirectory: boolean } | undefined,
+  defaultWorkspaceFolderUri: vscode.Uri
+): vscode.Uri {
+  const targetPath = resolveDropTargetDirectory(
+    target ? { fsPath: target.uri.fsPath, isDirectory: target.isDirectory } : undefined,
+    defaultWorkspaceFolderUri.fsPath
+  );
+  return vscode.Uri.file(targetPath);
+}
+
+/**
+ * Provides the tree data and drag-and-drop controller for the Agent Cowork custom folder view.
  * Shows only the file system tree — no Git drawers, Outline, Timeline, Maven, etc.
  */
-export class FolderTreeProvider implements vscode.TreeDataProvider<FolderItem> {
+export class FolderTreeProvider
+  implements vscode.TreeDataProvider<FolderItem>, vscode.TreeDragAndDropController<FolderItem>
+{
+  readonly dropMimeTypes: readonly string[] = [...FOLDER_TREE_DROP_MIME_TYPES];
+  readonly dragMimeTypes: readonly string[] = [...FOLDER_TREE_DRAG_MIME_TYPES];
+
   private _onDidChangeTreeData = new vscode.EventEmitter<FolderItem | undefined | null>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -138,6 +171,252 @@ export class FolderTreeProvider implements vscode.TreeDataProvider<FolderItem> {
 
     // Children of a directory node
     return this._readDirectory(element.uri.fsPath);
+  }
+
+  /**
+   * Handle dragging items from the folder tree view.
+   */
+  handleDrag(
+    source: readonly FolderItem[],
+    dataTransfer: vscode.DataTransfer,
+    token: vscode.CancellationToken
+  ): void {
+    if (token.isCancellationRequested) {
+      return;
+    }
+
+    dataTransfer.set(
+      TREE_VIEW_MIME_TYPE,
+      new vscode.DataTransferItem(source)
+    );
+
+    const uriList = formatUriList(source.map((item) => item.uri.toString()));
+    dataTransfer.set(URI_LIST_MIME_TYPE, new vscode.DataTransferItem(uriList));
+  }
+
+  /**
+   * Handle dropping files/folders onto the folder tree view.
+   */
+  async handleDrop(
+    target: FolderItem | undefined,
+    dataTransfer: vscode.DataTransfer,
+    token: vscode.CancellationToken
+  ): Promise<void> {
+    if (token.isCancellationRequested) {
+      return;
+    }
+
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders || folders.length === 0) {
+      return;
+    }
+
+    const targetDirUri = resolveDropTargetUri(target, folders[0].uri);
+
+    try {
+      const internalItem = dataTransfer.get(TREE_VIEW_MIME_TYPE);
+      if (internalItem && Array.isArray(internalItem.value)) {
+        await this._handleInternalDrop(internalItem.value as FolderItem[], targetDirUri, token);
+      } else {
+        await this._handleExternalDrop(dataTransfer, targetDirUri, token);
+      }
+
+      this._expandedPaths.add(targetDirUri.fsPath);
+      this.refresh();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      vscode.window.showErrorMessage(
+        vscode.l10n.t('Fehler beim Verschieben/Kopieren: {0}', message)
+      );
+    }
+  }
+
+  private async _handleInternalDrop(
+    sources: FolderItem[],
+    targetDirUri: vscode.Uri,
+    token: vscode.CancellationToken
+  ): Promise<void> {
+    for (const source of sources) {
+      if (token.isCancellationRequested) {
+        return;
+      }
+
+      const sourcePath = source.uri.fsPath;
+      const targetDirPath = targetDirUri.fsPath;
+
+      // Cannot move into the exact same parent directory
+      if (path.dirname(sourcePath) === targetDirPath) {
+        continue;
+      }
+
+      // Cannot move a folder into itself or one of its descendants
+      if (source.isDirectory && isSameOrDescendant(sourcePath, targetDirPath)) {
+        vscode.window.showWarningMessage(
+          vscode.l10n.t(
+            'Der Ordner "{0}" kann nicht in sich selbst oder einen Unterordner verschoben werden.',
+            path.basename(sourcePath)
+          )
+        );
+        continue;
+      }
+
+      const destUri = vscode.Uri.joinPath(targetDirUri, path.basename(sourcePath));
+
+      if (await this._pathExists(destUri)) {
+        const replaceChoice = await vscode.window.showWarningMessage(
+          vscode.l10n.t(
+            '"{0}" existiert am Zielort bereits. Möchten Sie es ersetzen?',
+            path.basename(destUri.fsPath)
+          ),
+          { modal: true },
+          vscode.l10n.t('Ersetzen'),
+          vscode.l10n.t('Überspringen')
+        );
+        if (replaceChoice !== vscode.l10n.t('Ersetzen')) {
+          continue;
+        }
+      }
+
+      await vscode.workspace.fs.rename(source.uri, destUri, { overwrite: true });
+    }
+  }
+
+  private async _handleExternalDrop(
+    dataTransfer: vscode.DataTransfer,
+    targetDirUri: vscode.Uri,
+    token: vscode.CancellationToken
+  ): Promise<void> {
+    const handledPaths = new Set<string>();
+
+    // 1. Process text/uri-list
+    const uriListItem = dataTransfer.get(URI_LIST_MIME_TYPE);
+    if (uriListItem) {
+      const uriListStr = await uriListItem.asString();
+      const lines = parseUriList(uriListStr);
+
+      for (const line of lines) {
+        if (token.isCancellationRequested) {
+          return;
+        }
+        try {
+          const sourceUri = vscode.Uri.parse(line);
+          if (sourceUri.scheme === 'file') {
+            handledPaths.add(sourceUri.fsPath);
+            await this._transferFileOrDirectory(sourceUri, targetDirUri, token);
+          }
+        } catch (err) {
+          console.warn('Failed to parse dropped URI line:', line, err);
+        }
+      }
+    }
+
+    // 2. Process DataTransferFile items
+    const fileItems: vscode.DataTransferFile[] = [];
+    dataTransfer.forEach((item) => {
+      const file = item.asFile();
+      if (file) {
+        fileItems.push(file);
+      }
+    });
+
+    for (const file of fileItems) {
+      if (token.isCancellationRequested) {
+        return;
+      }
+      if (file.uri) {
+        if (handledPaths.has(file.uri.fsPath)) {
+          continue;
+        }
+        handledPaths.add(file.uri.fsPath);
+        await this._transferFileOrDirectory(file.uri, targetDirUri, token);
+      } else {
+        const destUri = vscode.Uri.joinPath(targetDirUri, file.name);
+        if (await this._pathExists(destUri)) {
+          const replaceChoice = await vscode.window.showWarningMessage(
+            vscode.l10n.t(
+              '"{0}" existiert am Zielort bereits. Möchten Sie die Datei ersetzen?',
+              file.name
+            ),
+            { modal: true },
+            vscode.l10n.t('Ersetzen'),
+            vscode.l10n.t('Überspringen')
+          );
+          if (replaceChoice !== vscode.l10n.t('Ersetzen')) {
+            continue;
+          }
+        }
+        const data = await file.data();
+        await vscode.workspace.fs.writeFile(destUri, data);
+      }
+    }
+  }
+
+  private async _transferFileOrDirectory(
+    sourceUri: vscode.Uri,
+    targetDirUri: vscode.Uri,
+    token: vscode.CancellationToken
+  ): Promise<void> {
+    if (token.isCancellationRequested) {
+      return;
+    }
+
+    const sourcePath = sourceUri.fsPath;
+    const targetDirPath = targetDirUri.fsPath;
+
+    if (path.dirname(sourcePath) === targetDirPath) {
+      return;
+    }
+
+    let isDir = false;
+    try {
+      const stat = await vscode.workspace.fs.stat(sourceUri);
+      isDir = stat.type === vscode.FileType.Directory;
+    } catch {
+      // ignore
+    }
+
+    if (isDir && isSameOrDescendant(sourcePath, targetDirPath)) {
+      vscode.window.showWarningMessage(
+        vscode.l10n.t(
+          'Der Ordner "{0}" kann nicht in sich selbst oder einen Unterordner verschoben werden.',
+          path.basename(sourcePath)
+        )
+      );
+      return;
+    }
+
+    const destUri = vscode.Uri.joinPath(targetDirUri, path.basename(sourcePath));
+
+    if (await this._pathExists(destUri)) {
+      const replaceChoice = await vscode.window.showWarningMessage(
+        vscode.l10n.t(
+          '"{0}" existiert am Zielort bereits. Möchten Sie es ersetzen?',
+          path.basename(destUri.fsPath)
+        ),
+        { modal: true },
+        vscode.l10n.t('Ersetzen'),
+        vscode.l10n.t('Überspringen')
+      );
+      if (replaceChoice !== vscode.l10n.t('Ersetzen')) {
+        return;
+      }
+    }
+
+    const isInsideWorkspace = vscode.workspace.getWorkspaceFolder(sourceUri) !== undefined;
+    if (isInsideWorkspace) {
+      await vscode.workspace.fs.rename(sourceUri, destUri, { overwrite: true });
+    } else {
+      await vscode.workspace.fs.copy(sourceUri, destUri, { overwrite: true });
+    }
+  }
+
+  private async _pathExists(uri: vscode.Uri): Promise<boolean> {
+    try {
+      await vscode.workspace.fs.stat(uri);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private _readDirectory(dirPath: string): FolderItem[] {

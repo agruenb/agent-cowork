@@ -12,10 +12,22 @@ export function formatChatFileReference(uri: vscode.Uri, isDirectory: boolean = 
   return formatFileReference(uri.fsPath, relativePath, isDirectory);
 }
 
+export interface CoworkChatOptions {
+  /**
+   * Whether to open a new conversation session before linking the file.
+   * Defaults to false (only adds the file to explicit context in the active AI chat).
+   */
+  newConversation?: boolean;
+}
+
 /**
- * Initiates a new AI conversation in VS Code's AI/Chat window and links the given file or folder.
+ * Links the given file or folder to the explicit context in VS Code's AI/Chat window.
+ * Only initiates a new conversation session if options.newConversation is true.
  */
-export async function openCoworkChatWithFile(uri: vscode.Uri): Promise<void> {
+export async function openCoworkChatWithFile(
+  uri: vscode.Uri,
+  options?: CoworkChatOptions
+): Promise<void> {
   let isDirectory = false;
   try {
     const stat = await vscode.workspace.fs.stat(uri);
@@ -27,8 +39,8 @@ export async function openCoworkChatWithFile(uri: vscode.Uri): Promise<void> {
   const fileReference = formatChatFileReference(uri, isDirectory);
   const availableCommands = new Set(await vscode.commands.getCommands(true));
 
-  // 1. Start a fresh new chat session to ensure a clean conversation context
-  if (availableCommands.has('workbench.action.chat.newChat')) {
+  // 1. Only start a fresh new chat session if explicitly requested (e.g. from Markdown Editor)
+  if (options?.newConversation && availableCommands.has('workbench.action.chat.newChat')) {
     try {
       await vscode.commands.executeCommand('workbench.action.chat.newChat');
       // Short delay to let the new chat session state initialize
@@ -76,14 +88,17 @@ export async function openCoworkChatWithFile(uri: vscode.Uri): Promise<void> {
     }
   }
 
-  // 3. Open the Chat window and prefill prompt with the reference if not already attached
+  // 3. Open the Chat window and add to explicit context attachments
   if (availableCommands.has('workbench.action.chat.open')) {
     try {
-      const query = itemAttached ? '' : `${fileReference} `;
-      await vscode.commands.executeCommand('workbench.action.chat.open', {
-        query,
-        isPartialQuery: true,
-      });
+      const openOptions: Record<string, unknown> = {
+        attachFiles: [uri],
+      };
+      if (!itemAttached) {
+        openOptions.query = `${fileReference} `;
+        openOptions.isPartialQuery = true;
+      }
+      await vscode.commands.executeCommand('workbench.action.chat.open', openOptions);
       return;
     } catch (err) {
       console.warn('workbench.action.chat.open with options failed, attempting string query:', err);
@@ -110,7 +125,7 @@ export async function openCoworkChatWithFile(uri: vscode.Uri): Promise<void> {
 
   // Fallback 5: Other AI chat view providers (e.g. Gemini, Copilot panel, Cursor)
   const otherChatCommands = [
-    'aichat.newsession',
+    ...(options?.newConversation ? ['aichat.newsession'] : []),
     'geminicodeassist.openChat',
     'workbench.panel.chat.view.copilot.focus',
     'workbench.action.chat.toggle',
@@ -145,7 +160,10 @@ export async function openCoworkChatWithFile(uri: vscode.Uri): Promise<void> {
  * High-level handler to start Coworking on a file or folder.
  * Handles dirty buffer saving and active document resolution.
  */
-export async function coworkWithFile(targetUri?: vscode.Uri): Promise<void> {
+export async function coworkWithFile(
+  targetUri?: vscode.Uri,
+  options?: CoworkChatOptions
+): Promise<void> {
   let uri = targetUri;
 
   if (!uri) {
@@ -181,12 +199,15 @@ export async function coworkWithFile(targetUri?: vscode.Uri): Promise<void> {
     await doc.save();
   }
 
-  await openCoworkChatWithFile(uri);
+  await openCoworkChatWithFile(uri, options);
 }
 
 /**
  * High-level handler to start Coworking on a folder.
  */
-export async function coworkWithFolder(targetUri?: vscode.Uri): Promise<void> {
-  return coworkWithFile(targetUri);
+export async function coworkWithFolder(
+  targetUri?: vscode.Uri,
+  options?: CoworkChatOptions
+): Promise<void> {
+  return coworkWithFile(targetUri, options);
 }
