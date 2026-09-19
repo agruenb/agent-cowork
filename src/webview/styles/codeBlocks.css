@@ -11,22 +11,63 @@
 
 .code-block-header {
   background-color: #f1f5f9;
-  padding: 6px 14px;
+  padding: 6px 36px 6px 12px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.code-lang-input {
+  font-family: var(--mono-font);
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--card-border);
   letter-spacing: 0.5px;
+  color: var(--text-muted);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: 0;
+  min-width: 60px;
+  max-width: 220px;
+  height: 22px;
+  box-sizing: border-box;
+  outline: none;
+  transition: all 0.15s ease;
+  cursor: text;
+}
+
+.code-lang-input:hover {
+  background-color: rgba(255, 255, 255, 0.7);
+  border-color: var(--card-border);
+  color: var(--text);
+}
+
+.code-lang-input:focus {
+  background-color: #ffffff;
+  border-color: var(--primary, #059669);
+  color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.15);
+}
+
+.code-lang-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
 }
 
 .code-block-wrapper pre {
+  background: transparent !important;
+  background-color: transparent !important;
   padding: 14px 16px;
   margin: 0;
   overflow-x: auto;
 }
 
-.code-block-wrapper code {
+.code-block-wrapper code,
+.code-block-wrapper code.editor-code,
+.code-block-wrapper pre code {
+  background: transparent !important;
+  background-color: transparent !important;
   font-family: var(--mono-font);
   font-size: 14px;
   color: #0f172a;
@@ -34,6 +75,11 @@
   white-space: pre;
   display: block;
   outline: none !important;
+}
+
+.code-block-wrapper code * {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .code-block-wrapper:focus,

@@ -27,7 +27,9 @@ export function serializeInlineNodes(container: Node): string {
         el.classList.contains('block-delete-btn') ||
         el.classList.contains('block-confirm-popup') ||
         el.classList.contains('table-controls') ||
-        el.classList.contains('table-confirm-popup')
+        el.classList.contains('table-confirm-popup') ||
+        el.classList.contains('code-lang-input') ||
+        el.classList.contains('code-block-header')
       ) {
         continue;
       }
@@ -205,7 +207,8 @@ function serializeBlockElement(blockEl: HTMLElement): string[] {
 
   // Code Block
   if (blockEl.classList.contains('code-block-wrapper') || blockType === 'code_block') {
-    const lang = blockEl.getAttribute('data-language') || '';
+    const langInput = blockEl.querySelector<HTMLInputElement>('input.code-lang-input');
+    const lang = langInput ? langInput.value.trim() : (blockEl.getAttribute('data-language') || '');
     const codeEl = blockEl.querySelector('code');
     const codeText = codeEl ? (codeEl.textContent || '') : '';
     return [`\`\`\`${lang}\n${codeText}\n\`\`\``];

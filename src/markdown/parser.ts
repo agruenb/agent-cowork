@@ -436,7 +436,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
       case 'code_block': {
         const lang = block.language ? escapeHtml(block.language) : '';
         const codeText = escapeHtml(block.content || '');
-        const inner = `<div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="${lang}"><div class="code-block-header">${lang ? `<span>${lang}</span>` : '<span>Code</span>'}</div><pre><code class="editor-code" contenteditable="true">${codeText}</code></pre></div>`;
+        const inner = `<div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="${lang}"><div class="code-block-header"><input type="text" class="code-lang-input" value="${lang}" placeholder="Code" title="Code-Typ bearbeiten" spellcheck="false" autocomplete="off" /></div><pre><code class="editor-code" contenteditable="true">${codeText}</code></pre></div>`;
         htmlParts.push(
           isNested
             ? inner

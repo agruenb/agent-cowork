@@ -180,6 +180,31 @@ export function handleCanvasKeyDown(e: KeyboardEvent): void {
   const canvas = getEditorCanvas();
   if (!canvas) return;
 
+  const target = e.target as HTMLElement | null;
+  const langInput = target?.closest<HTMLInputElement>('input.code-lang-input');
+  if (langInput && canvas.contains(langInput)) {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      const wrapper = langInput.closest<HTMLElement>('.code-block-wrapper');
+      const codeEl = wrapper?.querySelector<HTMLElement>('code.editor-code');
+      if (codeEl) {
+        codeEl.focus();
+        const sel = window.getSelection();
+        if (sel) {
+          const range = document.createRange();
+          range.selectNodeContents(codeEl);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+    }
+    return;
+  }
+  if (target?.closest('input')) {
+    return;
+  }
+
   if (handleBlockKeyboardGuards(e, canvas, () => emitCanvasEdit())) {
     return;
   }
@@ -470,7 +495,20 @@ export function initMarkdownEditor(): void {
     hideErrorBanner();
   });
 
-  canvas.addEventListener('input', () => {
+  canvas.addEventListener('input', (e: Event) => {
+    const target = e.target as HTMLElement | null;
+    const langInput = target?.closest<HTMLInputElement>('input.code-lang-input');
+    if (langInput && canvas.contains(langInput)) {
+      const val = langInput.value.trim();
+      const wrapper = langInput.closest<HTMLElement>('.code-block-wrapper');
+      if (wrapper) {
+        wrapper.setAttribute('data-language', val);
+      }
+      const container = langInput.closest<HTMLElement>('.editor-block-container');
+      if (container) {
+        container.setAttribute('data-language', val);
+      }
+    }
     emitCanvasEdit();
   });
 
@@ -503,6 +541,10 @@ export function initMarkdownEditor(): void {
   });
 
   canvas.addEventListener('paste', (e: ClipboardEvent) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('input')) {
+      return;
+    }
     e.preventDefault();
     const text = e.clipboardData?.getData('text/plain') ?? '';
     if (!text) {

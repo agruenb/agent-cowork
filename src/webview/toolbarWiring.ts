@@ -174,10 +174,12 @@ export function insertCodeBlock(): void {
   }
   focusCanvas(canvas);
   const codeHtml = `
-    <div class="editor-block-container widget-block" data-block-type="code_block" data-language="markdown" contenteditable="false">
+    <div class="editor-block-container widget-block" data-block-type="code_block" data-language="" contenteditable="false">
       ${BLOCK_DELETE_BTN_HTML}
-      <div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="markdown">
-        <div class="code-block-header"><span>Markdown</span></div>
+      <div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="">
+        <div class="code-block-header">
+          <input type="text" class="code-lang-input" value="" placeholder="Code" title="Code-Typ bearbeiten" spellcheck="false" autocomplete="off" />
+        </div>
         <pre><code class="editor-code" contenteditable="true">// Code hier eingeben...</code></pre>
       </div>
     </div>
