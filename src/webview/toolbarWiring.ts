@@ -312,6 +312,56 @@ export function updateToolbarActiveStates(): void {
 }
 
 /**
+ * Checks whether the toolbar is currently collapsed.
+ */
+export function isToolbarCollapsed(): boolean {
+  const toolbar = document.querySelector('.toolbar');
+  return toolbar ? toolbar.classList.contains('is-collapsed') : false;
+}
+
+/**
+ * Sets the toolbar collapsed state, updates button ARIA and title attributes,
+ * and persists the state in VS Code webview state.
+ */
+export function setToolbarCollapsed(collapsed: boolean): void {
+  const toolbar = document.querySelector('.toolbar');
+  const toggleBtn = document.getElementById('btn-toggle-toolbar');
+  if (!toolbar) return;
+
+  if (collapsed) {
+    toolbar.classList.add('is-collapsed');
+    if (toggleBtn) {
+      toggleBtn.setAttribute('title', 'Symbolleiste ausklappen');
+      toggleBtn.setAttribute('aria-label', 'Symbolleiste ausklappen');
+      toggleBtn.setAttribute('aria-expanded', 'false');
+    }
+  } else {
+    toolbar.classList.remove('is-collapsed');
+    if (toggleBtn) {
+      toggleBtn.setAttribute('title', 'Symbolleiste einklappen');
+      toggleBtn.setAttribute('aria-label', 'Symbolleiste einklappen');
+      toggleBtn.setAttribute('aria-expanded', 'true');
+    }
+  }
+
+  try {
+    const prev = (vscode.getState() as Record<string, unknown> | null) || {};
+    vscode.setState({ ...prev, isToolbarCollapsed: collapsed });
+  } catch {
+    // Ignore in environments where getState/setState is not supported
+  }
+}
+
+/**
+ * Toggles toolbar between collapsed and expanded states.
+ */
+export function toggleToolbarCollapse(): boolean {
+  const nextState = !isToolbarCollapsed();
+  setToolbarCollapsed(nextState);
+  return nextState;
+}
+
+/**
  * Attaches all toolbar button listeners, select changes, and shortcuts.
  */
 export function wireToolbar(hooks: ToolbarHooks): void {
@@ -319,7 +369,7 @@ export function wireToolbar(hooks: ToolbarHooks): void {
   document.querySelector('.toolbar')?.addEventListener('mousedown', (e) => {
     const target = e.target as HTMLElement;
     const btn = target.closest('button, .tb-btn');
-    if (btn && btn.id !== 'btn-toggle-raw' && btn.id !== 'btn-cowork') {
+    if (btn && btn.id !== 'btn-toggle-raw' && btn.id !== 'btn-cowork' && btn.id !== 'btn-toggle-toolbar') {
       e.preventDefault();
     }
   });
@@ -377,6 +427,30 @@ export function wireToolbar(hooks: ToolbarHooks): void {
       type: 'cowork',
     });
   });
+
+  // Collapse / expand toolbar button
+  const collapseBtn = document.getElementById('btn-toggle-toolbar');
+  collapseBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleToolbarCollapse();
+  });
+
+  // Expand toolbar when clicking anywhere on the collapsed bar
+  document.querySelector('.toolbar')?.addEventListener('click', () => {
+    if (isToolbarCollapsed()) {
+      setToolbarCollapsed(false);
+    }
+  });
+
+  // Restore saved collapse state if any
+  try {
+    const saved = vscode.getState() as { isToolbarCollapsed?: boolean } | null;
+    if (saved && saved.isToolbarCollapsed) {
+      setToolbarCollapsed(true);
+    }
+  } catch {
+    // Ignore in environments where getState is not supported
+  }
 
   // Update heading select value and toolbar active states based on selection change
   const onSelectionChange = () => {

@@ -275,6 +275,13 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           <path fill-rule="evenodd" d="M1 8a.75.75 0 0 1 .75-.75h10.19L8.22 3.53a.75.75 0 0 1 1.06-1.06l5 5a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 0 1-1.06-1.06l3.72-3.72H1.75A.75.75 0 0 1 1 8z"/>
         </svg>
       </button>
+
+      <!-- Collapse / Expand Toolbar Toggle (bottom-right corner) -->
+      <button id="btn-toggle-toolbar" class="toolbar-toggle-btn" tabindex="-1" title="Symbolleiste einklappen" aria-label="Symbolleiste einklappen" aria-expanded="true">
+        <svg class="tb-collapse-icon" width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+          <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708l6-6z"/>
+        </svg>
+      </button>
     </div>
 
     <!-- Error/Warning Banner -->

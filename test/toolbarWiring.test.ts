@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { JSDOM } from 'jsdom';
 import { state, vscode } from '../src/webview/editorState';
-import { wireToolbar } from '../src/webview/toolbarWiring';
+import { wireToolbar, isToolbarCollapsed, setToolbarCollapsed, toggleToolbarCollapse } from '../src/webview/toolbarWiring';
 import { setContentFormatted } from '../src/webview/markdownEditor';
 import { domToMarkdown } from '../src/markdown/serializer';
 
@@ -44,6 +44,11 @@ describe('User Interactions - Toolbar Button Wiring', () => {
     <span id="word-count" class="word-count"></span>
     <button id="btn-toggle-raw" class="raw-toggle-btn">&lt;/&gt; Raw</button>
     <button id="btn-cowork" class="cowork-btn">Cowork</button>
+    <button id="btn-toggle-toolbar" class="toolbar-toggle-btn" title="Symbolleiste einklappen" aria-label="Symbolleiste einklappen" aria-expanded="true">
+      <svg class="tb-collapse-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+        <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708l6-6z"/>
+      </svg>
+    </button>
   </div>
   <div id="error-banner" style="display: none;"><span id="error-banner-text"></span></div>
   <div class="document-viewport">
@@ -412,5 +417,97 @@ describe('User Interactions - Toolbar Button Wiring', () => {
     assert.strictEqual(bulletBtn.classList.contains('is-active'), false, '#btn-bullet should not be highlighted');
     assert.strictEqual(orderedBtn.classList.contains('is-active'), false, '#btn-ordered should not be highlighted');
     assert.strictEqual(taskBtn.classList.contains('is-active'), false, '#btn-task should not be highlighted');
+  });
+
+  describe('Toolbar Collapse / Expand Toggle', () => {
+    it('is expanded by default', () => {
+      const toolbar = document.querySelector('.toolbar')!;
+      const toggleBtn = document.getElementById('btn-toggle-toolbar')!;
+      assert.strictEqual(isToolbarCollapsed(), false);
+      assert.strictEqual(toolbar.classList.contains('is-collapsed'), false);
+      assert.strictEqual(toggleBtn.getAttribute('aria-expanded'), 'true');
+    });
+
+    it('clicking #btn-toggle-toolbar collapses the toolbar and updates ARIA/title attributes', () => {
+      const toolbar = document.querySelector('.toolbar')!;
+      const toggleBtn = document.getElementById('btn-toggle-toolbar')!;
+
+      toggleBtn.click();
+
+      assert.strictEqual(isToolbarCollapsed(), true);
+      assert.strictEqual(toolbar.classList.contains('is-collapsed'), true);
+      assert.strictEqual(toggleBtn.getAttribute('aria-expanded'), 'false');
+      assert.strictEqual(toggleBtn.getAttribute('title'), 'Symbolleiste ausklappen');
+      assert.strictEqual(toggleBtn.getAttribute('aria-label'), 'Symbolleiste ausklappen');
+    });
+
+    it('clicking #btn-toggle-toolbar twice toggles back to expanded state', () => {
+      const toolbar = document.querySelector('.toolbar')!;
+      const toggleBtn = document.getElementById('btn-toggle-toolbar')!;
+
+      toggleBtn.click();
+      assert.strictEqual(isToolbarCollapsed(), true);
+
+      toggleBtn.click();
+      assert.strictEqual(isToolbarCollapsed(), false);
+      assert.strictEqual(toolbar.classList.contains('is-collapsed'), false);
+      assert.strictEqual(toggleBtn.getAttribute('aria-expanded'), 'true');
+      assert.strictEqual(toggleBtn.getAttribute('title'), 'Symbolleiste einklappen');
+      assert.strictEqual(toggleBtn.getAttribute('aria-label'), 'Symbolleiste einklappen');
+    });
+
+    it('setToolbarCollapsed directly controls collapsed state', () => {
+      const toolbar = document.querySelector('.toolbar')!;
+      const toggleBtn = document.getElementById('btn-toggle-toolbar')!;
+
+      setToolbarCollapsed(true);
+      assert.strictEqual(toolbar.classList.contains('is-collapsed'), true);
+      assert.strictEqual(toggleBtn.getAttribute('aria-expanded'), 'false');
+
+      setToolbarCollapsed(false);
+      assert.strictEqual(toolbar.classList.contains('is-collapsed'), false);
+      assert.strictEqual(toggleBtn.getAttribute('aria-expanded'), 'true');
+    });
+
+    it('clicking the collapsed toolbar expands it', () => {
+      const toolbar = document.querySelector('.toolbar') as HTMLElement;
+      setToolbarCollapsed(true);
+      assert.strictEqual(isToolbarCollapsed(), true);
+
+      toolbar.click();
+      assert.strictEqual(isToolbarCollapsed(), false);
+      assert.strictEqual(toolbar.classList.contains('is-collapsed'), false);
+    });
+
+    it('persists collapsed state to vscode.setState', () => {
+      let savedState: any = null;
+      (vscode as any).setState = (s: any) => {
+        savedState = s;
+      };
+
+      setToolbarCollapsed(true);
+      assert.deepStrictEqual(savedState, { isToolbarCollapsed: true });
+
+      setToolbarCollapsed(false);
+      assert.deepStrictEqual(savedState, { isToolbarCollapsed: false });
+    });
+
+    it('restores collapsed state from vscode.getState on wireToolbar', () => {
+      (vscode as any).getState = () => ({ isToolbarCollapsed: true });
+
+      // Re-wire toolbar
+      wireToolbar({
+        toggleRawMode: () => {},
+        wireTaskCheckboxes: () => {},
+      });
+
+      const toolbar = document.querySelector('.toolbar')!;
+      const toggleBtn = document.getElementById('btn-toggle-toolbar')!;
+      assert.strictEqual(toolbar.classList.contains('is-collapsed'), true);
+      assert.strictEqual(toggleBtn.getAttribute('aria-expanded'), 'false');
+
+      // Clean up mock
+      (vscode as any).getState = () => ({});
+    });
   });
 });

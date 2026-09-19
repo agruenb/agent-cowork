@@ -52,6 +52,14 @@ export const errorBannerDismiss = (typeof document !== 'undefined'
   ? document.getElementById('error-banner-dismiss')
   : null) as HTMLButtonElement | null;
 
+export const toolbarEl = (typeof document !== 'undefined'
+  ? document.querySelector('.toolbar')
+  : null) as HTMLElement | null;
+
+export const toolbarToggleBtn = (typeof document !== 'undefined'
+  ? document.getElementById('btn-toggle-toolbar')
+  : null) as HTMLButtonElement | null;
+
 export function getEditorCanvas(): HTMLElement {
   return (editorCanvas?.isConnected ? editorCanvas : (typeof document !== 'undefined' ? document.getElementById('editor') : null)) as HTMLElement;
 }
@@ -82,6 +90,14 @@ export function getErrorBannerText(): HTMLElement | null {
 
 export function getErrorBannerDismiss(): HTMLButtonElement | null {
   return (errorBannerDismiss?.isConnected ? errorBannerDismiss : (typeof document !== 'undefined' ? document.getElementById('error-banner-dismiss') : null)) as HTMLButtonElement | null;
+}
+
+export function getToolbarEl(): HTMLElement | null {
+  return (toolbarEl?.isConnected ? toolbarEl : (typeof document !== 'undefined' ? document.querySelector('.toolbar') : null)) as HTMLElement | null;
+}
+
+export function getToolbarToggleBtn(): HTMLButtonElement | null {
+  return (toolbarToggleBtn?.isConnected ? toolbarToggleBtn : (typeof document !== 'undefined' ? document.getElementById('btn-toggle-toolbar') : null)) as HTMLButtonElement | null;
 }
 
 // Editor State

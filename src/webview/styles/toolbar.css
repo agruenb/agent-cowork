@@ -2,15 +2,17 @@
    Top Formatting Toolbar
 ------------------------------------------------------------- */
 .toolbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 5px 24px 5px 12px;
   background-color: #ffffff;
   border-bottom: 1px solid var(--card-border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   z-index: 50;
   flex-wrap: wrap;
+  transition: min-height 0.15s ease, padding 0.15s ease, background-color 0.15s ease;
 }
 
 .toolbar-group {
@@ -238,4 +240,77 @@
 
 .cowork-btn:hover .cowork-arrow-icon {
   transform: translateX(2px);
+}
+
+/* -------------------------------------------------------------
+   Collapse / Expand Toolbar Toggle
+------------------------------------------------------------- */
+.toolbar-toggle-btn {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-muted);
+  width: 18px;
+  height: 14px;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.65;
+  transition: all 0.15s ease-in-out;
+  user-select: none;
+  z-index: 2;
+}
+
+.toolbar-toggle-btn:hover {
+  opacity: 1;
+  background-color: var(--card-bg);
+  color: var(--text);
+  border-color: var(--card-border);
+}
+
+.toolbar-toggle-btn:active {
+  background-color: #e2e8f0;
+}
+
+.tb-collapse-icon {
+  display: inline-block;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Collapsed Toolbar State */
+.toolbar.is-collapsed {
+  padding: 0;
+  min-height: 14px;
+  height: 14px;
+  box-shadow: none;
+  border-bottom: 1px solid var(--card-border);
+  background-color: #fafbfc;
+  flex-wrap: nowrap;
+  cursor: pointer;
+}
+
+.toolbar.is-collapsed > *:not(#btn-toggle-toolbar) {
+  display: none !important;
+}
+
+.toolbar.is-collapsed #btn-toggle-toolbar {
+  right: 4px;
+  bottom: 0px;
+  height: 13px;
+  width: 18px;
+  opacity: 0.7;
+}
+
+.toolbar.is-collapsed #btn-toggle-toolbar:hover {
+  opacity: 1;
+  background-color: #e2e8f0;
+}
+
+.toolbar.is-collapsed .tb-collapse-icon {
+  transform: rotate(180deg);
 }
