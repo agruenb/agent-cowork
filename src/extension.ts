@@ -4,6 +4,14 @@ import { WelcomePanel } from './welcomePanel';
 import { FolderTreeProvider, FolderItem } from './folderTreeProvider';
 import { MarkdownEditorProvider } from './markdownEditorProvider';
 import { coworkWithFile, coworkWithFolder, CoworkChatOptions } from './coworkChat';
+import {
+  renameItem,
+  duplicateItem,
+  copyItem,
+  cutItem,
+  pasteItem,
+  deleteItem,
+} from './fileOperations';
 
 const THEME_NAME = 'Agent Cowork Light';
 const ICON_THEME_NAME = 'agent-cowork-icons';
@@ -670,6 +678,54 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   );
 
+  // Register renameItem command
+  const renameItemCmd = vscode.commands.registerCommand(
+    'agent-cowork.renameItem',
+    async (target?: vscode.Uri | FolderItem) => {
+      await renameItem(target, () => folderTreeProvider.refresh());
+    }
+  );
+
+  // Register duplicateItem command
+  const duplicateItemCmd = vscode.commands.registerCommand(
+    'agent-cowork.duplicateItem',
+    async (target?: vscode.Uri | FolderItem) => {
+      await duplicateItem(target, () => folderTreeProvider.refresh());
+    }
+  );
+
+  // Register copyItem command
+  const copyItemCmd = vscode.commands.registerCommand(
+    'agent-cowork.copyItem',
+    async (target?: vscode.Uri | FolderItem) => {
+      await copyItem(target);
+    }
+  );
+
+  // Register cutItem command
+  const cutItemCmd = vscode.commands.registerCommand(
+    'agent-cowork.cutItem',
+    async (target?: vscode.Uri | FolderItem) => {
+      await cutItem(target);
+    }
+  );
+
+  // Register pasteItem command
+  const pasteItemCmd = vscode.commands.registerCommand(
+    'agent-cowork.pasteItem',
+    async (target?: vscode.Uri | FolderItem) => {
+      await pasteItem(target, () => folderTreeProvider.refresh());
+    }
+  );
+
+  // Register deleteItem command
+  const deleteItemCmd = vscode.commands.registerCommand(
+    'agent-cowork.deleteItem',
+    async (target?: vscode.Uri | FolderItem) => {
+      await deleteItem(target, () => folderTreeProvider.refresh());
+    }
+  );
+
   // Register custom formatted Markdown Editor
   const markdownEditorDisposable = MarkdownEditorProvider.register(context);
 
@@ -686,6 +742,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     newFolderInFolderCmd,
     coworkWithFileCmd,
     coworkWithFolderCmd,
+    renameItemCmd,
+    duplicateItemCmd,
+    copyItemCmd,
+    cutItemCmd,
+    pasteItemCmd,
+    deleteItemCmd,
     markdownEditorDisposable,
   );
 

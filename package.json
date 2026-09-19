@@ -72,58 +72,106 @@
     "commands": [
       {
         "command": "agent-cowork.openWelcome",
+        "category": "%command.category%",
         "title": "%command.openWelcome.title%"
       },
       {
         "command": "agent-cowork.helloWorld",
+        "category": "%command.category%",
         "title": "%command.helloWorld.title%"
       },
       {
         "command": "agent-cowork.applyTheme",
+        "category": "%command.category%",
         "title": "%command.applyTheme.title%"
       },
       {
         "command": "agent-cowork.simplifyLayout",
+        "category": "%command.category%",
         "title": "%command.simplifyLayout.title%"
       },
       {
         "command": "agent-cowork.openWorkspaceFolder",
+        "category": "%command.category%",
         "title": "%command.openWorkspaceFolder.title%"
       },
       {
         "command": "agent-cowork.refreshFolderView",
+        "category": "%command.category%",
         "title": "%command.refreshFolderView.title%",
         "icon": "$(refresh)"
       },
       {
         "command": "agent-cowork.newFile",
+        "category": "%command.category%",
         "title": "%command.newFile.title%",
         "icon": "$(new-file)"
       },
       {
         "command": "agent-cowork.newFileInFolder",
+        "category": "%command.category%",
         "title": "%command.newFile.title%",
         "icon": "$(new-file)"
       },
       {
         "command": "agent-cowork.newFolder",
+        "category": "%command.category%",
         "title": "%command.newFolder.title%",
         "icon": "$(new-folder)"
       },
       {
         "command": "agent-cowork.newFolderInFolder",
+        "category": "%command.category%",
         "title": "%command.newFolder.title%",
         "icon": "$(new-folder)"
       },
       {
         "command": "agent-cowork.coworkWithFile",
+        "category": "%command.category%",
         "title": "%command.coworkWithFile.title%",
         "icon": "$(comment-discussion)"
       },
       {
         "command": "agent-cowork.coworkWithFolder",
+        "category": "%command.category%",
         "title": "%command.coworkWithFolder.title%",
         "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "agent-cowork.renameItem",
+        "category": "%command.category%",
+        "title": "%command.renameItem.title%",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "agent-cowork.duplicateItem",
+        "category": "%command.category%",
+        "title": "%command.duplicateItem.title%",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "agent-cowork.copyItem",
+        "category": "%command.category%",
+        "title": "%command.copyItem.title%",
+        "icon": "$(files)"
+      },
+      {
+        "command": "agent-cowork.cutItem",
+        "category": "%command.category%",
+        "title": "%command.cutItem.title%",
+        "icon": "$(scissors)"
+      },
+      {
+        "command": "agent-cowork.pasteItem",
+        "category": "%command.category%",
+        "title": "%command.pasteItem.title%",
+        "icon": "$(clippy)"
+      },
+      {
+        "command": "agent-cowork.deleteItem",
+        "category": "%command.category%",
+        "title": "%command.deleteItem.title%",
+        "icon": "$(trash)"
       }
     ],
     "viewsContainers": {
@@ -189,6 +237,46 @@
           "command": "agent-cowork.coworkWithFile",
           "when": "view == agentCowork.folderView && viewItem == file",
           "group": "inline@1"
+        },
+        {
+          "command": "agent-cowork.newFileInFolder",
+          "when": "view == agentCowork.folderView && viewItem == folder",
+          "group": "1_new@1"
+        },
+        {
+          "command": "agent-cowork.newFolderInFolder",
+          "when": "view == agentCowork.folderView && viewItem == folder",
+          "group": "1_new@2"
+        },
+        {
+          "command": "agent-cowork.renameItem",
+          "when": "view == agentCowork.folderView && (viewItem == file || viewItem == folder)",
+          "group": "2_modify@1"
+        },
+        {
+          "command": "agent-cowork.duplicateItem",
+          "when": "view == agentCowork.folderView && (viewItem == file || viewItem == folder)",
+          "group": "2_modify@2"
+        },
+        {
+          "command": "agent-cowork.copyItem",
+          "when": "view == agentCowork.folderView && (viewItem == file || viewItem == folder)",
+          "group": "3_clipboard@1"
+        },
+        {
+          "command": "agent-cowork.cutItem",
+          "when": "view == agentCowork.folderView && (viewItem == file || viewItem == folder)",
+          "group": "3_clipboard@2"
+        },
+        {
+          "command": "agent-cowork.pasteItem",
+          "when": "view == agentCowork.folderView",
+          "group": "3_clipboard@3"
+        },
+        {
+          "command": "agent-cowork.deleteItem",
+          "when": "view == agentCowork.folderView && (viewItem == file || viewItem == folder)",
+          "group": "4_delete@1"
         }
       ]
     },
