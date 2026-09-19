@@ -12,6 +12,7 @@ import {
   pasteItem,
   deleteItem,
 } from './fileOperations';
+import { ensureDefaultExtension, getDefaultDatePrefix } from './utils/fileOperations';
 
 const THEME_NAME = 'Agent Cowork Light';
 const ICON_THEME_NAME = 'agent-cowork-icons';
@@ -432,9 +433,13 @@ export async function createNewFile(targetFolderUri?: vscode.Uri): Promise<void>
     targetDir = folders[0].uri.fsPath;
   }
 
+  const defaultPrefix = getDefaultDatePrefix();
+
   const fileName = await vscode.window.showInputBox({
     prompt: vscode.l10n.t('Dateinamen eingeben (z. B. aufgabe.md)'),
-    placeHolder: 'meine-datei.md',
+    value: defaultPrefix,
+    valueSelection: [defaultPrefix.length, defaultPrefix.length],
+    placeHolder: `${defaultPrefix}aufgabe.md`,
     validateInput: (value) => {
       const trimmed = value.trim();
       if (!trimmed) {
@@ -451,7 +456,8 @@ export async function createNewFile(targetFolderUri?: vscode.Uri): Promise<void>
     return;
   }
 
-  const filePath = path.join(targetDir, fileName.trim());
+  const resolvedFileName = ensureDefaultExtension(fileName.trim());
+  const filePath = path.join(targetDir, resolvedFileName);
   const fileUri = vscode.Uri.file(filePath);
 
   try {

@@ -2,6 +2,8 @@ import assert from 'assert';
 import {
   getDuplicateName,
   getRenameSelectionRange,
+  ensureDefaultExtension,
+  getDefaultDatePrefix,
 } from '../src/utils/fileOperations';
 
 describe('File Operations Logic', () => {
@@ -70,4 +72,75 @@ describe('File Operations Logic', () => {
       assert.deepStrictEqual(range, [0, 13]);
     });
   });
+
+  describe('ensureDefaultExtension', () => {
+    it('appends .md by default when no extension is provided', () => {
+      assert.strictEqual(ensureDefaultExtension('notes'), 'notes.md');
+      assert.strictEqual(ensureDefaultExtension('README'), 'README.md');
+      assert.strictEqual(ensureDefaultExtension('my-task'), 'my-task.md');
+      assert.strictEqual(ensureDefaultExtension('Meeting Notes 2024'), 'Meeting Notes 2024.md');
+    });
+
+    it('preserves existing .md extension', () => {
+      assert.strictEqual(ensureDefaultExtension('notes.md'), 'notes.md');
+      assert.strictEqual(ensureDefaultExtension('notes.MD'), 'notes.MD');
+      assert.strictEqual(ensureDefaultExtension('notes.markdown'), 'notes.markdown');
+    });
+
+    it('preserves other file extensions', () => {
+      assert.strictEqual(ensureDefaultExtension('script.js'), 'script.js');
+      assert.strictEqual(ensureDefaultExtension('data.json'), 'data.json');
+      assert.strictEqual(ensureDefaultExtension('notes.txt'), 'notes.txt');
+      assert.strictEqual(ensureDefaultExtension('report.pdf'), 'report.pdf');
+    });
+
+    it('handles trailing dots without extension by appending .md', () => {
+      assert.strictEqual(ensureDefaultExtension('notes.'), 'notes.md');
+      assert.strictEqual(ensureDefaultExtension('notes..'), 'notes.md');
+    });
+
+    it('preserves dotfiles like .gitignore or .env', () => {
+      assert.strictEqual(ensureDefaultExtension('.gitignore'), '.gitignore');
+      assert.strictEqual(ensureDefaultExtension('.env'), '.env');
+      assert.strictEqual(ensureDefaultExtension('.env.local'), '.env.local');
+    });
+
+    it('preserves files with multiple dots when extension is present', () => {
+      assert.strictEqual(ensureDefaultExtension('archive.tar.gz'), 'archive.tar.gz');
+      assert.strictEqual(ensureDefaultExtension('component.test.ts'), 'component.test.ts');
+    });
+
+    it('trims whitespace before processing', () => {
+      assert.strictEqual(ensureDefaultExtension('  notes  '), 'notes.md');
+      assert.strictEqual(ensureDefaultExtension('  notes.txt  '), 'notes.txt');
+    });
+
+    it('supports custom default extension', () => {
+      assert.strictEqual(ensureDefaultExtension('notes', '.txt'), 'notes.txt');
+      assert.strictEqual(ensureDefaultExtension('notes', 'txt'), 'notes.txt');
+    });
+  });
+
+  describe('getDefaultDatePrefix', () => {
+    it('formats date correctly in YYYY-MM-DD_ format', () => {
+      const date = new Date(2026, 8, 18); // month index 8 is September
+      assert.strictEqual(getDefaultDatePrefix(date), '2026-09-18_');
+    });
+
+    it('pads single-digit month and day with zero', () => {
+      const date = new Date(2026, 0, 5); // January 5th
+      assert.strictEqual(getDefaultDatePrefix(date), '2026-01-05_');
+    });
+
+    it('handles end of year correctly', () => {
+      const date = new Date(2025, 11, 31); // December 31st
+      assert.strictEqual(getDefaultDatePrefix(date), '2025-12-31_');
+    });
+
+    it('uses current date when no argument is provided', () => {
+      const prefix = getDefaultDatePrefix();
+      assert.match(prefix, /^\d{4}-\d{2}-\d{2}_$/);
+    });
+  });
 });
+

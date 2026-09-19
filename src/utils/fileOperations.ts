@@ -52,3 +52,56 @@ export function getRenameSelectionRange(filename: string): [number, number] {
   const end = ext ? filename.length - ext.length : filename.length;
   return [0, end > 0 ? end : filename.length];
 }
+
+/**
+ * Ensures that a filename has a file extension. If no file extension is given,
+ * appends the default extension (defaults to '.md').
+ *
+ * Examples:
+ * - "notes" -> "notes.md"
+ * - "notes.md" -> "notes.md"
+ * - "notes.txt" -> "notes.txt"
+ * - "notes." -> "notes.md"
+ * - ".gitignore" -> ".gitignore" (simple dotfiles without extension are preserved)
+ * - "archive.tar.gz" -> "archive.tar.gz"
+ */
+export function ensureDefaultExtension(filename: string, defaultExt: string = '.md'): string {
+  const trimmed = filename.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  const normalizedExt = defaultExt.startsWith('.') ? defaultExt : `.${defaultExt}`;
+
+  // If the filename ends with one or more trailing dots (e.g. "notes."), replace trailing dots with the default extension
+  if (trimmed.endsWith('.')) {
+    const withoutTrailingDots = trimmed.replace(/\.+$/, '');
+    if (!withoutTrailingDots) {
+      return trimmed;
+    }
+    return `${withoutTrailingDots}${normalizedExt}`;
+  }
+
+  // Preserve dotfiles like ".gitignore" or ".env"
+  if (trimmed.startsWith('.') && !trimmed.slice(1).includes('.')) {
+    return trimmed;
+  }
+
+  const ext = path.extname(trimmed);
+  if (!ext) {
+    return `${trimmed}${normalizedExt}`;
+  }
+
+  return trimmed;
+}
+
+/**
+ * Returns the default date prefix for new files in the format "YYYY-MM-DD_".
+ */
+export function getDefaultDatePrefix(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}_`;
+}
+
