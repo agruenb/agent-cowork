@@ -442,4 +442,137 @@ describe('Toolbar Operations & Expanded Testing', () => {
       assert.ok(textarea.value.includes('---'));
     });
   });
+
+  describe('Text-Based Block Tools: Start List & Heading Behaviors', () => {
+    it('starts a new list when clicking bullet list at the end of a non-empty paragraph', () => {
+      editor.innerHTML = `
+        <div class="editor-block-container text-block" data-block-type="paragraph">
+          <p class="editor-block" data-block-type="paragraph">Here are my notes:</p>
+        </div>
+      `;
+      const p = editor.querySelector('p')!;
+      // Set cursor at the END of "Here are my notes:"
+      selectElement(p.firstChild!, p.firstChild!.textContent!.length);
+
+      toggleListBlock(editor, 'bullet');
+
+      // Paragraph must remain untouched!
+      assert.strictEqual(editor.querySelectorAll('p').length, 1);
+      assert.strictEqual(editor.querySelector('p')!.textContent?.trim(), 'Here are my notes:');
+
+      // A new list container must be created below it
+      const ul = editor.querySelector('ul.bullet-list');
+      assert.ok(ul, 'Should have created a ul.bullet-list below the paragraph');
+      assert.strictEqual(editor.querySelectorAll('li').length, 1);
+
+      // Markdown serialization should show both the paragraph and the list
+      const md = domToMarkdown(editor).trim();
+      assert.ok(md.startsWith('Here are my notes:'), 'Paragraph should come first');
+      assert.ok(editor.querySelector('ul.bullet-list'), 'List should exist');
+    });
+
+    it('starts a new list below a heading without converting or destroying the heading', () => {
+      editor.innerHTML = `
+        <div class="editor-block-container text-block" data-block-type="heading">
+          <h2 class="editor-block" data-block-type="heading" data-level="2">Meeting Agenda</h2>
+        </div>
+      `;
+      const h2 = editor.querySelector('h2')!;
+      selectElement(h2.firstChild!, h2.firstChild!.textContent!.length);
+
+      toggleListBlock(editor, 'bullet');
+
+      // Heading must remain intact!
+      assert.strictEqual(editor.querySelectorAll('h2').length, 1);
+      assert.strictEqual(editor.querySelector('h2')!.textContent?.trim(), 'Meeting Agenda');
+
+      // List should exist after heading
+      const ul = editor.querySelector('ul.bullet-list');
+      assert.ok(ul, 'Should have created a list below heading');
+      assert.strictEqual(editor.querySelectorAll('li').length, 1);
+
+      const md = domToMarkdown(editor).trim();
+      assert.ok(md.includes('## Meeting Agenda'));
+    });
+
+    it('replaces an empty paragraph with a new list item when clicking list', () => {
+      editor.innerHTML = `
+        <div class="editor-block-container text-block" data-block-type="paragraph">
+          <p class="editor-block" data-block-type="paragraph"><br></p>
+        </div>
+      `;
+      const p = editor.querySelector('p')!;
+      selectElement(p, 0);
+
+      toggleListBlock(editor, 'bullet');
+
+      // Empty paragraph should be replaced by list
+      assert.strictEqual(editor.querySelectorAll('p').length, 0);
+      assert.ok(editor.querySelector('ul.bullet-list'));
+      assert.strictEqual(editor.querySelectorAll('li').length, 1);
+    });
+
+    it('splits a paragraph when clicking list in the middle of text', () => {
+      editor.innerHTML = '<p class="editor-block" data-block-type="paragraph">Intro: items to buy</p>';
+      const p = editor.querySelector('p')!;
+      // Set cursor right after "Intro: " (offset 7)
+      selectElement(p.firstChild!, 7);
+
+      toggleListBlock(editor, 'bullet');
+
+      // Paragraph should keep "Intro: "
+      assert.strictEqual(editor.querySelectorAll('p').length, 1);
+      assert.strictEqual(editor.querySelector('p')!.textContent?.trim(), 'Intro:');
+
+      // List should have "items to buy"
+      const li = editor.querySelector('li');
+      assert.ok(li);
+      assert.strictEqual(li?.textContent?.trim(), 'items to buy');
+
+      const md = domToMarkdown(editor).trim();
+      assert.strictEqual(md, 'Intro:\n\n- items to buy');
+    });
+
+    it('converts multiple selected lines into individual list items', () => {
+      editor.innerHTML = '<p class="editor-block" data-block-type="paragraph">Apple\nBanana\nCherry</p>';
+      const p = editor.querySelector('p')!;
+      // Select the full text
+      const sel = window.getSelection()!;
+      const range = document.createRange();
+      range.selectNodeContents(p);
+      sel.removeAllRanges();
+      sel.addRange(range);
+
+      toggleListBlock(editor, 'bullet');
+
+      const lis = editor.querySelectorAll('li');
+      assert.strictEqual(lis.length, 3);
+      assert.strictEqual(lis[0].textContent?.trim(), 'Apple');
+      assert.strictEqual(lis[1].textContent?.trim(), 'Banana');
+      assert.strictEqual(lis[2].textContent?.trim(), 'Cherry');
+    });
+
+    it('applies headings directly without nesting paragraph tags and converts back', () => {
+      editor.innerHTML = '<p class="editor-block" data-block-type="paragraph">Document Title</p>';
+      const p = editor.querySelector('p')!;
+      selectElement(p.firstChild!, 0);
+
+      applyHeading(editor, 'h1');
+
+      const h1 = editor.querySelector('h1');
+      assert.ok(h1, 'h1 should exist');
+      assert.strictEqual(h1?.textContent?.trim(), 'Document Title');
+      assert.strictEqual(h1?.querySelector('p'), null, 'p should NOT be nested inside h1');
+      assert.strictEqual(editor.querySelectorAll('.editor-block-container').length, 0);
+
+      // Now convert back to paragraph
+      applyHeading(editor, 'p');
+
+      const newP = editor.querySelector('p');
+      assert.ok(newP, 'p should exist');
+      assert.strictEqual(newP?.textContent?.trim(), 'Document Title');
+      assert.strictEqual(editor.querySelector('h1'), null, 'h1 should be replaced');
+      assert.strictEqual(editor.querySelectorAll('.editor-block-container').length, 0);
+    });
+  });
 });

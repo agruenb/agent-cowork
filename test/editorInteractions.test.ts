@@ -450,7 +450,7 @@ describe('Editor Interactions', () => {
       h1.setAttribute('data-block-type', 'heading');
       h1.setAttribute('data-level', '1');
       h1.textContent = p.textContent;
-      editor.replaceChild(h1, p);
+      p.replaceWith(h1);
 
       const md = serialize(editor);
       assert.strictEqual(md, '# My title');
@@ -464,7 +464,7 @@ describe('Editor Interactions', () => {
       h2.setAttribute('data-block-type', 'heading');
       h2.setAttribute('data-level', '2');
       h2.textContent = h1.textContent;
-      editor.replaceChild(h2, h1);
+      h1.replaceWith(h2);
 
       const md = serialize(editor);
       assert.strictEqual(md, '## Big heading');
@@ -477,7 +477,7 @@ describe('Editor Interactions', () => {
       p.className = 'editor-block';
       p.setAttribute('data-block-type', 'paragraph');
       p.textContent = h1.textContent;
-      editor.replaceChild(p, h1);
+      h1.replaceWith(p);
 
       const md = serialize(editor);
       assert.strictEqual(md, 'Was a heading');

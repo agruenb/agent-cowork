@@ -35,6 +35,7 @@ describe('Data Loss Safeguards & Anomaly Detection', () => {
       assert.strictEqual(html, '<p class="editor-block" data-block-type="paragraph"><br></p>');
     });
 
+
     it('detects anomaly if non-empty markdown produces completely empty HTML', () => {
       // In normal operation, even "foo" produces "<p ...>foo</p>".
       // We can verify that for any non-empty input with characters, html is non-empty.

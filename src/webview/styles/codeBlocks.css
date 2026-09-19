@@ -1,0 +1,37 @@
+/* -------------------------------------------------------------
+   Code Blocks
+------------------------------------------------------------- */
+.code-block-wrapper {
+  background-color: #f8fafc;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+
+.code-block-header {
+  background-color: #f1f5f9;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--card-border);
+  letter-spacing: 0.5px;
+}
+
+.code-block-wrapper pre {
+  padding: 14px 16px;
+  margin: 0;
+  overflow-x: auto;
+}
+
+.code-block-wrapper code {
+  font-family: var(--mono-font);
+  font-size: 14px;
+  color: #0f172a;
+  line-height: 1.5;
+  white-space: pre;
+  display: block;
+  outline: none;
+}

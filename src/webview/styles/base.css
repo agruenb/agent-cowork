@@ -1,0 +1,53 @@
+:root {
+  --primary: #059669;
+  --primary-hover: #047857;
+  --primary-light: #ecfdf5;
+  --primary-border: #a7f3d0;
+  --bg: var(--vscode-editor-background, #ffffff);
+  --card-bg: var(--vscode-sideBar-background, #f8fafc);
+  --card-border: var(--vscode-sideBar-border, #e2e8f0);
+  --text: var(--vscode-foreground, #1e293b);
+  --text-muted: var(--vscode-descriptionForeground, #64748b);
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono-font: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-family);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+
+.document-viewport {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 32px 64px 80px 64px;
+  display: flex;
+  justify-content: center;
+}
+
+.document-container {
+  max-width: 860px;
+  width: 100%;
+  min-height: calc(100% - 40px);
+}

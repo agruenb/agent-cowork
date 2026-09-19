@@ -1,0 +1,347 @@
+/* -------------------------------------------------------------
+   Tables & Table Controls
+------------------------------------------------------------- */
+.table-wrapper {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: visible;
+  margin-bottom: 4px;
+  /* Natural padding for floating column and row controls without negative margins */
+  padding-top: 50px;
+  padding-left: 56px;
+  padding-right: 20px;
+  padding-bottom: 20px;
+  margin-top: 0;
+  margin-left: 0;
+  margin-right: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom subtle scrollbar for tables */
+.table-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.7);
+  border-radius: 3px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.table-controls {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+  overflow: visible;
+}
+
+/* Drag Handles & Extracted Floating Delete Buttons */
+
+/* Column & Row Drag Handles */
+.table-col-handle,
+.table-col-drag-btn,
+.table-row-handle,
+.table-row-drag-btn {
+  position: absolute;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  color: #64748b;
+  cursor: grab;
+  z-index: 25;
+  user-select: none;
+  transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.table-col-handle:hover,
+.table-col-drag-btn:hover,
+.table-row-handle:hover,
+.table-row-drag-btn:hover {
+  background-color: #ffffff;
+  color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+  transform: scale(1.1);
+}
+
+.is-dragging.table-col-handle,
+.is-dragging.table-col-drag-btn,
+.is-dragging.table-row-handle,
+.is-dragging.table-row-drag-btn,
+.table-col-drag-btn.is-dragging,
+.table-row-drag-btn.is-dragging {
+  cursor: grabbing !important;
+  background-color: #ecfdf5 !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3) !important;
+  z-index: 35 !important;
+  transition: none !important;
+  transform: scale(1.15) !important;
+}
+
+/* Delete Buttons (Row & Column) */
+.table-btn-del,
+.table-col-del-btn,
+.table-row-del-btn {
+  position: absolute;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  color: #64748b;
+  cursor: pointer;
+  z-index: 26;
+  user-select: none;
+  transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+  padding: 0;
+  line-height: 1;
+}
+
+.table-btn-del:hover,
+.table-col-del-btn:hover,
+.table-row-del-btn:hover,
+.table-btn-del.is-active,
+.table-col-del-btn.is-active,
+.table-row-del-btn.is-active {
+  background-color: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+  transform: scale(1.15);
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.35);
+}
+
+.table-grip {
+  cursor: grab;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+  pointer-events: none;
+}
+
+.is-dragging .table-grip {
+  cursor: grabbing;
+}
+
+/* Confirmation Popup for Row/Column Deletion */
+.table-confirm-popup {
+  position: absolute;
+  z-index: 100;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+  max-width: 250px;
+  pointer-events: auto;
+  animation: tablePopupFadeIn 0.15s ease-out;
+  box-sizing: border-box;
+}
+
+@keyframes tablePopupFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.table-confirm-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 2px;
+  line-height: 1.3;
+}
+
+.table-confirm-desc {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.table-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.table-confirm-btn {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  line-height: 1.3;
+  outline: none;
+}
+
+.table-confirm-cancel {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.table-confirm-cancel:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  color: #1e293b;
+}
+
+.table-confirm-delete {
+  background-color: #dc2626;
+  border: 1px solid #dc2626;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.table-confirm-delete:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* Insert '+' Buttons on Row / Column Boundaries */
+.table-insert-btn {
+  position: absolute;
+  display: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 26;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+}
+
+.table-insert-btn:hover {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+  transform: scale(1.15) !important;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.35);
+}
+
+/* Drop Indicators during Row/Column Reordering */
+.table-drop-indicator-row {
+  position: absolute;
+  height: 3px;
+  background-color: var(--primary);
+  z-index: 20;
+  border-radius: 2px;
+  box-shadow: 0 0 5px rgba(5, 150, 105, 0.5);
+  pointer-events: none;
+}
+
+.table-drop-indicator-col {
+  position: absolute;
+  width: 3px;
+  background-color: var(--primary);
+  z-index: 20;
+  border-radius: 2px;
+  box-shadow: 0 0 5px rgba(5, 150, 105, 0.5);
+  pointer-events: none;
+}
+
+/* Table Elements */
+.editor-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background-color: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.editor-table th, .editor-table td {
+  padding: 10px 14px;
+  border: 1px solid var(--card-border);
+  text-align: left;
+  min-width: 80px;
+}
+
+.editor-table th {
+  background-color: #f8fafc;
+  color: #065f46;
+  font-weight: 600;
+}
+
+.editor-table tr:hover td {
+  background-color: #f0fdf450;
+}
+
+/* Checkbox Cells (when table cell contains only a single checkbox) */
+.editor-table td.table-checkbox-cell,
+.editor-table th.table-checkbox-cell {
+  text-align: center;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  width: 44px;
+  min-width: 38px;
+  padding: 8px 6px;
+  background-color: #fafbfc;
+  transition: background-color 0.15s ease;
+}
+
+.editor-table td.table-checkbox-cell:hover,
+.editor-table th.table-checkbox-cell:hover {
+  background-color: var(--primary-light);
+}
+
+.editor-table td.table-checkbox-cell.is-checked {
+  background-color: #f0fdf4;
+}
+
+.editor-table .table-cell-checkbox {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  pointer-events: none;
+  margin: 0 auto;
+  display: block;
+}

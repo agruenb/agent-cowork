@@ -33,12 +33,39 @@ function copyAssets() {
     fs.mkdirSync(distDir, { recursive: true });
   }
 
-  const cssSrc = path.join(__dirname, 'src', 'webview', 'markdownEditor.css');
+  const stylesDir = path.join(__dirname, 'src', 'webview', 'styles');
   const cssDest = path.join(distDir, 'markdownEditor.css');
-  if (fs.existsSync(cssSrc)) {
-    fs.copyFileSync(cssSrc, cssDest);
+  const srcCssDest = path.join(__dirname, 'src', 'webview', 'markdownEditor.css');
+
+  const cssOrder = [
+    'base.css',
+    'toolbar.css',
+    'editor.css',
+    'blocks.css',
+    'lists.css',
+    'codeBlocks.css',
+    'tables.css',
+    'rawMode.css',
+  ];
+
+  if (fs.existsSync(stylesDir)) {
+    const concatenated = cssOrder
+      .map((file) => {
+        const filePath = path.join(stylesDir, file);
+        return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : '';
+      })
+      .filter(Boolean)
+      .join('\n\n');
+    fs.writeFileSync(cssDest, concatenated, 'utf-8');
+    fs.writeFileSync(srcCssDest, concatenated, 'utf-8');
+  } else {
+    const cssSrc = path.join(__dirname, 'src', 'webview', 'markdownEditor.css');
+    if (fs.existsSync(cssSrc)) {
+      fs.copyFileSync(cssSrc, cssDest);
+    }
   }
 }
+
 
 async function main() {
   copyAssets();

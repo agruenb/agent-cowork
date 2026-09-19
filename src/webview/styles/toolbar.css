@@ -1,0 +1,166 @@
+/* -------------------------------------------------------------
+   Top Formatting Toolbar
+------------------------------------------------------------- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--card-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  z-index: 50;
+  flex-wrap: wrap;
+}
+
+.toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background-color: var(--card-border);
+  margin: 0 4px;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.tb-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 8px;
+  transition: all 0.15s ease-in-out;
+  user-select: none;
+}
+
+.tb-btn:hover {
+  background-color: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary-border);
+}
+
+.tb-btn:active {
+  background-color: #d1fae5;
+}
+
+.tb-btn.is-active {
+  background-color: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.tb-select {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background-color: #ffffff;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.tb-select:hover, .tb-select:focus {
+  border-color: var(--primary);
+}
+
+/* Subtle, un-prominent Raw Markdown toggle button */
+.raw-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: transparent;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  height: 28px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.85;
+}
+
+.raw-toggle-btn:hover {
+  background-color: var(--card-bg);
+  color: var(--text);
+  border-color: #cbd5e1;
+  opacity: 1;
+}
+
+.raw-toggle-btn.is-active {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+  font-weight: 600;
+  opacity: 1;
+}
+
+.word-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-right: 12px;
+}
+
+/* Prominent Cowork AI button */
+.cowork-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background-color: var(--primary);
+  color: #ffffff;
+  border: 1px solid #047857;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 11px;
+  height: 28px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
+  transition: all 0.15s ease-in-out;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.cowork-btn:hover {
+  background-color: var(--primary-hover);
+  border-color: #065f46;
+  box-shadow: 0 2px 5px rgba(5, 150, 105, 0.25);
+  transform: translateY(-0.5px);
+}
+
+.cowork-btn:active {
+  transform: translateY(0);
+  background-color: #065f46;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.cowork-arrow-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.cowork-btn:hover .cowork-arrow-icon {
+  transform: translateX(2px);
+}

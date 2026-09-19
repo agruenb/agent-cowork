@@ -22,6 +22,15 @@ export function serializeInlineNodes(container: Node): string {
       const el = node as HTMLElement;
       const tagName = el.tagName.toLowerCase();
 
+      // Skip UI controls in inline serialization
+      if (
+        el.classList.contains('block-delete-btn') ||
+        el.classList.contains('table-controls') ||
+        el.classList.contains('table-confirm-popup')
+      ) {
+        continue;
+      }
+
       // Skip task checkboxes in inline serialization
       if (tagName === 'input' && (el as HTMLInputElement).type === 'checkbox') {
         continue;
@@ -154,6 +163,25 @@ export function serializeListBlock(listEl: HTMLElement, indentLevel = 0): string
  * Serializes a single block element or container element into one or more Markdown blocks.
  */
 function serializeBlockElement(blockEl: HTMLElement): string[] {
+  // Block containers: unwrap and serialize child blocks (skipping UI buttons/controls)
+  if (blockEl.classList.contains('editor-block-container')) {
+    const subBlocks: string[] = [];
+    for (let i = 0; i < blockEl.children.length; i++) {
+      const child = blockEl.children[i] as HTMLElement;
+      if (
+        child.classList.contains('block-delete-btn') ||
+        child.classList.contains('table-controls') ||
+        child.classList.contains('table-confirm-popup')
+      ) {
+        continue;
+      }
+      subBlocks.push(...serializeBlockElement(child));
+    }
+    if (subBlocks.length > 0) {
+      return subBlocks;
+    }
+  }
+
   const tagName = blockEl.tagName.toLowerCase();
   const blockType = blockEl.getAttribute('data-block-type') || '';
 
@@ -268,7 +296,7 @@ function serializeBlockElement(blockEl: HTMLElement): string[] {
   // Container elements (p, div, etc.): check if it contains child block elements
   // (e.g. browser putting <ul> inside <div> or <p>, or table inside <div>)
   const hasBlockChildren = blockEl.querySelector(
-    'ul, ol, table, .table-wrapper, .code-block-wrapper, blockquote, h1, h2, h3, h4, h5, h6, hr'
+    'ul, ol, table, .table-wrapper, .code-block-wrapper, blockquote, h1, h2, h3, h4, h5, h6, hr, .editor-block-container'
   );
 
   if (hasBlockChildren) {
@@ -301,6 +329,7 @@ function serializeBlockElement(blockEl: HTMLElement): string[] {
           /^h[1-6]$/.test(childTag) ||
           childEl.classList.contains('table-wrapper') ||
           childEl.classList.contains('code-block-wrapper') ||
+          childEl.classList.contains('editor-block-container') ||
           childEl.classList.contains('task-list') ||
           childEl.classList.contains('bullet-list') ||
           childEl.classList.contains('ordered-list');

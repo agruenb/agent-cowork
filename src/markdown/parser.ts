@@ -383,6 +383,13 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
   return blocks;
 }
 
+export const BLOCK_DELETE_BTN_HTML =
+  '<button class="block-delete-btn" type="button" title="Block löschen" contenteditable="false" aria-label="Block löschen">' +
+  '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+  '<line x1="3" y1="3" x2="11" y2="11"/>' +
+  '<line x1="11" y1="3" x2="3" y2="11"/>' +
+  '</svg></button>';
+
 /**
  * Converts parsed MarkdownBlocks into an editable HTML structure.
  */
@@ -408,9 +415,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
 
       case 'paragraph': {
         const content = block.content ? parseInlineMarkdown(block.content) : '<br>';
-        htmlParts.push(
-          `<p class="editor-block" data-block-type="paragraph">${content}</p>`
-        );
+        htmlParts.push(`<p class="editor-block" data-block-type="paragraph">${content}</p>`);
         break;
       }
 
@@ -419,8 +424,11 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
           .split('\n')
           .map((line) => `<p>${parseInlineMarkdown(line)}</p>`)
           .join('');
+        const inner = `<blockquote class="editor-block" data-block-type="blockquote" contenteditable="true">${quoteHtml}</blockquote>`;
         htmlParts.push(
-          `<blockquote class="editor-block" data-block-type="blockquote">${quoteHtml}</blockquote>`
+          isNested
+            ? inner
+            : `<div class="editor-block-container widget-block" data-block-type="blockquote" contenteditable="false">${BLOCK_DELETE_BTN_HTML}${inner}</div>`
         );
         break;
       }
@@ -428,8 +436,11 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
       case 'code_block': {
         const lang = block.language ? escapeHtml(block.language) : '';
         const codeText = escapeHtml(block.content || '');
+        const inner = `<div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="${lang}"><div class="code-block-header">${lang ? `<span>${lang}</span>` : '<span>Code</span>'}</div><pre><code class="editor-code" contenteditable="true">${codeText}</code></pre></div>`;
         htmlParts.push(
-          `<div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="${lang}"><div class="code-block-header">${lang ? `<span>${lang}</span>` : '<span>Code</span>'}</div><pre><code class="editor-code">${codeText}</code></pre></div>`
+          isNested
+            ? inner
+            : `<div class="editor-block-container widget-block" data-block-type="code_block" contenteditable="false">${BLOCK_DELETE_BTN_HTML}${inner}</div>`
         );
         break;
       }
@@ -445,9 +456,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
           }
           return `<li class="task-item${checkedClass}" data-checked="${item.checked ? 'true' : 'false'}"><input type="checkbox" class="task-checkbox" ${checkedAttr} contenteditable="false"><span class="task-content">${parseInlineMarkdown(item.text)}</span>${childHtml}</li>`;
         });
-        htmlParts.push(
-          `<ul class="${blockClass}" data-block-type="task_list">${itemHtmls.join('')}</ul>`
-        );
+        htmlParts.push(`<ul class="${blockClass}" data-block-type="task_list">${itemHtmls.join('')}</ul>`);
         break;
       }
 
@@ -460,9 +469,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
           }
           return `<li class="list-item">${parseInlineMarkdown(item.text)}${childHtml}</li>`;
         });
-        htmlParts.push(
-          `<ul class="${blockClass}" data-block-type="unordered_list">${itemHtmls.join('')}</ul>`
-        );
+        htmlParts.push(`<ul class="${blockClass}" data-block-type="unordered_list">${itemHtmls.join('')}</ul>`);
         break;
       }
 
@@ -475,9 +482,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
           }
           return `<li class="list-item">${parseInlineMarkdown(item.text)}${childHtml}</li>`;
         });
-        htmlParts.push(
-          `<ol class="${blockClass}" data-block-type="ordered_list">${itemHtmls.join('')}</ol>`
-        );
+        htmlParts.push(`<ol class="${blockClass}" data-block-type="ordered_list">${itemHtmls.join('')}</ol>`);
         break;
       }
 
@@ -504,14 +509,22 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
             return `<tr>${cells}</tr>`;
           })
           .join('');
+        const inner = `<div class="editor-block table-wrapper" data-block-type="table"><table class="editor-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div>`;
         htmlParts.push(
-          `<div class="editor-block table-wrapper" data-block-type="table"><table class="editor-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div>`
+          isNested
+            ? inner
+            : `<div class="editor-block-container widget-block" data-block-type="table" contenteditable="false">${BLOCK_DELETE_BTN_HTML}${inner}</div>`
         );
         break;
       }
 
       case 'hr': {
-        htmlParts.push('<hr class="editor-block" data-block-type="hr">');
+        const inner = '<hr class="editor-block" data-block-type="hr">';
+        htmlParts.push(
+          isNested
+            ? inner
+            : `<div class="editor-block-container widget-block" data-block-type="hr" contenteditable="false">${BLOCK_DELETE_BTN_HTML}${inner}</div>`
+        );
         break;
       }
     }
@@ -519,6 +532,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
 
   return htmlParts.join('\n');
 }
+
 
 /**
  * Complete parser converting markdown string to formatted HTML.
