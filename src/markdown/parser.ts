@@ -509,7 +509,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
             return `<tr>${cells}</tr>`;
           })
           .join('');
-        const inner = `<div class="editor-block table-wrapper" data-block-type="table"><div class="table-scroll-wrapper"><table class="editor-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
+        const inner = `<div class="editor-block table-wrapper" data-block-type="table"><div class="table-scroll-wrapper"><table class="editor-table" contenteditable="true"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
         htmlParts.push(
           isNested
             ? inner

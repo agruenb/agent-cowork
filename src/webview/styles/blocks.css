@@ -76,15 +76,20 @@
   padding: 0;
 }
 
-.editor-block-container.widget-block:hover .block-delete-btn {
+.editor-block-container.widget-block:hover .block-delete-btn,
+.editor-block-container.widget-block .block-delete-btn.is-active {
   opacity: 1;
   pointer-events: auto;
 }
 
-.block-delete-btn:hover {
+.block-delete-btn:hover,
+.block-delete-btn.is-active {
   background-color: #dc2626;
   border-color: #dc2626;
   color: #ffffff;
+}
+
+.block-delete-btn:hover {
   transform: scale(1.1);
   box-shadow: 0 2px 5px rgba(220, 38, 38, 0.3);
 }
@@ -111,4 +116,87 @@
 .editor-block-container.widget-block[data-block-type="hr"] .block-delete-btn {
   top: -11px;
   right: 0;
+}
+
+/* Block Deletion Confirmation Popup */
+.block-confirm-popup {
+  position: absolute;
+  z-index: 100;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  min-width: 190px;
+  max-width: 260px;
+  pointer-events: auto;
+  animation: blockPopupFadeIn 0.15s ease-out;
+  box-sizing: border-box;
+}
+
+@keyframes blockPopupFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.block-confirm-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 2px;
+  line-height: 1.3;
+}
+
+.block-confirm-desc {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.block-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.block-confirm-btn {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  line-height: 1.3;
+  outline: none;
+}
+
+.block-confirm-cancel {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.block-confirm-cancel:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  color: #1e293b;
+}
+
+.block-confirm-delete {
+  background-color: #dc2626;
+  border: 1px solid #dc2626;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.block-confirm-delete:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
 }

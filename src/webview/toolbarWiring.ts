@@ -140,7 +140,7 @@ export function insertTable(): void {
       ${BLOCK_DELETE_BTN_HTML}
       <div class="editor-block table-wrapper" data-block-type="table">
         <div class="table-scroll-wrapper">
-          <table class="editor-table">
+          <table class="editor-table" contenteditable="true">
             <thead>
               <tr><th>Spalte 1</th><th>Spalte 2</th><th>Spalte 3</th></tr>
             </thead>

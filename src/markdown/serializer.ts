@@ -25,6 +25,7 @@ export function serializeInlineNodes(container: Node): string {
       // Skip UI controls in inline serialization
       if (
         el.classList.contains('block-delete-btn') ||
+        el.classList.contains('block-confirm-popup') ||
         el.classList.contains('table-controls') ||
         el.classList.contains('table-confirm-popup')
       ) {
@@ -170,6 +171,7 @@ function serializeBlockElement(blockEl: HTMLElement): string[] {
       const child = blockEl.children[i] as HTMLElement;
       if (
         child.classList.contains('block-delete-btn') ||
+        child.classList.contains('block-confirm-popup') ||
         child.classList.contains('table-controls') ||
         child.classList.contains('table-confirm-popup')
       ) {

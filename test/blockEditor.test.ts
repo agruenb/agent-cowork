@@ -82,7 +82,7 @@ describe('Block Editor Architecture & Interactions', () => {
   });
 
   describe('Block Delete Button Handling', () => {
-    it('removes the enclosing widget block container when delete button is clicked', () => {
+    it('shows confirmation popup and deletes widget block when confirmed', () => {
       editor.innerHTML = `
         <p id="p1" class="editor-block" data-block-type="paragraph">Intro</p>
         <div id="code-block" class="editor-block-container widget-block" data-block-type="code_block" contenteditable="false">
@@ -101,14 +101,56 @@ describe('Block Editor Architecture & Interactions', () => {
         stopPropagation: () => {},
       } as unknown as MouseEvent;
 
-      const deleted = handleBlockDeleteClick(fakeClick, editor, () => {
+      const handled = handleBlockDeleteClick(fakeClick, editor, () => {
         editEmitted = true;
       });
 
-      assert.strictEqual(deleted, true);
+      assert.strictEqual(handled, true);
+      // Popup should be open and block should not be deleted yet
+      const popup = editor.querySelector('.block-confirm-popup') as HTMLElement;
+      assert.ok(popup, 'Confirmation popup should appear');
+      assert.strictEqual(document.getElementById('code-block') !== null, true);
+      assert.strictEqual(editEmitted, false);
+
+      // Confirm deletion
+      const confirmBtn = popup.querySelector('.block-confirm-delete') as HTMLElement;
+      assert.ok(confirmBtn, 'Confirmation delete button should exist');
+      confirmBtn.click();
+
       assert.strictEqual(editEmitted, true);
       assert.strictEqual(document.getElementById('code-block'), null);
       assert.ok(document.getElementById('p1'));
+    });
+
+    it('cancels deletion when cancel button is clicked in confirmation popup', () => {
+      editor.innerHTML = `
+        <div id="code-block" class="editor-block-container widget-block" data-block-type="code_block" contenteditable="false">
+          ${BLOCK_DELETE_BTN_HTML}
+          <pre><code class="editor-code">code</code></pre>
+        </div>
+      `;
+
+      let editEmitted = false;
+      const deleteBtn = editor.querySelector('.block-delete-btn') as HTMLElement;
+      const fakeClick = {
+        target: deleteBtn,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+      } as unknown as MouseEvent;
+
+      handleBlockDeleteClick(fakeClick, editor, () => {
+        editEmitted = true;
+      });
+
+      const popup = editor.querySelector('.block-confirm-popup') as HTMLElement;
+      assert.ok(popup);
+      const cancelBtn = popup.querySelector('.block-confirm-cancel') as HTMLElement;
+      assert.ok(cancelBtn);
+      cancelBtn.click();
+
+      assert.strictEqual(editEmitted, false);
+      assert.ok(document.getElementById('code-block'));
+      assert.strictEqual(editor.querySelector('.block-confirm-popup'), null);
     });
 
     it('inserts an empty paragraph when the last remaining block is deleted', () => {
@@ -130,6 +172,11 @@ describe('Block Editor Architecture & Interactions', () => {
       handleBlockDeleteClick(fakeClick, editor, () => {
         editEmitted = true;
       });
+
+      const popup = editor.querySelector('.block-confirm-popup') as HTMLElement;
+      assert.ok(popup);
+      const confirmBtn = popup.querySelector('.block-confirm-delete') as HTMLElement;
+      confirmBtn.click();
 
       assert.strictEqual(editEmitted, true);
       assert.strictEqual(document.getElementById('single-widget'), null);
