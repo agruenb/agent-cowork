@@ -235,4 +235,32 @@ describe('User Interactions - List Item Click Caret Placement', () => {
     assert.strictEqual(sel.anchorNode, li);
     assert.strictEqual(sel.anchorOffset, 0);
   });
+
+  it('mousedown outside text in list item immediately focuses canvas, prevents default, and puts cursor at end', () => {
+    setContentFormatted('- Immediate caret');
+    const li = editor.querySelector('li.list-item')!;
+    assert.ok(li);
+
+    mockTextBoundingBox(100);
+
+    let defaultPrevented = false;
+    const event = new dom.window.MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 400,
+      clientY: 20,
+    });
+    event.preventDefault = () => {
+      defaultPrevented = true;
+    };
+    Object.defineProperty(event, 'target', { value: li });
+
+    const handled = handleListItemClickOutsideText(event, editor);
+
+    assert.strictEqual(handled, true);
+    assert.strictEqual(defaultPrevented, true, 'Must call preventDefault on mousedown to stop browser from setting cursor at start');
+    const sel = window.getSelection()!;
+    assert.strictEqual(sel.anchorNode, li.firstChild);
+    assert.strictEqual(sel.anchorOffset, 15); // End of "Immediate caret"
+  });
 });

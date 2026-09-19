@@ -346,24 +346,26 @@ export function handleCanvasKeyDown(e: KeyboardEvent): void {
  * Places caret at the end of a list item's text when the user clicks
  * in the empty line area to the right of the text.
  */
-export function handleListItemClickOutsideText(e: MouseEvent, canvas: HTMLElement): void {
+export function handleListItemClickOutsideText(e: MouseEvent, canvas: HTMLElement): boolean {
+  if (e.button !== 0 || e.shiftKey || e.metaKey || e.ctrlKey) return false;
+
   const target = e.target as HTMLElement | null;
-  if (!target || !canvas.contains(target)) return;
+  if (!target || !canvas.contains(target)) return false;
 
   // Don't interfere if clicking interactive elements
   if (target.closest('input, button, a, .widget-block, table, code, .block-delete-btn')) {
-    return;
+    return false;
   }
 
   const li = target.closest('li') as HTMLElement | null;
-  if (!li || !canvas.contains(li)) return;
+  if (!li || !canvas.contains(li)) return false;
 
   const doc = canvas.ownerDocument || document;
   const win = doc.defaultView || (typeof window !== 'undefined' ? window : null);
   const sel = win ? win.getSelection() : null;
 
   // Only adjust when selection is collapsed (user did not drag to highlight a range)
-  if (sel && !sel.isCollapsed) return;
+  if (sel && !sel.isCollapsed) return false;
 
   const isTask =
     li.classList.contains('task-item') ||
@@ -374,14 +376,14 @@ export function handleListItemClickOutsideText(e: MouseEvent, canvas: HTMLElemen
   const childNodes = Array.from(contentEl.childNodes).filter(
     (n) => n.nodeName !== 'UL' && n.nodeName !== 'OL' && n.nodeName !== 'INPUT'
   );
-  if (childNodes.length === 0) return;
+  if (childNodes.length === 0) return false;
 
   const firstNode = childNodes[0];
   const lastNode = childNodes[childNodes.length - 1];
 
   // If text is empty or only whitespace / <br>, nothing to adjust
   const textContent = childNodes.map((n) => n.textContent || '').join('').trim();
-  if (!textContent) return;
+  if (!textContent) return false;
 
   try {
     const r = doc.createRange();
@@ -393,6 +395,10 @@ export function handleListItemClickOutsideText(e: MouseEvent, canvas: HTMLElemen
 
     // If click was to the right of the text content:
     if (lastRect && lastRect.right > 0 && e.clientX > lastRect.right - 2) {
+      if (doc.activeElement !== canvas && !canvas.contains(doc.activeElement)) {
+        canvas.focus();
+      }
+
       const newRange = doc.createRange();
       if (lastNode.nodeType === 3) {
         newRange.setStart(lastNode, (lastNode as Text).length);
@@ -406,10 +412,15 @@ export function handleListItemClickOutsideText(e: MouseEvent, canvas: HTMLElemen
         sel.removeAllRanges();
         sel.addRange(newRange);
       }
+
+      // Prevent browser's default mousedown behavior which would misplace caret at (li, 0)
+      e.preventDefault();
+      return true;
     }
   } catch {
     // Ignore measurement or range errors
   }
+  return false;
 }
 
 export function handleWindowMessage(event: MessageEvent): void {
@@ -433,6 +444,15 @@ export function handleWindowMessage(event: MessageEvent): void {
       }
       break;
     }
+    case 'focus': {
+      if (state.isRawMode) {
+        textarea?.focus();
+      } else {
+        const canvas = getEditorCanvas();
+        canvas?.focus();
+      }
+      break;
+    }
   }
 }
 
@@ -451,6 +471,11 @@ export function initMarkdownEditor(): void {
 
   canvas.addEventListener('input', () => {
     emitCanvasEdit();
+  });
+
+  // Immediately place caret at the end of the line on mousedown, preventing default start-of-line placement
+  canvas.addEventListener('mousedown', (e: MouseEvent) => {
+    handleListItemClickOutsideText(e, canvas);
   });
 
   canvas.addEventListener('mouseup', (e: MouseEvent) => {
