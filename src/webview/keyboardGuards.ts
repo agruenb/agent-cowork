@@ -74,7 +74,7 @@ export function handleBlockKeyboardGuards(
   }
 
   // 2. Block boundary guards for Backspace and Delete
-  let blockEl: HTMLElement | null = anchorEl;
+  let blockEl: HTMLElement | null = anchorEl ?? null;
   while (blockEl && blockEl.parentElement !== editorCanvas) {
     blockEl = blockEl.parentElement;
   }
@@ -101,4 +101,129 @@ export function handleBlockKeyboardGuards(
   }
 
   return false;
+}
+
+/**
+ * Intercepts Backspace or Delete when the caret is adjacent to a task checkbox.
+ * Deletes the checkbox immediately on the first keystroke and converts the task item
+ * to a regular list item, rather than placing the caret to the left of the checkbox.
+ */
+export function handleTaskCheckboxBackspace(
+  e: KeyboardEvent,
+  editorCanvas: HTMLElement,
+  emitEdit: () => void,
+  wireTaskCheckboxes?: () => void
+): boolean {
+  if (e.key !== 'Backspace' && e.key !== 'Delete') {
+    return false;
+  }
+
+  const doc = editorCanvas.ownerDocument || document;
+  const win = doc.defaultView || (typeof window !== 'undefined' ? window : null);
+  const sel = win ? win.getSelection() : null;
+  if (!sel || !sel.isCollapsed || sel.rangeCount === 0) {
+    return false;
+  }
+
+  const anchorNode = sel.anchorNode;
+  if (!anchorNode || !editorCanvas.contains(anchorNode)) {
+    return false;
+  }
+
+  const anchorEl =
+    anchorNode.nodeType === 1 ? (anchorNode as HTMLElement) : anchorNode.parentElement;
+  const li = anchorEl?.closest('li') as HTMLElement | null;
+  if (!li || !editorCanvas.contains(li)) {
+    return false;
+  }
+
+  const cb = li.querySelector(':scope > input[type="checkbox"]') as HTMLInputElement | null;
+  if (!cb) {
+    return false;
+  }
+
+  const contentSpan = li.querySelector(':scope > .task-content') as HTMLElement | null;
+  const range = sel.getRangeAt(0);
+  let isAdjacentToCheckbox = false;
+
+  if (e.key === 'Backspace') {
+    if (contentSpan && (anchorNode === contentSpan || contentSpan.contains(anchorNode))) {
+      try {
+        const preRange = doc.createRange();
+        preRange.setStart(contentSpan, 0);
+        preRange.setEnd(range.startContainer, range.startOffset);
+        const textBefore = preRange.toString().replace(/[\u200B\u00A0\s]+/g, '');
+        if (textBefore.length === 0) {
+          isAdjacentToCheckbox = true;
+        }
+      } catch {
+        if (range.startOffset === 0) {
+          isAdjacentToCheckbox = true;
+        }
+      }
+    } else if (anchorNode === li) {
+      const cbIndex = Array.prototype.indexOf.call(li.childNodes, cb);
+      if (range.startOffset === cbIndex || range.startOffset === cbIndex + 1) {
+        isAdjacentToCheckbox = true;
+      }
+    }
+  } else if (e.key === 'Delete') {
+    if (anchorNode === li) {
+      const cbIndex = Array.prototype.indexOf.call(li.childNodes, cb);
+      if (range.startOffset === cbIndex) {
+        isAdjacentToCheckbox = true;
+      }
+    }
+  }
+
+  if (!isAdjacentToCheckbox) {
+    return false;
+  }
+
+  e.preventDefault();
+
+  // 1. Remove checkbox and task classes
+  cb.remove();
+  li.removeAttribute('data-checked');
+  li.classList.remove('task-item', 'is-checked');
+  li.classList.add('list-item');
+
+  // 2. Unwrap .task-content if present
+  let firstChildToFocus: Node = li;
+  if (contentSpan) {
+    const children = Array.from(contentSpan.childNodes);
+    if (children.length > 0) {
+      firstChildToFocus = children[0];
+      for (const child of children) {
+        li.insertBefore(child, contentSpan);
+      }
+    }
+    contentSpan.remove();
+  }
+
+  // 3. Update parent list type if no other tasks remain
+  const parentList = li.parentElement;
+  if (parentList && parentList.classList.contains('task-list')) {
+    const remainingTasks = parentList.querySelectorAll('.task-item, input[type="checkbox"]');
+    if (remainingTasks.length === 0) {
+      parentList.classList.remove('task-list');
+      parentList.classList.add('bullet-list');
+      parentList.setAttribute('data-block-type', 'unordered_list');
+    }
+  }
+
+  // 4. Place caret at start of text
+  const newRange = doc.createRange();
+  if (firstChildToFocus.nodeType === 3) {
+    newRange.setStart(firstChildToFocus, 0);
+  } else {
+    newRange.selectNodeContents(firstChildToFocus);
+    newRange.collapse(true);
+  }
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+
+  wireTaskCheckboxes?.();
+  emitEdit();
+  return true;
 }

@@ -15,7 +15,7 @@ export const vscode =
         setState: () => {},
       };
 
-// DOM elements
+// DOM elements with dynamic fallback for test environments
 export const editorCanvas = (typeof document !== 'undefined'
   ? document.getElementById('editor')
   : null) as HTMLElement;
@@ -52,6 +52,38 @@ export const errorBannerDismiss = (typeof document !== 'undefined'
   ? document.getElementById('error-banner-dismiss')
   : null) as HTMLButtonElement | null;
 
+export function getEditorCanvas(): HTMLElement {
+  return (editorCanvas?.isConnected ? editorCanvas : (typeof document !== 'undefined' ? document.getElementById('editor') : null)) as HTMLElement;
+}
+
+export function getRawTextarea(): HTMLTextAreaElement {
+  return (rawTextarea?.isConnected ? rawTextarea : (typeof document !== 'undefined' ? document.getElementById('raw-textarea') : null)) as HTMLTextAreaElement;
+}
+
+export function getRawToggleBtn(): HTMLButtonElement {
+  return (rawToggleBtn?.isConnected ? rawToggleBtn : (typeof document !== 'undefined' ? document.getElementById('btn-toggle-raw') : null)) as HTMLButtonElement;
+}
+
+export function getHeadingSelect(): HTMLSelectElement {
+  return (headingSelect?.isConnected ? headingSelect : (typeof document !== 'undefined' ? document.getElementById('select-heading') : null)) as HTMLSelectElement;
+}
+
+export function getWordCountEl(): HTMLElement | null {
+  return (wordCountEl?.isConnected ? wordCountEl : (typeof document !== 'undefined' ? document.getElementById('word-count') : null)) as HTMLElement | null;
+}
+
+export function getErrorBanner(): HTMLElement | null {
+  return (errorBanner?.isConnected ? errorBanner : (typeof document !== 'undefined' ? document.getElementById('error-banner') : null)) as HTMLElement | null;
+}
+
+export function getErrorBannerText(): HTMLElement | null {
+  return (errorBannerText?.isConnected ? errorBannerText : (typeof document !== 'undefined' ? document.getElementById('error-banner-text') : null)) as HTMLElement | null;
+}
+
+export function getErrorBannerDismiss(): HTMLButtonElement | null {
+  return (errorBannerDismiss?.isConnected ? errorBannerDismiss : (typeof document !== 'undefined' ? document.getElementById('error-banner-dismiss') : null)) as HTMLButtonElement | null;
+}
+
 // Editor State
 export interface EditorState {
   isRawMode: boolean;
@@ -73,9 +105,11 @@ export const state: EditorState = {
  * Displays the error / warning banner in the editor.
  */
 export function showErrorBanner(message: string): void {
-  if (errorBanner && errorBannerText) {
-    errorBannerText.textContent = message;
-    errorBanner.style.display = 'flex';
+  const banner = getErrorBanner();
+  const textEl = getErrorBannerText();
+  if (banner && textEl) {
+    textEl.textContent = message;
+    banner.style.display = 'flex';
   }
 }
 
@@ -83,8 +117,9 @@ export function showErrorBanner(message: string): void {
  * Hides the error / warning banner in the editor.
  */
 export function hideErrorBanner(): void {
-  if (errorBanner) {
-    errorBanner.style.display = 'none';
+  const banner = getErrorBanner();
+  if (banner) {
+    banner.style.display = 'none';
   }
 }
 
@@ -94,8 +129,9 @@ export function hideErrorBanner(): void {
 export function updateWordCount(text: string): void {
   const clean = text.replace(/[#*`~>[\]()|_-]/g, ' ').trim();
   const words = clean ? clean.split(/\s+/).filter(Boolean).length : 0;
-  if (wordCountEl) {
-    wordCountEl.textContent = `${words} ${words === 1 ? 'Wort' : 'Wörter'}`;
+  const countEl = getWordCountEl();
+  if (countEl) {
+    countEl.textContent = `${words} ${words === 1 ? 'Wort' : 'Wörter'}`;
   }
 }
 
@@ -141,7 +177,8 @@ export function getMarkdownFromCanvas(): string | null {
   if (state.hasParseError) {
     return null;
   }
-  const { markdown, error } = safeDomToMarkdown(editorCanvas);
+  const canvas = getEditorCanvas();
+  const { markdown, error } = safeDomToMarkdown(canvas);
   if (error) {
     console.error('Agent Cowork DOM Serializer anomaly/error:', error);
     showErrorBanner(

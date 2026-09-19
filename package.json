@@ -321,6 +321,7 @@
     "publish-extension": "vsce publish",
     "check-types": "tsc --noEmit",
     "lint": "eslint src --ext ts",
+    "pretest": "npm run check-types",
     "test": "mocha -r tsx 'test/**/*.test.ts'"
   },
   "devDependencies": {

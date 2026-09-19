@@ -19,7 +19,14 @@ function findAncestor(node: Node | null, stopAt: Node, predicate: (el: HTMLEleme
  * Finds the top-level block element in canvas that contains the node.
  */
 export function findTopBlock(node: Node | null, canvas: HTMLElement): HTMLElement | null {
-  let curr = node;
+  if (!node) return null;
+  if (node === canvas) {
+    const sel = canvas.ownerDocument?.defaultView?.getSelection?.() || (typeof window !== 'undefined' ? window.getSelection() : null);
+    const offset = sel?.anchorOffset ?? 0;
+    const child = canvas.childNodes[offset] || canvas.firstElementChild;
+    return child && child.nodeType === 1 ? (child as HTMLElement) : (canvas.firstElementChild as HTMLElement | null);
+  }
+  let curr: Node | null = node;
   while (curr && curr.parentNode !== canvas) {
     curr = curr.parentNode;
   }
@@ -383,8 +390,8 @@ export function toggleListBlock(
     return;
   }
 
-  // Check if multiple lines are selected
-  if (sel && !sel.isCollapsed) {
+  // Check if text is highlighted (selection is not collapsed)
+  if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) {
     const selectedText = sel.toString();
     if (selectedText.includes('\n')) {
       const lines = selectedText
@@ -434,13 +441,12 @@ export function toggleListBlock(
         return;
       }
     }
-  }
 
-  // Heading blocks should never be converted or split into a list; start a list below them
-  if (topBlock.tagName.match(/^H[1-6]$/i)) {
-    const listBlock = createListBlock(doc, type, null);
-    topBlock.after(listBlock);
-    focusListItem(sel, listBlock, type);
+    // A part of the paragraph is highlighted: convert the paragraph into a list item
+    const content = topBlock.innerHTML.trim();
+    const listBlock = createListBlock(doc, type, content);
+    topBlock.replaceWith(listBlock);
+    focusListItem(sel, listBlock, type, true);
     onMutated?.();
     return;
   }
@@ -454,69 +460,10 @@ export function toggleListBlock(
     return;
   }
 
-  // For non-empty text blocks (paragraphs, blockquotes):
-  // Check caret position: at start, in middle, or at end
-  let textBefore = '';
-  let textAfter = '';
-
-  if (sel && sel.rangeCount > 0) {
-    const range = sel.getRangeAt(0);
-    try {
-      const preRange = doc.createRange();
-      preRange.setStart(topBlock, 0);
-      preRange.setEnd(range.startContainer, range.startOffset);
-      textBefore = preRange.toString();
-    } catch {
-      textBefore = '';
-    }
-
-    try {
-      const postRange = doc.createRange();
-      postRange.setStart(range.endContainer, range.endOffset);
-      postRange.setEnd(topBlock, topBlock.childNodes.length);
-      textAfter = postRange.toString();
-    } catch {
-      textAfter = '';
-    }
-  }
-
-  const isAtStart = textBefore.replace(/[\s\u200B\u00A0]+/g, '') === '';
-  const isAtEnd = textAfter.replace(/[\s\u200B\u00A0]+/g, '') === '';
-
-  if (isAtStart) {
-    // Caret at start of paragraph: convert the whole paragraph into a list item
-    const content = topBlock.innerHTML.trim();
-    const listBlock = createListBlock(doc, type, content);
-    topBlock.replaceWith(listBlock);
-    focusListItem(sel, listBlock, type, true);
-  } else if (isAtEnd) {
-    // Caret at end of paragraph: keep the paragraph, start a new list below it
-    const listBlock = createListBlock(doc, type, null);
-    topBlock.after(listBlock);
-    focusListItem(sel, listBlock, type);
-  } else {
-    // Caret in the middle: split the paragraph at caret
-    try {
-      const range = sel!.getRangeAt(0);
-      const postRange = doc.createRange();
-      postRange.setStart(range.endContainer, range.endOffset);
-      postRange.setEnd(topBlock, topBlock.childNodes.length);
-      const tail = postRange.extractContents();
-
-      if (topBlock.childNodes.length === 0 || !topBlock.textContent?.trim()) {
-        topBlock.innerHTML = '<br>';
-      }
-
-      const listBlock = createListBlock(doc, type, tail);
-      topBlock.after(listBlock);
-      focusListItem(sel, listBlock, type, true);
-    } catch {
-      // Fallback: start list after block
-      const listBlock = createListBlock(doc, type, null);
-      topBlock.after(listBlock);
-      focusListItem(sel, listBlock, type);
-    }
-  }
+  // When no text is highlighted, start a new list below the current block
+  const listBlock = createListBlock(doc, type, null);
+  topBlock.after(listBlock);
+  focusListItem(sel, listBlock, type);
 
   onMutated?.();
 }

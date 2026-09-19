@@ -41,11 +41,20 @@ describe('Toolbar Operations & Expanded Testing', () => {
     sel.addRange(range);
   }
 
+  function highlightElement(el: Node, start = 0, end?: number) {
+    const sel = window.getSelection()!;
+    const range = document.createRange();
+    range.setStart(el, start);
+    range.setEnd(el, end ?? (el.textContent?.length || 1));
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
   describe('Visual Canvas: List Toggling & Conversions', () => {
-    it('converts a paragraph into a bullet list item', () => {
+    it('converts a paragraph into a bullet list item when highlighted', () => {
       editor.innerHTML = '<p class="editor-block" data-block-type="paragraph">First item</p>';
       const p = editor.querySelector('p')!;
-      selectElement(p.firstChild || p);
+      highlightElement(p.firstChild || p);
 
       toggleListBlock(editor, 'bullet');
 
@@ -70,10 +79,10 @@ describe('Toolbar Operations & Expanded Testing', () => {
       assert.strictEqual(domToMarkdown(editor).trim(), 'My item');
     });
 
-    it('converts a paragraph into an ordered list item', () => {
+    it('converts a paragraph into an ordered list item when highlighted', () => {
       editor.innerHTML = '<p class="editor-block" data-block-type="paragraph">Numbered item</p>';
       const p = editor.querySelector('p')!;
-      selectElement(p.firstChild || p);
+      highlightElement(p.firstChild || p);
 
       toggleListBlock(editor, 'ordered');
 
@@ -97,27 +106,27 @@ describe('Toolbar Operations & Expanded Testing', () => {
       assert.strictEqual(domToMarkdown(editor).trim(), 'Step 1');
     });
 
-    it('converts a paragraph into a task list item', () => {
-      editor.innerHTML = '<p class="editor-block" data-block-type="paragraph">Clean the house</p>';
+    it('converts a paragraph into a task list item when highlighted', () => {
+      editor.innerHTML = '<p class="editor-block" data-block-type="paragraph">Todo task</p>';
       const p = editor.querySelector('p')!;
-      selectElement(p.firstChild || p);
+      highlightElement(p.firstChild || p);
 
       toggleListBlock(editor, 'task');
 
       const ul = editor.querySelector('ul.task-list');
       assert.ok(ul, 'Should have created a ul.task-list');
-      const li = editor.querySelector('li.task-item');
-      assert.ok(li, 'Should have created a li.task-item');
-      const cb = li?.querySelector('input[type="checkbox"]');
-      assert.ok(cb, 'Should have a checkbox input');
-      assert.strictEqual(domToMarkdown(editor).trim(), '- [ ] Clean the house');
+      const taskLi = editor.querySelector('li.task-item');
+      assert.ok(taskLi, 'Should have created a li.task-item');
+      assert.strictEqual(taskLi?.getAttribute('data-checked'), 'false');
+      assert.strictEqual(taskLi?.querySelector('.task-content')?.textContent?.trim(), 'Todo task');
+      assert.strictEqual(domToMarkdown(editor).trim(), '- [ ] Todo task');
     });
 
     it('clicking task button multiple times toggles on and off without infinite nesting', () => {
       // User starts with a paragraph
       editor.innerHTML = '<p class="editor-block" data-block-type="paragraph">My task</p>';
       const p = editor.querySelector('p')!;
-      selectElement(p.firstChild || p);
+      highlightElement(p.firstChild || p);
 
       // Click 1: turns into task item
       toggleListBlock(editor, 'task');
@@ -131,7 +140,9 @@ describe('Toolbar Operations & Expanded Testing', () => {
       assert.strictEqual(editor.querySelectorAll('ul').length, 0);
       assert.strictEqual(editor.querySelectorAll('input[type="checkbox"]').length, 0);
 
-      // Click 3: toggles back to task item!
+      // Click 3: highlight paragraph again and turn into task item!
+      const p2 = editor.querySelector('p')!;
+      highlightElement(p2.firstChild || p2);
       toggleListBlock(editor, 'task');
       assert.strictEqual(domToMarkdown(editor).trim(), '- [ ] My task');
       assert.strictEqual(editor.querySelectorAll('ul').length, 1);
@@ -140,6 +151,7 @@ describe('Toolbar Operations & Expanded Testing', () => {
       // Click 4: toggles back off!
       toggleListBlock(editor, 'task');
       assert.strictEqual(domToMarkdown(editor).trim(), 'My task');
+      assert.strictEqual(editor.querySelectorAll('ul').length, 0);
     });
 
     it('converts between list types: bullet -> task -> ordered -> bullet', () => {
@@ -512,25 +524,39 @@ describe('Toolbar Operations & Expanded Testing', () => {
       assert.strictEqual(editor.querySelectorAll('li').length, 1);
     });
 
-    it('splits a paragraph when clicking list in the middle of text', () => {
+    it('starts a new list below paragraph when clicking list without text highlighted', () => {
       editor.innerHTML = '<p class="editor-block" data-block-type="paragraph">Intro: items to buy</p>';
       const p = editor.querySelector('p')!;
-      // Set cursor right after "Intro: " (offset 7)
+      // Set cursor in paragraph without selecting/highlighting text
       selectElement(p.firstChild!, 7);
 
       toggleListBlock(editor, 'bullet');
 
-      // Paragraph should keep "Intro: "
+      // Paragraph should remain intact
       assert.strictEqual(editor.querySelectorAll('p').length, 1);
-      assert.strictEqual(editor.querySelector('p')!.textContent?.trim(), 'Intro:');
+      assert.strictEqual(editor.querySelector('p')!.textContent?.trim(), 'Intro: items to buy');
 
-      // List should have "items to buy"
-      const li = editor.querySelector('li');
-      assert.ok(li);
-      assert.strictEqual(li?.textContent?.trim(), 'items to buy');
+      // List should exist after paragraph
+      const ul = editor.querySelector('ul.bullet-list');
+      assert.ok(ul);
+      assert.strictEqual(editor.querySelectorAll('li').length, 1);
 
       const md = domToMarkdown(editor).trim();
-      assert.strictEqual(md, 'Intro:\n\n- items to buy');
+      assert.strictEqual(md, 'Intro: items to buy\n\n-');
+    });
+
+    it('converts paragraph to list item when part of paragraph is highlighted', () => {
+      editor.innerHTML = '<p class="editor-block" data-block-type="paragraph">Intro: items to buy</p>';
+      const p = editor.querySelector('p')!;
+      // Highlight "items to buy"
+      highlightElement(p.firstChild!, 7, p.firstChild!.textContent!.length);
+
+      toggleListBlock(editor, 'bullet');
+
+      const li = editor.querySelector('li');
+      assert.ok(li);
+      assert.strictEqual(li?.textContent?.trim(), 'Intro: items to buy');
+      assert.strictEqual(domToMarkdown(editor).trim(), '- Intro: items to buy');
     });
 
     it('converts multiple selected lines into individual list items', () => {

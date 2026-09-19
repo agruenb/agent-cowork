@@ -1,13 +1,12 @@
 import {
   state,
-  editorCanvas,
-  rawTextarea,
-  rawToggleBtn,
-  headingSelect,
   coworkBtn,
   vscode,
-  emitEdit,
   emitCanvasEdit,
+  getEditorCanvas,
+  getRawTextarea,
+  getHeadingSelect,
+  getRawToggleBtn,
 } from './editorState';
 import {
   toggleListBlock,
@@ -26,12 +25,20 @@ export interface ToolbarHooks {
   wireTaskCheckboxes: () => void;
 }
 
+function focusCanvas(canvas: HTMLElement | null): void {
+  if (canvas && typeof document !== 'undefined' && document.activeElement !== canvas && !canvas.contains(document.activeElement)) {
+    canvas.focus();
+  }
+}
+
 export function executeCommand(cmd: string, val: string = ''): void {
+  const textarea = getRawTextarea();
+  const canvas = getEditorCanvas();
   if (state.isRawMode) {
-    applyRawFormatting(rawTextarea, cmd, val);
+    applyRawFormatting(textarea, cmd, val);
     return;
   }
-  editorCanvas.focus();
+  focusCanvas(canvas);
   if (cmd === 'strike') {
     document.execCommand('strikeThrough', false, val);
   } else if (cmd === 'quote') {
@@ -44,7 +51,7 @@ export function executeCommand(cmd: string, val: string = ''): void {
       </div>
       <p class="editor-block" data-block-type="paragraph"><br></p>
     `;
-    insertBlockElement(editorCanvas, quoteHtml, () => {
+    insertBlockElement(canvas, quoteHtml, () => {
       emitCanvasEdit();
     });
     return;
@@ -56,7 +63,7 @@ export function executeCommand(cmd: string, val: string = ''): void {
       </div>
       <p class="editor-block" data-block-type="paragraph"><br></p>
     `;
-    insertBlockElement(editorCanvas, hrHtml, () => {
+    insertBlockElement(canvas, hrHtml, () => {
       emitCanvasEdit();
     });
     return;
@@ -67,59 +74,67 @@ export function executeCommand(cmd: string, val: string = ''): void {
 }
 
 export function handleHeadingChange(val: string): void {
+  const textarea = getRawTextarea();
+  const canvas = getEditorCanvas();
   if (state.isRawMode) {
-    applyRawFormatting(rawTextarea, 'heading', val);
+    applyRawFormatting(textarea, 'heading', val);
     return;
   }
-  editorCanvas.focus();
-  applyHeading(editorCanvas, val, () => emitCanvasEdit());
+  applyHeading(canvas, val, () => emitCanvasEdit());
 }
 
 export function handleListToggle(
   type: 'bullet' | 'ordered' | 'task',
   wireTaskCheckboxes: () => void
 ): void {
+  const textarea = getRawTextarea();
+  const canvas = getEditorCanvas();
   if (state.isRawMode) {
-    applyRawFormatting(rawTextarea, type);
+    applyRawFormatting(textarea, type);
     return;
   }
-  editorCanvas.focus();
-  toggleListBlock(editorCanvas, type, () => {
+  toggleListBlock(canvas, type, () => {
     wireTaskCheckboxes();
     emitCanvasEdit();
   });
 }
 
 export function handleIndent(wireTaskCheckboxes: () => void): void {
+  const textarea = getRawTextarea();
+  const canvas = getEditorCanvas();
   if (state.isRawMode) {
-    applyRawFormatting(rawTextarea, 'indent');
+    applyRawFormatting(textarea, 'indent');
     return;
   }
-  editorCanvas.focus();
-  indentActiveListItem(editorCanvas, () => {
+  focusCanvas(canvas);
+  indentActiveListItem(canvas, () => {
     wireTaskCheckboxes();
     emitCanvasEdit();
   });
 }
 
 export function handleOutdent(wireTaskCheckboxes: () => void): void {
+  const textarea = getRawTextarea();
+  const canvas = getEditorCanvas();
   if (state.isRawMode) {
-    applyRawFormatting(rawTextarea, 'outdent');
+    applyRawFormatting(textarea, 'outdent');
     return;
   }
-  editorCanvas.focus();
-  outdentActiveListItem(editorCanvas, () => {
+  focusCanvas(canvas);
+  outdentActiveListItem(canvas, () => {
     wireTaskCheckboxes();
     emitCanvasEdit();
   });
 }
 
 export function insertTable(): void {
+  const textarea = getRawTextarea();
+  const canvas = getEditorCanvas();
   if (state.isRawMode) {
-    applyRawFormatting(rawTextarea, 'table');
+    applyRawFormatting(textarea, 'table');
     return;
   }
-  editorCanvas.focus();
+  focusCanvas(canvas);
   const tableHtml = `
     <div class="editor-block-container widget-block" data-block-type="table" contenteditable="false">
       ${BLOCK_DELETE_BTN_HTML}
@@ -137,18 +152,20 @@ export function insertTable(): void {
     </div>
     <p class="editor-block" data-block-type="paragraph"><br></p>
   `;
-  insertBlockElement(editorCanvas, tableHtml, () => {
-    wireTableInteractions(editorCanvas, () => emitCanvasEdit());
+  insertBlockElement(canvas, tableHtml, () => {
+    wireTableInteractions(canvas, () => emitCanvasEdit());
     emitCanvasEdit();
   });
 }
 
 export function insertCodeBlock(): void {
+  const textarea = getRawTextarea();
+  const canvas = getEditorCanvas();
   if (state.isRawMode) {
-    applyRawFormatting(rawTextarea, 'code');
+    applyRawFormatting(textarea, 'code');
     return;
   }
-  editorCanvas.focus();
+  focusCanvas(canvas);
   const codeHtml = `
     <div class="editor-block-container widget-block" data-block-type="code_block" data-language="markdown" contenteditable="false">
       ${BLOCK_DELETE_BTN_HTML}
@@ -159,33 +176,35 @@ export function insertCodeBlock(): void {
     </div>
     <p class="editor-block" data-block-type="paragraph"><br></p>
   `;
-  insertBlockElement(editorCanvas, codeHtml, () => {
+  insertBlockElement(canvas, codeHtml, () => {
     emitCanvasEdit();
   });
 }
 
 export function updateHeadingSelect(): void {
-  if (!editorCanvas.contains(document.activeElement)) {
+  const canvas = getEditorCanvas();
+  const headingSel = getHeadingSelect();
+  if (!canvas || !canvas.contains(document.activeElement)) {
     return;
   }
   const selection = window.getSelection();
   if (selection && selection.rangeCount > 0) {
     let node = selection.anchorNode;
-    while (node && node !== editorCanvas) {
+    while (node && node !== canvas) {
       if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as HTMLElement;
         const tag = el.tagName.toLowerCase();
         if (/^h[1-3]$/.test(tag)) {
-          if (headingSelect) {
-            headingSelect.value = tag;
+          if (headingSel) {
+            headingSel.value = tag;
           }
           return;
         }
       }
       node = node.parentNode;
     }
-    if (headingSelect) {
-      headingSelect.value = 'p';
+    if (headingSel) {
+      headingSel.value = 'p';
     }
   }
 }
@@ -215,17 +234,20 @@ export function wireToolbar(hooks: ToolbarHooks): void {
   document.getElementById('btn-quote')?.addEventListener('click', () => executeCommand('quote'));
   document.getElementById('btn-table')?.addEventListener('click', () => insertTable());
   document.getElementById('btn-code')?.addEventListener('click', () => {
+    const textarea = getRawTextarea();
+    const canvas = getEditorCanvas();
     if (state.isRawMode) {
-      applyRawFormatting(rawTextarea, 'code');
+      applyRawFormatting(textarea, 'code');
     } else {
-      handleCodeButtonClick(editorCanvas, () => insertCodeBlock(), () => emitCanvasEdit());
+      handleCodeButtonClick(canvas, () => insertCodeBlock(), () => emitCanvasEdit());
     }
   });
   document.getElementById('btn-hr')?.addEventListener('click', () => executeCommand('hr'));
 
   document.getElementById('btn-undo')?.addEventListener('click', () => {
+    const textarea = getRawTextarea();
     if (state.isRawMode) {
-      rawTextarea.focus();
+      textarea?.focus();
       document.execCommand('undo');
     } else {
       executeCommand('undo');
@@ -233,8 +255,9 @@ export function wireToolbar(hooks: ToolbarHooks): void {
   });
 
   document.getElementById('btn-redo')?.addEventListener('click', () => {
+    const textarea = getRawTextarea();
     if (state.isRawMode) {
-      rawTextarea.focus();
+      textarea?.focus();
       document.execCommand('redo');
     } else {
       executeCommand('redo');
@@ -242,18 +265,21 @@ export function wireToolbar(hooks: ToolbarHooks): void {
   });
 
   // Heading select
-  headingSelect?.addEventListener('change', (e) => {
+  const headingSel = getHeadingSelect();
+  headingSel?.addEventListener('change', (e) => {
     const target = e.target as HTMLSelectElement;
     handleHeadingChange(target.value);
   });
 
   // Raw toggle
-  rawToggleBtn?.addEventListener('click', () => {
+  const toggleBtn = getRawToggleBtn();
+  toggleBtn?.addEventListener('click', () => {
     hooks.toggleRawMode();
   });
 
   // Cowork with AI button
-  coworkBtn?.addEventListener('click', () => {
+  const cowork = document.getElementById('btn-cowork') || coworkBtn;
+  cowork?.addEventListener('click', () => {
     if (state.debounceTimer) {
       clearTimeout(state.debounceTimer);
       state.debounceTimer = null;
