@@ -205,41 +205,57 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   <div class="app-container">
     <!-- Top Formatting Toolbar -->
     <div class="toolbar" role="toolbar" aria-label="Editor Werkzeugleiste">
-      <!-- Heading Select -->
-      <div class="toolbar-group">
-        <select id="select-heading" class="tb-select" tabindex="-1" title="Textformatierung">
+      <!-- Heading Select & Inline Formatting (Stacked Vertically) -->
+      <div class="toolbar-group toolbar-group-text">
+        <select id="select-heading" class="tb-select tb-select-compact" tabindex="-1" title="Textformatierung">
           <option value="p">Normaler Text</option>
           <option value="h1">Überschrift 1 (Groß)</option>
           <option value="h2">Überschrift 2 (Mittel)</option>
           <option value="h3">Überschrift 3 (Klein)</option>
         </select>
+        <div class="toolbar-subgroup">
+          <button id="btn-bold" class="tb-btn tb-btn-compact" tabindex="-1" title="Fett (Cmd+B)"><strong>B</strong></button>
+          <button id="btn-italic" class="tb-btn tb-btn-compact" tabindex="-1" title="Kursiv (Cmd+I)"><em>I</em></button>
+          <button id="btn-strike" class="tb-btn tb-btn-compact" tabindex="-1" title="Durchgestrichen"><del>S</del></button>
+        </div>
       </div>
 
       <div class="toolbar-separator"></div>
 
-      <!-- Basic Formatting -->
-      <div class="toolbar-group">
-        <button id="btn-bold" class="tb-btn" tabindex="-1" title="Fett (Cmd+B)"><strong>B</strong></button>
-        <button id="btn-italic" class="tb-btn" tabindex="-1" title="Kursiv (Cmd+I)"><em>I</em></button>
-        <button id="btn-strike" class="tb-btn" tabindex="-1" title="Durchgestrichen"><del>S</del></button>
+      <!-- Lists & Structure (Stacked Vertically) -->
+      <div class="toolbar-group toolbar-group-vertical">
+        <button id="btn-task" class="tb-btn tb-btn-stacked" tabindex="-1" title="Aufgabenliste (Checkliste)">
+          <svg class="tb-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+            <path fill-rule="evenodd" d="M2 3.75A1.75 1.75 0 0 1 3.75 2h2.5A1.75 1.75 0 0 1 8 3.75v2.5A1.75 1.75 0 0 1 6.25 8h-2.5A1.75 1.75 0 0 1 2 6.25v-2.5zm1.75-.25a.25.25 0 0 0-.25.25v2.5c0 .138.112.25.25.25h2.5a.25.25 0 0 0 .25-.25v-2.5a.25.25 0 0 0-.25-.25h-2.5zM10.25 4a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5zM2 11.75A1.75 1.75 0 0 1 3.75 10h2.5A1.75 1.75 0 0 1 8 11.75v2.5A1.75 1.75 0 0 1 6.25 15.75h-2.5A1.75 1.75 0 0 1 2 14.25v-2.5zm1.75-.25a.25.25 0 0 0-.25.25v2.5c0 .138.112.25.25.25h2.5a.25.25 0 0 0 .25-.25v-2.5a.25.25 0 0 0-.25-.25h-2.5zM10.25 12a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5z"/>
+          </svg>
+          <span>Aufgabe</span>
+        </button>
+        <button id="btn-bullet" class="tb-btn tb-btn-stacked" tabindex="-1" title="Aufzählungsliste">
+          <svg class="tb-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="2.5" cy="3.5" r="1.5"/>
+            <rect x="6" y="2.5" width="9.5" height="2" rx="1"/>
+            <circle cx="2.5" cy="8" r="1.5"/>
+            <rect x="6" y="7" width="9.5" height="2" rx="1"/>
+            <circle cx="2.5" cy="12.5" r="1.5"/>
+            <rect x="6" y="11.5" width="9.5" height="2" rx="1"/>
+          </svg>
+          <span>Liste</span>
+        </button>
+        <button id="btn-ordered" class="tb-btn tb-btn-stacked" tabindex="-1" title="Nummerierte Liste">
+          <svg class="tb-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+            <path fill-rule="evenodd" d="M2.003 2.5a.5.5 0 0 0-.723-.447l-1.003.5a.5.5 0 0 0 .446.894l.28-.14V6H.5a.5.5 0 0 0 0 1h2a.5.5 0 0 0 0-1h-.497V2.5zM6 3.75a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5A.75.75 0 0 1 6 3.75zm0 5a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5A.75.75 0 0 1 6 8.75zm0 5a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1-.75-.75zM.5 9.5A.5.5 0 0 1 1 9h1.5a.5.5 0 0 1 .39.812L1.81 11H2.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.4-.8l1.6-2.2H1a.5.5 0 0 1-.5-.5z"/>
+          </svg>
+          <span>Nummeriert</span>
+        </button>
       </div>
 
       <div class="toolbar-separator"></div>
 
-      <!-- Lists & Structure -->
-      <div class="toolbar-group">
-        <button id="btn-task" class="tb-btn" tabindex="-1" title="Aufgabenliste (Checkliste)">☑ Aufgabe</button>
-        <button id="btn-bullet" class="tb-btn" tabindex="-1" title="Aufzählungsliste">• Liste</button>
-        <button id="btn-ordered" class="tb-btn" tabindex="-1" title="Nummerierte Liste">1. Liste</button>
-      </div>
-
-      <div class="toolbar-separator"></div>
-
-      <!-- Insert Elements -->
-      <div class="toolbar-group">
-        <button id="btn-quote" class="tb-btn" tabindex="-1" title="Zitat / Info-Kasten">❝ Zitat</button>
-        <button id="btn-table" class="tb-btn" tabindex="-1" title="Tabelle einfügen">田 Tabelle</button>
-        <button id="btn-code" class="tb-btn" tabindex="-1" title="Code-Block">&lt;&gt; Code</button>
+      <!-- Insert Elements (Stacked Vertically) -->
+      <div class="toolbar-group toolbar-group-insert toolbar-group-vertical">
+        <button id="btn-quote" class="tb-btn tb-btn-stacked" tabindex="-1" title="Zitat / Info-Kasten">❝ Zitat</button>
+        <button id="btn-table" class="tb-btn tb-btn-stacked" tabindex="-1" title="Tabelle einfügen">田 Tabelle</button>
+        <button id="btn-code" class="tb-btn tb-btn-stacked" tabindex="-1" title="Code-Block">&lt;&gt; Code</button>
       </div>
 
       <div class="toolbar-spacer"></div>

@@ -71,6 +71,7 @@ export function executeCommand(cmd: string, val: string = ''): void {
     document.execCommand(cmd, false, val);
   }
   emitCanvasEdit();
+  updateToolbarActiveStates();
 }
 
 export function handleHeadingChange(val: string): void {
@@ -80,7 +81,10 @@ export function handleHeadingChange(val: string): void {
     applyRawFormatting(textarea, 'heading', val);
     return;
   }
-  applyHeading(canvas, val, () => emitCanvasEdit());
+  applyHeading(canvas, val, () => {
+    emitCanvasEdit();
+    updateToolbarActiveStates();
+  });
 }
 
 export function handleListToggle(
@@ -96,6 +100,7 @@ export function handleListToggle(
   toggleListBlock(canvas, type, () => {
     wireTaskCheckboxes();
     emitCanvasEdit();
+    updateToolbarActiveStates();
   });
 }
 
@@ -186,12 +191,15 @@ export function insertCodeBlock(): void {
 export function updateHeadingSelect(): void {
   const canvas = getEditorCanvas();
   const headingSel = getHeadingSelect();
-  if (!canvas || !canvas.contains(document.activeElement)) {
+  if (!canvas) {
     return;
   }
   const selection = window.getSelection();
   if (selection && selection.rangeCount > 0) {
     let node = selection.anchorNode;
+    if (!node || (!canvas.contains(node) && node !== canvas)) {
+      return;
+    }
     while (node && node !== canvas) {
       if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as HTMLElement;
@@ -209,6 +217,98 @@ export function updateHeadingSelect(): void {
       headingSel.value = 'p';
     }
   }
+}
+
+export function updateToolbarActiveStates(): void {
+  const canvas = getEditorCanvas();
+  if (!canvas) return;
+
+  const btnBold = document.getElementById('btn-bold');
+  const btnItalic = document.getElementById('btn-italic');
+  const btnStrike = document.getElementById('btn-strike');
+  const btnQuote = document.getElementById('btn-quote');
+  const btnTable = document.getElementById('btn-table');
+  const btnCode = document.getElementById('btn-code');
+
+  const setBtnActive = (btn: HTMLElement | null, active: boolean) => {
+    if (btn) {
+      btn.classList.toggle('is-active', active);
+    }
+  };
+
+  if (state.isRawMode) {
+    setBtnActive(btnBold, false);
+    setBtnActive(btnItalic, false);
+    setBtnActive(btnStrike, false);
+    setBtnActive(btnQuote, false);
+    setBtnActive(btnTable, false);
+    setBtnActive(btnCode, false);
+    return;
+  }
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    setBtnActive(btnBold, false);
+    setBtnActive(btnItalic, false);
+    setBtnActive(btnStrike, false);
+    setBtnActive(btnQuote, false);
+    setBtnActive(btnTable, false);
+    setBtnActive(btnCode, false);
+    return;
+  }
+
+  const anchorNode = selection.anchorNode;
+  if (!anchorNode || (!canvas.contains(anchorNode) && anchorNode !== canvas)) {
+    return;
+  }
+
+  let isBold = false;
+  let isItalic = false;
+  let isStrike = false;
+  let isQuote = false;
+  let isTable = false;
+  let isCode = false;
+
+  try {
+    if (typeof document.queryCommandState === 'function') {
+      isBold = document.queryCommandState('bold');
+      isItalic = document.queryCommandState('italic');
+      isStrike = document.queryCommandState('strikeThrough');
+    }
+  } catch {
+    // Ignore queryCommandState errors
+  }
+
+  const nodesToCheck: Node[] = [];
+  if (anchorNode) nodesToCheck.push(anchorNode);
+  if (selection.focusNode && selection.focusNode !== anchorNode) {
+    nodesToCheck.push(selection.focusNode);
+  }
+
+  for (const n of nodesToCheck) {
+    let curr: Node | null = n.nodeType === Node.ELEMENT_NODE ? n : n.parentElement;
+    while (curr && curr !== canvas && canvas.contains(curr)) {
+      if (curr.nodeType === Node.ELEMENT_NODE) {
+        const el = curr as HTMLElement;
+        const tag = el.tagName.toLowerCase();
+
+        if (tag === 'strong' || tag === 'b') isBold = true;
+        if (tag === 'em' || tag === 'i') isItalic = true;
+        if (tag === 'del' || tag === 's' || tag === 'strike') isStrike = true;
+        if (tag === 'code' || el.classList.contains('code-block-wrapper') || el.dataset?.blockType === 'code_block') isCode = true;
+        if (tag === 'blockquote' || el.dataset?.blockType === 'blockquote') isQuote = true;
+        if (tag === 'table' || el.classList.contains('table-wrapper') || el.dataset?.blockType === 'table') isTable = true;
+      }
+      curr = curr.parentNode;
+    }
+  }
+
+  setBtnActive(btnBold, isBold);
+  setBtnActive(btnItalic, isItalic);
+  setBtnActive(btnStrike, isStrike);
+  setBtnActive(btnQuote, isQuote);
+  setBtnActive(btnTable, isTable);
+  setBtnActive(btnCode, isCode);
 }
 
 /**
@@ -278,6 +378,14 @@ export function wireToolbar(hooks: ToolbarHooks): void {
     });
   });
 
-  // Update heading select value based on selection change
-  document.addEventListener('selectionchange', updateHeadingSelect);
+  // Update heading select value and toolbar active states based on selection change
+  const onSelectionChange = () => {
+    updateHeadingSelect();
+    updateToolbarActiveStates();
+  };
+  document.addEventListener('selectionchange', onSelectionChange);
+
+  const canvas = getEditorCanvas();
+  canvas?.addEventListener('keyup', onSelectionChange);
+  canvas?.addEventListener('mouseup', onSelectionChange);
 }

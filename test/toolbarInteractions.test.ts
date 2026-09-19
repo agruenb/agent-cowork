@@ -524,25 +524,73 @@ describe('Toolbar Operations & Expanded Testing', () => {
       assert.strictEqual(editor.querySelectorAll('li').length, 1);
     });
 
-    it('starts a new list below paragraph when clicking list without text highlighted', () => {
+    it('splits paragraph and starts list with tail text when cursor is in middle of line', () => {
       editor.innerHTML = '<p class="editor-block" data-block-type="paragraph">Intro: items to buy</p>';
       const p = editor.querySelector('p')!;
-      // Set cursor in paragraph without selecting/highlighting text
+      // Set cursor in middle: after "Intro: " (offset 7)
       selectElement(p.firstChild!, 7);
 
       toggleListBlock(editor, 'bullet');
 
-      // Paragraph should remain intact
+      // Paragraph should contain text before cursor
       assert.strictEqual(editor.querySelectorAll('p').length, 1);
-      assert.strictEqual(editor.querySelector('p')!.textContent?.trim(), 'Intro: items to buy');
+      assert.strictEqual(editor.querySelector('p')!.textContent?.trim(), 'Intro:');
 
-      // List should exist after paragraph
+      // List should exist after paragraph containing the tail text
       const ul = editor.querySelector('ul.bullet-list');
       assert.ok(ul);
       assert.strictEqual(editor.querySelectorAll('li').length, 1);
+      assert.strictEqual(editor.querySelector('li')!.textContent?.trim(), 'items to buy');
 
       const md = domToMarkdown(editor).trim();
-      assert.strictEqual(md, 'Intro: items to buy\n\n-');
+      assert.strictEqual(md, 'Intro:\n\n- items to buy');
+    });
+
+    it('splits list item and starts new list item with tail text when cursor is in middle of list item', () => {
+      editor.innerHTML = '<ul class="editor-block bullet-list"><li class="list-item">First and Second</li></ul>';
+      const li = editor.querySelector('li')!;
+      // Set cursor between "First " and "and Second" (offset 6)
+      selectElement(li.firstChild!, 6);
+
+      toggleListBlock(editor, 'bullet');
+
+      const items = editor.querySelectorAll('li');
+      assert.strictEqual(items.length, 2);
+      assert.strictEqual(items[0].textContent?.trim(), 'First');
+      assert.strictEqual(items[1].textContent?.trim(), 'and Second');
+
+      const md = domToMarkdown(editor).trim();
+      assert.strictEqual(md, '- First\n- and Second');
+    });
+
+    it('starts an empty list item below when cursor is at end of list item', () => {
+      editor.innerHTML = '<ul class="editor-block bullet-list"><li class="list-item">Existing item</li></ul>';
+      const li = editor.querySelector('li')!;
+      selectElement(li.firstChild!, li.firstChild!.textContent!.length);
+
+      toggleListBlock(editor, 'bullet');
+
+      const items = editor.querySelectorAll('li');
+      assert.strictEqual(items.length, 2);
+      assert.strictEqual(items[0].textContent?.trim(), 'Existing item');
+      assert.strictEqual(items[1].textContent?.trim(), '');
+
+      const md = domToMarkdown(editor).trim();
+      assert.strictEqual(md, '- Existing item\n-');
+    });
+
+    it('toggles list item back to paragraph when cursor is at beginning of list item', () => {
+      editor.innerHTML = '<ul class="editor-block bullet-list"><li class="list-item">Toggle me</li></ul>';
+      const li = editor.querySelector('li')!;
+      selectElement(li.firstChild!, 0);
+
+      toggleListBlock(editor, 'bullet');
+
+      assert.strictEqual(editor.querySelectorAll('ul').length, 0);
+      const p = editor.querySelector('p');
+      assert.ok(p);
+      assert.strictEqual(p?.textContent?.trim(), 'Toggle me');
+      assert.strictEqual(domToMarkdown(editor).trim(), 'Toggle me');
     });
 
     it('converts paragraph to list item when part of paragraph is highlighted', () => {

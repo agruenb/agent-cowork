@@ -71,26 +71,18 @@ export function isBlockEmpty(el: HTMLElement): boolean {
 /**
  * Creates a new list block element directly for the canvas.
  */
-export function createListBlock(
+/**
+ * Creates a single list item element.
+ */
+export function createListItem(
   doc: Document,
   type: 'bullet' | 'ordered' | 'task',
-  itemContent: string | DocumentFragment | null
+  itemContent?: string | Node | null
 ): HTMLElement {
-  const blockType =
-    type === 'task' ? 'task_list' : type === 'ordered' ? 'ordered_list' : 'unordered_list';
-  const listTag = type === 'ordered' ? 'ol' : 'ul';
-  const listClass =
-    type === 'task'
-      ? 'editor-block task-list'
-      : type === 'ordered'
-      ? 'editor-block ordered-list'
-      : 'editor-block bullet-list';
-
-  const listEl = doc.createElement(listTag);
-  listEl.className = listClass;
-  listEl.setAttribute('data-block-type', blockType);
-
   const li = doc.createElement('li');
+  const isFragment =
+    itemContent && typeof itemContent === 'object' && (itemContent as Node).nodeType === 11;
+
   if (type === 'task') {
     li.className = 'task-item';
     li.setAttribute('data-checked', 'false');
@@ -102,8 +94,6 @@ export function createListBlock(
 
     const span = doc.createElement('span');
     span.className = 'task-content';
-    const isFragment =
-      itemContent && typeof itemContent === 'object' && (itemContent as Node).nodeType === 11;
     if (isFragment) {
       span.appendChild(itemContent as DocumentFragment);
       if (
@@ -124,8 +114,6 @@ export function createListBlock(
     li.appendChild(span);
   } else {
     li.className = 'list-item';
-    const isFragment =
-      itemContent && typeof itemContent === 'object' && (itemContent as Node).nodeType === 11;
     if (isFragment) {
       li.appendChild(itemContent as DocumentFragment);
       if (
@@ -143,27 +131,59 @@ export function createListBlock(
     }
   }
 
+  return li;
+}
+
+/**
+ * Creates a new list block element directly for the canvas.
+ */
+export function createListBlock(
+  doc: Document,
+  type: 'bullet' | 'ordered' | 'task',
+  itemContent: string | DocumentFragment | Node | null
+): HTMLElement {
+  const blockType =
+    type === 'task' ? 'task_list' : type === 'ordered' ? 'ordered_list' : 'unordered_list';
+  const listTag = type === 'ordered' ? 'ol' : 'ul';
+  const listClass =
+    type === 'task'
+      ? 'editor-block task-list'
+      : type === 'ordered'
+      ? 'editor-block ordered-list'
+      : 'editor-block bullet-list';
+
+  const listEl = doc.createElement(listTag);
+  listEl.className = listClass;
+  listEl.setAttribute('data-block-type', blockType);
+
+  const li = createListItem(doc, type, itemContent);
   listEl.appendChild(li);
   return listEl;
 }
 
 function focusListItem(
   sel: Selection | null,
-  listBlock: HTMLElement,
+  targetEl: HTMLElement,
   type: 'bullet' | 'ordered' | 'task',
   atStart = false
 ): void {
   if (!sel) return;
-  const doc = listBlock.ownerDocument;
+  const doc = targetEl.ownerDocument;
   const target =
     type === 'task'
-      ? (listBlock.querySelector('.task-content') as HTMLElement)
-      : (listBlock.querySelector('li') as HTMLElement);
+      ? (targetEl.querySelector('.task-content') as HTMLElement) ||
+        (targetEl.classList.contains('task-content') ? targetEl : null)
+      : (targetEl.querySelector('li') as HTMLElement) ||
+        (targetEl.tagName.toLowerCase() === 'li' ? targetEl : targetEl);
   if (!target) return;
 
   const range = doc.createRange();
   if (atStart) {
-    range.setStart(target, 0);
+    if (target.firstChild && target.firstChild.nodeType === 3) {
+      range.setStart(target.firstChild, 0);
+    } else {
+      range.setStart(target, 0);
+    }
     range.collapse(true);
   } else {
     range.selectNodeContents(target);
@@ -173,15 +193,86 @@ function focusListItem(
   sel.addRange(range);
 }
 
+function getCaretPositionInBlock(
+  sel: Selection,
+  contentEl: HTMLElement,
+  doc: Document,
+  endAnchorNode?: Node | null
+): { isAtStart: boolean; isAtEnd: boolean; isMiddle: boolean } {
+  if (!sel.isCollapsed || sel.rangeCount === 0) {
+    return { isAtStart: false, isAtEnd: false, isMiddle: false };
+  }
+  try {
+    const range = sel.getRangeAt(0);
+
+    const preRange = doc.createRange();
+    preRange.setStart(contentEl, 0);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    const textBefore = preRange.toString().replace(/[\s\u200B\u00A0]+/g, '');
+
+    const postRange = doc.createRange();
+    postRange.setStart(range.endContainer, range.endOffset);
+    if (
+      endAnchorNode &&
+      contentEl.contains(endAnchorNode) &&
+      endAnchorNode.parentNode === contentEl
+    ) {
+      postRange.setEndBefore(endAnchorNode);
+    } else {
+      postRange.setEnd(contentEl, contentEl.childNodes.length);
+    }
+    const textAfter = postRange.toString().replace(/[\s\u200B\u00A0]+/g, '');
+
+    const hasBefore = textBefore.length > 0;
+    const hasAfter = textAfter.length > 0;
+
+    if (!hasBefore) {
+      return { isAtStart: true, isAtEnd: false, isMiddle: false };
+    }
+    if (!hasAfter) {
+      return { isAtStart: false, isAtEnd: true, isMiddle: false };
+    }
+    return { isAtStart: false, isAtEnd: false, isMiddle: true };
+  } catch {
+    return { isAtStart: false, isAtEnd: false, isMiddle: false };
+  }
+}
+
+function insertBlockAfterListItem(activeLi: HTMLElement, newBlock: HTMLElement, doc: Document): void {
+  const parentList = activeLi.parentElement;
+  if (!parentList || !parentList.parentNode) {
+    activeLi.after(newBlock);
+    return;
+  }
+  const grandParent = parentList.parentNode;
+  const nextSiblings: Element[] = [];
+  let next = activeLi.nextElementSibling;
+  while (next) {
+    nextSiblings.push(next);
+    next = next.nextElementSibling;
+  }
+
+  // Insert newBlock after parentList
+  grandParent.insertBefore(newBlock, parentList.nextSibling);
+
+  if (nextSiblings.length > 0) {
+    const splitList = doc.createElement(parentList.tagName);
+    splitList.className = parentList.className;
+    for (const attr of Array.from(parentList.attributes)) {
+      splitList.setAttribute(attr.name, attr.value);
+    }
+    for (const sib of nextSiblings) {
+      splitList.appendChild(sib);
+    }
+    grandParent.insertBefore(splitList, newBlock.nextSibling);
+  }
+}
+
 /**
  * Toggles or converts a list item or block in the contenteditable canvas.
- * - If current item matches type: toggles off to a standard paragraph.
- * - If current item is a different list type: converts in-place (never nests!).
- * - If current block is a text block: starts a list as expected in a text editor.
- *   - At end of block or inside heading: keeps block, starts list on new line below.
- *   - In empty block: converts empty block to list.
- *   - In middle of paragraph: splits paragraph at cursor and starts list with tail.
- *   - At start of paragraph: converts paragraph to list.
+ * - At the beginning of the line: toggle that line from list to no list (or no list to list).
+ * - In the middle of a line: start a new line with a list containing the text that followed on that line.
+ * - At the end of a line: start a new list on the next line that is empty.
  */
 export function toggleListBlock(
   canvas: HTMLElement,
@@ -210,9 +301,64 @@ export function toggleListBlock(
       ? 'ordered'
       : 'bullet';
 
+    const contentEl =
+      (activeLi.querySelector(':scope > .task-content') as HTMLElement) || activeLi;
+    const nestedList = activeLi.querySelector(':scope > ul, :scope > ol');
+    const caretPos =
+      sel && sel.isCollapsed
+        ? getCaretPositionInBlock(sel, contentEl, doc, nestedList)
+        : { isAtStart: false, isAtEnd: false, isMiddle: false };
+
+    // 1. In middle of line: start a new line with a list containing the text that followed
+    if (caretPos.isMiddle && sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      const tailRange = doc.createRange();
+      tailRange.setStart(range.endContainer, range.endOffset);
+      if (contentEl !== activeLi) {
+        tailRange.setEnd(contentEl, contentEl.childNodes.length);
+      } else if (nestedList) {
+        tailRange.setEndBefore(nestedList);
+      } else {
+        tailRange.setEnd(activeLi, activeLi.childNodes.length);
+      }
+      const tailFragment = tailRange.extractContents();
+      if (!contentEl.innerHTML.trim()) {
+        contentEl.innerHTML = '<br>';
+      }
+
+      if (currentType === type) {
+        const newLi = createListItem(doc, type, tailFragment);
+        activeLi.after(newLi);
+        focusListItem(sel, newLi, type, true);
+      } else {
+        const newListBlock = createListBlock(doc, type, tailFragment);
+        insertBlockAfterListItem(activeLi, newListBlock, doc);
+        focusListItem(sel, newListBlock, type, true);
+      }
+
+      onMutated?.();
+      return;
+    }
+
+    // 2. At end of line: start a new list on the next line that is empty
+    if (caretPos.isAtEnd) {
+      if (currentType === type) {
+        const newLi = createListItem(doc, type, null);
+        activeLi.after(newLi);
+        focusListItem(sel, newLi, type, true);
+      } else {
+        const newListBlock = createListBlock(doc, type, null);
+        insertBlockAfterListItem(activeLi, newListBlock, doc);
+        focusListItem(sel, newListBlock, type, true);
+      }
+
+      onMutated?.();
+      return;
+    }
+
+    // 3. At start of line (or whole item / highlighted selection): toggle from list to no list or convert
     if (currentType === type) {
       // TOGGLE OFF: convert list item back into a paragraph
-      const contentEl = activeLi.querySelector(':scope > .task-content') || activeLi;
       const cloned = contentEl.cloneNode(true) as HTMLElement;
       cloned.querySelectorAll('ul, ol, input[type="checkbox"]').forEach((n) => n.remove());
       const htmlContent = cloned.innerHTML.trim() || '<br>';
@@ -276,7 +422,8 @@ export function toggleListBlock(
     }
 
     // CONVERT to different list type in-place
-    const targetType = type === 'task' ? 'task_list' : type === 'ordered' ? 'ordered_list' : 'unordered_list';
+    const targetType =
+      type === 'task' ? 'task_list' : type === 'ordered' ? 'ordered_list' : 'unordered_list';
     if (type === 'task') {
       activeLi.className = 'task-item';
       activeLi.setAttribute('data-checked', 'false');
@@ -330,8 +477,17 @@ export function toggleListBlock(
 
       if (sel) {
         const range = doc.createRange();
-        range.selectNodeContents(contentSpan);
-        range.collapse(false);
+        if (caretPos.isAtStart) {
+          if (contentSpan.firstChild && contentSpan.firstChild.nodeType === 3) {
+            range.setStart(contentSpan.firstChild, 0);
+          } else {
+            range.setStart(contentSpan, 0);
+          }
+          range.collapse(true);
+        } else {
+          range.selectNodeContents(contentSpan);
+          range.collapse(false);
+        }
         sel.removeAllRanges();
         sel.addRange(range);
       }
@@ -367,8 +523,17 @@ export function toggleListBlock(
 
       if (sel) {
         const range = doc.createRange();
-        range.selectNodeContents(activeLi);
-        range.collapse(false);
+        if (caretPos.isAtStart) {
+          if (activeLi.firstChild && activeLi.firstChild.nodeType === 3) {
+            range.setStart(activeLi.firstChild, 0);
+          } else {
+            range.setStart(activeLi, 0);
+          }
+          range.collapse(true);
+        } else {
+          range.selectNodeContents(activeLi);
+          range.collapse(false);
+        }
         sel.removeAllRanges();
         sel.addRange(range);
       }
@@ -385,10 +550,12 @@ export function toggleListBlock(
   if (!topBlock || !canvas.contains(topBlock)) {
     const listBlock = createListBlock(doc, type, null);
     canvas.appendChild(listBlock);
-    focusListItem(sel, listBlock, type);
+    focusListItem(sel, listBlock, type, true);
     onMutated?.();
     return;
   }
+
+  const innerBlock = getInnerContentBlock(topBlock);
 
   // Check if text is highlighted (selection is not collapsed)
   if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) {
@@ -415,23 +582,7 @@ export function toggleListBlock(
         listEl.setAttribute('data-block-type', blockType);
 
         for (const line of lines) {
-          const li = doc.createElement('li');
-          if (type === 'task') {
-            li.className = 'task-item';
-            li.setAttribute('data-checked', 'false');
-            const cb = doc.createElement('input');
-            cb.type = 'checkbox';
-            cb.className = 'task-checkbox';
-            cb.contentEditable = 'false';
-            const span = doc.createElement('span');
-            span.className = 'task-content';
-            span.textContent = line;
-            li.appendChild(cb);
-            li.appendChild(span);
-          } else {
-            li.className = 'list-item';
-            li.textContent = line;
-          }
+          const li = createListItem(doc, type, line);
           listEl.appendChild(li);
         }
 
@@ -443,7 +594,7 @@ export function toggleListBlock(
     }
 
     // A part of the paragraph is highlighted: convert the paragraph into a list item
-    const content = topBlock.innerHTML.trim();
+    const content = innerBlock.innerHTML.trim();
     const listBlock = createListBlock(doc, type, content);
     topBlock.replaceWith(listBlock);
     focusListItem(sel, listBlock, type, true);
@@ -452,18 +603,51 @@ export function toggleListBlock(
   }
 
   // If the block is completely empty, convert it into the new list
-  if (isBlockEmpty(topBlock)) {
+  if (isBlockEmpty(topBlock) || isBlockEmpty(innerBlock)) {
     const listBlock = createListBlock(doc, type, null);
     topBlock.replaceWith(listBlock);
-    focusListItem(sel, listBlock, type);
+    focusListItem(sel, listBlock, type, true);
     onMutated?.();
     return;
   }
 
-  // When no text is highlighted, start a new list below the current block
+  // Caret position evaluation for collapsed selection
+  const caretPos = sel && sel.isCollapsed
+    ? getCaretPositionInBlock(sel, innerBlock, doc)
+    : { isAtStart: false, isAtEnd: false, isMiddle: false };
+
+  // 1. Cursor at beginning of line: toggle that line from list to no list (convert to list)
+  if (caretPos.isAtStart) {
+    const content = innerBlock.innerHTML.trim();
+    const listBlock = createListBlock(doc, type, content);
+    topBlock.replaceWith(listBlock);
+    focusListItem(sel, listBlock, type, true);
+    onMutated?.();
+    return;
+  }
+
+  // 2. Cursor in middle of line: start a new line with a list containing the text that followed
+  if (caretPos.isMiddle && sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    const tailRange = doc.createRange();
+    tailRange.setStart(range.endContainer, range.endOffset);
+    tailRange.setEnd(innerBlock, innerBlock.childNodes.length);
+    const tailFragment = tailRange.extractContents();
+    if (!innerBlock.innerHTML.trim()) {
+      innerBlock.innerHTML = '<br>';
+    }
+
+    const listBlock = createListBlock(doc, type, tailFragment);
+    topBlock.after(listBlock);
+    focusListItem(sel, listBlock, type, true);
+    onMutated?.();
+    return;
+  }
+
+  // 3. Cursor at end of line: start a new list on the next line that is empty
   const listBlock = createListBlock(doc, type, null);
   topBlock.after(listBlock);
-  focusListItem(sel, listBlock, type);
+  focusListItem(sel, listBlock, type, true);
 
   onMutated?.();
 }

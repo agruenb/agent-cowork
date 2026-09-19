@@ -18,28 +18,28 @@ describe('User Interactions - Toolbar Button Wiring', () => {
 <html>
 <body>
   <div class="toolbar" role="toolbar">
-    <div class="toolbar-group">
-      <select id="select-heading" class="tb-select">
+    <div class="toolbar-group toolbar-group-text">
+      <select id="select-heading" class="tb-select tb-select-compact">
         <option value="p">Normaler Text</option>
         <option value="h1">Überschrift 1</option>
         <option value="h2">Überschrift 2</option>
         <option value="h3">Überschrift 3</option>
       </select>
+      <div class="toolbar-subgroup">
+        <button id="btn-bold" class="tb-btn tb-btn-compact">B</button>
+        <button id="btn-italic" class="tb-btn tb-btn-compact">I</button>
+        <button id="btn-strike" class="tb-btn tb-btn-compact">S</button>
+      </div>
     </div>
-    <div class="toolbar-group">
-      <button id="btn-bold" class="tb-btn">B</button>
-      <button id="btn-italic" class="tb-btn">I</button>
-      <button id="btn-strike" class="tb-btn">S</button>
+    <div class="toolbar-group toolbar-group-vertical">
+      <button id="btn-task" class="tb-btn tb-btn-stacked">Task</button>
+      <button id="btn-bullet" class="tb-btn tb-btn-stacked">Bullet</button>
+      <button id="btn-ordered" class="tb-btn tb-btn-stacked">Ordered</button>
     </div>
-    <div class="toolbar-group">
-      <button id="btn-task" class="tb-btn">Task</button>
-      <button id="btn-bullet" class="tb-btn">Bullet</button>
-      <button id="btn-ordered" class="tb-btn">Ordered</button>
-    </div>
-    <div class="toolbar-group">
-      <button id="btn-quote" class="tb-btn">Quote</button>
-      <button id="btn-table" class="tb-btn">Table</button>
-      <button id="btn-code" class="tb-btn">Code</button>
+    <div class="toolbar-group toolbar-group-insert toolbar-group-vertical">
+      <button id="btn-quote" class="tb-btn tb-btn-stacked">Quote</button>
+      <button id="btn-table" class="tb-btn tb-btn-stacked">Table</button>
+      <button id="btn-code" class="tb-btn tb-btn-stacked">Code</button>
     </div>
     <span id="word-count" class="word-count"></span>
     <button id="btn-toggle-raw" class="raw-toggle-btn">&lt;/&gt; Raw</button>
@@ -101,7 +101,7 @@ describe('User Interactions - Toolbar Button Wiring', () => {
     sel.addRange(range);
   }
 
-  it('clicking #btn-bullet starts a new list below paragraph when cursor is placed without selection', () => {
+  it('clicking #btn-bullet toggles paragraph to list when cursor is at start of line', () => {
     setContentFormatted('Hello world');
     const p = editor.querySelector('p')!;
     selectElement(p.firstChild || p, 0);
@@ -111,8 +111,22 @@ describe('User Interactions - Toolbar Button Wiring', () => {
     btn.click();
 
     const ul = editor.querySelector('ul.bullet-list');
-    assert.ok(ul, 'Should create bullet list below paragraph');
+    assert.ok(ul, 'Should toggle paragraph to bullet list');
     assert.strictEqual(editor.querySelectorAll('li').length, 1);
+    assert.strictEqual(domToMarkdown(editor).trim(), '- Hello world');
+  });
+
+  it('clicking #btn-bullet starts a new empty list below paragraph when cursor is at end of line', () => {
+    setContentFormatted('Hello world');
+    const p = editor.querySelector('p')!;
+    selectElement(p.firstChild || p, p.firstChild!.textContent!.length);
+
+    const btn = document.getElementById('btn-bullet') as HTMLButtonElement;
+    assert.ok(btn);
+    btn.click();
+
+    const ul = editor.querySelector('ul.bullet-list');
+    assert.ok(ul, 'Should create empty bullet list below paragraph');
     assert.strictEqual(domToMarkdown(editor).trim(), 'Hello world\n\n-');
   });
 
@@ -131,10 +145,24 @@ describe('User Interactions - Toolbar Button Wiring', () => {
     assert.strictEqual(domToMarkdown(editor).trim(), '- Hello world');
   });
 
-  it('clicking #btn-ordered starts a new list below paragraph when cursor is placed without selection', () => {
+  it('clicking #btn-ordered toggles paragraph to list when cursor is at start of line', () => {
     setContentFormatted('First step');
     const p = editor.querySelector('p')!;
     selectElement(p.firstChild || p, 0);
+
+    const btn = document.getElementById('btn-ordered') as HTMLButtonElement;
+    assert.ok(btn);
+    btn.click();
+
+    const ol = editor.querySelector('ol.ordered-list');
+    assert.ok(ol, 'Should toggle paragraph to ordered list');
+    assert.strictEqual(domToMarkdown(editor).trim(), '1. First step');
+  });
+
+  it('clicking #btn-ordered starts a new empty list below paragraph when cursor is at end of line', () => {
+    setContentFormatted('First step');
+    const p = editor.querySelector('p')!;
+    selectElement(p.firstChild || p, p.firstChild!.textContent!.length);
 
     const btn = document.getElementById('btn-ordered') as HTMLButtonElement;
     assert.ok(btn);
@@ -159,10 +187,24 @@ describe('User Interactions - Toolbar Button Wiring', () => {
     assert.strictEqual(domToMarkdown(editor).trim(), '1. First step');
   });
 
-  it('clicking #btn-task starts a new list below paragraph when cursor is placed without selection', () => {
+  it('clicking #btn-task toggles paragraph to task list when cursor is at start of line', () => {
     setContentFormatted('Finish tests');
     const p = editor.querySelector('p')!;
     selectElement(p.firstChild || p, 0);
+
+    const btn = document.getElementById('btn-task') as HTMLButtonElement;
+    assert.ok(btn);
+    btn.click();
+
+    const taskLi = editor.querySelector('li.task-item');
+    assert.ok(taskLi, 'Should toggle paragraph to task item');
+    assert.strictEqual(domToMarkdown(editor).trim(), '- [ ] Finish tests');
+  });
+
+  it('clicking #btn-task starts a new empty task list below paragraph when cursor is at end of line', () => {
+    setContentFormatted('Finish tests');
+    const p = editor.querySelector('p')!;
+    selectElement(p.firstChild || p, p.firstChild!.textContent!.length);
 
     const btn = document.getElementById('btn-task') as HTMLButtonElement;
     assert.ok(btn);
@@ -314,5 +356,61 @@ describe('User Interactions - Toolbar Button Wiring', () => {
     boldBtn.click();
 
     assert.strictEqual(textarea.value, '**hello** world');
+  });
+
+  it('highlights #btn-bold when cursor is placed inside bold text and clears when moved out', () => {
+    setContentFormatted('Normal **bold text** normal');
+    const strong = editor.querySelector('strong')!;
+    const boldBtn = document.getElementById('btn-bold')!;
+
+    // Place caret inside bold text
+    selectElement(strong.firstChild || strong, 2);
+    document.dispatchEvent(new dom.window.Event('selectionchange'));
+
+    assert.strictEqual(boldBtn.classList.contains('is-active'), true, '#btn-bold should be highlighted');
+
+    // Move caret to normal text
+    const p = editor.querySelector('p')!;
+    selectElement(p.firstChild!, 1);
+    document.dispatchEvent(new dom.window.Event('selectionchange'));
+
+    assert.strictEqual(boldBtn.classList.contains('is-active'), false, '#btn-bold highlight should be cleared');
+  });
+
+  it('highlights #btn-italic and #btn-strike when cursor is inside italic or strike text', () => {
+    setContentFormatted('*italic* and ~~strikethrough~~');
+    const em = editor.querySelector('em')!;
+    const del = editor.querySelector('del')!;
+    const italicBtn = document.getElementById('btn-italic')!;
+    const strikeBtn = document.getElementById('btn-strike')!;
+
+    // Place caret in italic text
+    selectElement(em.firstChild || em, 2);
+    document.dispatchEvent(new dom.window.Event('selectionchange'));
+
+    assert.strictEqual(italicBtn.classList.contains('is-active'), true, '#btn-italic should be highlighted');
+    assert.strictEqual(strikeBtn.classList.contains('is-active'), false);
+
+    // Place caret in strike text
+    selectElement(del.firstChild || del, 3);
+    document.dispatchEvent(new dom.window.Event('selectionchange'));
+
+    assert.strictEqual(italicBtn.classList.contains('is-active'), false);
+    assert.strictEqual(strikeBtn.classList.contains('is-active'), true, '#btn-strike should be highlighted');
+  });
+
+  it('does not highlight list buttons when cursor is inside that list type', () => {
+    setContentFormatted('- Item 1\n- Item 2');
+    const li = editor.querySelector('li')!;
+    const bulletBtn = document.getElementById('btn-bullet')!;
+    const orderedBtn = document.getElementById('btn-ordered')!;
+    const taskBtn = document.getElementById('btn-task')!;
+
+    selectElement(li.firstChild || li, 2);
+    document.dispatchEvent(new dom.window.Event('selectionchange'));
+
+    assert.strictEqual(bulletBtn.classList.contains('is-active'), false, '#btn-bullet should not be highlighted');
+    assert.strictEqual(orderedBtn.classList.contains('is-active'), false, '#btn-ordered should not be highlighted');
+    assert.strictEqual(taskBtn.classList.contains('is-active'), false, '#btn-task should not be highlighted');
   });
 });
