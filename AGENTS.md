@@ -21,9 +21,7 @@ This is a VS Code extension that simplifies the use of VS Code with AI Agents fo
 
 ## CSS Build System
 
-- **Source files** live in `src/webview/styles/*.css` (e.g. `base.css`, `blocks.css`, `tables.css`, etc.) — **these are the files to edit**.
-- **Build** (`npm run compile` / `npm run dev`): `esbuild.js` concatenates all source CSS files in order and writes the result to `dist/markdownEditor.css`.
-- **`src/webview/markdownEditor.css` is a generated file** — it is overwritten on every build and must never be edited directly. Edits there will be lost.
-- The build script (`esbuild.js` `copyAssets()`) writes the concatenated output to **both** `dist/markdownEditor.css` and `src/webview/markdownEditor.css`, which means there are 3 copies of the CSS on disk at any time (source files + 2 outputs).
-
-> **TODO (to be fixed):** The `src/webview/markdownEditor.css` copy is unnecessary overhead. The build should only write to `dist/markdownEditor.css`, and the webview HTML should reference the CSS from `dist/`. This would eliminate the confusing generated file from the source tree and prevent accidental direct edits.
+- **Source files** live in `src/webview/styles/*.css` (e.g. `base.css`, `blocks.css`, `tables.css`, etc.) with entry point `src/webview/styles/index.css` — **these are the source files to edit**.
+- **Build** (`npm run build` / `npm run compile` / `npm run dev`): `esbuild.js` bundles `src/webview/styles/index.css` directly into `dist/markdownEditor.css`.
+- In dev/watch mode (`npm run dev` / `npm run watch`), esbuild automatically watches all imported CSS files and triggers instant rebuilds on edit.
+- The webview loads `dist/markdownEditor.css` exclusively via `localResourceRoots`. No generated CSS files exist inside `src/`.

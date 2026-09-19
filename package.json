@@ -314,6 +314,7 @@
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "node esbuild.js",
+    "build": "npm run compile",
     "watch": "node esbuild.js --watch",
     "dev": "node esbuild.js --watch",
     "package": "node esbuild.js --production",
