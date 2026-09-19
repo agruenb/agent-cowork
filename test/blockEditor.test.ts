@@ -289,4 +289,30 @@ describe('Block Editor Architecture & Interactions', () => {
       assert.strictEqual(prevented, true);
     });
   });
+
+  describe('Widget Block Styling & Document Flow', () => {
+    it('defines widget blocks without outline borders and aligned with document flow in CSS', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const css = fs.readFileSync(path.join(__dirname, '../src/webview/styles/blocks.css'), 'utf-8');
+
+      // Widget container has no border and zero padding to align with text
+      assert.ok(css.includes('border: none;'));
+      assert.ok(css.includes('padding: 0;'));
+      assert.ok(css.includes('background-color: transparent;'));
+    });
+
+    it('defines table wrapper with overflow visible so buttons outside the table area are not hidden', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const css = fs.readFileSync(path.join(__dirname, '../src/webview/styles/tables.css'), 'utf-8');
+
+      // Table wrapper prevents overflow from being hidden so buttons display outside the table
+      assert.ok(css.includes('overflow: visible;'));
+      assert.ok(css.includes('padding-top: 48px;'));
+      assert.ok(css.includes('padding-left: 0;'));
+      assert.ok(css.includes('padding-right: 0;'));
+      assert.ok(!css.includes('overflow: hidden;'));
+    });
+  });
 });

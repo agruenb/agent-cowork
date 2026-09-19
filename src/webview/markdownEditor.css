@@ -40,7 +40,7 @@ html, body {
 .document-viewport {
   flex: 1;
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: hidden;
   padding: 32px 64px 80px 64px;
   display: flex;
   justify-content: center;
@@ -49,6 +49,7 @@ html, body {
 .document-container {
   max-width: 860px;
   width: 100%;
+  min-width: 0;
   min-height: calc(100% - 40px);
 }
 
@@ -226,6 +227,8 @@ html, body {
 ------------------------------------------------------------- */
 .editor-canvas {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   min-height: 500px;
   outline: none;
   color: var(--text);
@@ -345,19 +348,23 @@ hr.editor-block {
 ------------------------------------------------------------- */
 .editor-block-container.widget-block {
   position: relative;
-  padding: 12px 14px;
+  padding: 0;
   margin-top: 14px;
-  margin-bottom: 18px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background-color: #ffffff;
-  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+  margin-bottom: 16px;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .editor-block-container.widget-block:hover,
 .editor-block-container.widget-block.is-active-block {
-  border-color: #cbd5e1;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  border: none;
+  box-shadow: none;
 }
 
 .editor-block-container.widget-block[data-block-type="blockquote"] {
@@ -369,6 +376,25 @@ hr.editor-block {
 
 .editor-block-container.widget-block[data-block-type="blockquote"] blockquote.editor-block {
   margin: 0;
+}
+
+.editor-block-container.widget-block[data-block-type="table"] {
+  margin-top: 4px;
+  margin-bottom: 16px;
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.editor-block-container.widget-block[data-block-type="code_block"] {
+  margin-top: 12px;
+  margin-bottom: 14px;
+}
+
+.editor-block-container.widget-block[data-block-type="hr"] {
+  margin-top: 8px;
+  margin-bottom: 8px;
 }
 
 /* Delete Button for Widget Blocks */
@@ -412,6 +438,25 @@ hr.editor-block {
   transform: scale(0.95);
 }
 
+.editor-block-container.widget-block[data-block-type="table"] .block-delete-btn {
+  top: 2px;
+  right: 2px;
+}
+
+.editor-block-container.widget-block[data-block-type="code_block"] .block-delete-btn {
+  top: 4px;
+  right: 6px;
+}
+
+.editor-block-container.widget-block[data-block-type="blockquote"] .block-delete-btn {
+  top: 6px;
+  right: 6px;
+}
+
+.editor-block-container.widget-block[data-block-type="hr"] .block-delete-btn {
+  top: -11px;
+  right: 0;
+}
 
 /* -------------------------------------------------------------
    Lists & Task Lists
@@ -538,35 +583,48 @@ ul.task-list .task-list {
 ------------------------------------------------------------- */
 .table-wrapper {
   position: relative;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: visible;
   margin-bottom: 4px;
-  /* Natural padding for floating column and row controls without negative margins */
-  padding-top: 50px;
-  padding-left: 56px;
-  padding-right: 20px;
-  padding-bottom: 20px;
+  padding-top: 48px;
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 8px;
   margin-top: 0;
   margin-left: 0;
   margin-right: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.table-scroll-wrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
 }
 
 /* Custom subtle scrollbar for tables */
+.table-scroll-wrapper::-webkit-scrollbar,
 .table-wrapper::-webkit-scrollbar {
   height: 6px;
 }
 
+.table-scroll-wrapper::-webkit-scrollbar-track,
 .table-wrapper::-webkit-scrollbar-track {
   background: rgba(241, 245, 249, 0.7);
   border-radius: 3px;
 }
 
+.table-scroll-wrapper::-webkit-scrollbar-thumb,
 .table-wrapper::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
 }
 
+.table-scroll-wrapper::-webkit-scrollbar-thumb:hover,
 .table-wrapper::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
@@ -828,7 +886,6 @@ ul.task-list .task-list {
   background-color: #ffffff;
   border: 1px solid var(--card-border);
   border-radius: 8px;
-  overflow: hidden;
 }
 
 .editor-table th, .editor-table td {

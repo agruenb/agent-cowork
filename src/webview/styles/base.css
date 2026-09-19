@@ -40,7 +40,7 @@ html, body {
 .document-viewport {
   flex: 1;
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: hidden;
   padding: 32px 64px 80px 64px;
   display: flex;
   justify-content: center;
@@ -49,5 +49,6 @@ html, body {
 .document-container {
   max-width: 860px;
   width: 100%;
+  min-width: 0;
   min-height: calc(100% - 40px);
 }

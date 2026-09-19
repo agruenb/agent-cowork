@@ -92,6 +92,9 @@ export function repositionTableControls(wrapper: HTMLElement): void {
   const controls = wrapper.querySelector<HTMLElement>('.table-controls');
   if (!table || !controls) return;
 
+  const scrollWrapper = wrapper.querySelector<HTMLElement>('.table-scroll-wrapper');
+  const maxVisibleX = scrollWrapper ? scrollWrapper.clientWidth : wrapper.clientWidth;
+
   const theadThs = Array.from(table.querySelectorAll<HTMLTableCellElement>('thead th'));
   const tbodyTrs = Array.from(table.querySelectorAll<HTMLTableRowElement>('tbody tr'));
 
@@ -108,21 +111,37 @@ export function repositionTableControls(wrapper: HTMLElement): void {
     if (colDragBtn) {
       colDragBtn.style.top = `${thRect.top - 24}px`;
       colDragBtn.style.left = `${colCenterX - 9}px`;
+      if (colCenterX < 0 || colCenterX > maxVisibleX) {
+        colDragBtn.style.visibility = 'hidden';
+      } else {
+        colDragBtn.style.visibility = '';
+      }
     }
 
     // Delete button sits above the drag handle, centered
     if (colDelBtn) {
       colDelBtn.style.top = `${thRect.top - 46}px`;
       colDelBtn.style.left = `${colCenterX - 9}px`;
+      if (colCenterX < 0 || colCenterX > maxVisibleX) {
+        colDelBtn.style.visibility = 'hidden';
+      } else {
+        colDelBtn.style.visibility = '';
+      }
     }
 
     if (insertColBtn) {
+      const btnX = thRect.left + thRect.width - 9;
       insertColBtn.style.top = `${thRect.top - 24}px`;
-      insertColBtn.style.left = `${thRect.left + thRect.width - 9}px`;
+      insertColBtn.style.left = `${btnX}px`;
+      if (btnX < 0 || btnX > maxVisibleX + 9) {
+        insertColBtn.style.visibility = 'hidden';
+      } else {
+        insertColBtn.style.visibility = '';
+      }
     }
   });
 
-  // Reposition row controls (centered in left gutter, pinned on scroll)
+  // Reposition row controls (centered in left gutter, pinned outside table)
   tbodyTrs.forEach((tr, rowIdx) => {
     const trRect = getRelativeRect(tr, wrapper);
     const rowDragBtn = controls.querySelector<HTMLElement>(`.table-row-drag-btn[data-row-idx="${rowIdx}"]`);
@@ -133,17 +152,17 @@ export function repositionTableControls(wrapper: HTMLElement): void {
 
     if (rowDragBtn) {
       rowDragBtn.style.top = `${trCenterY - 9}px`;
-      rowDragBtn.style.left = `${trRect.left - 28 + wrapper.scrollLeft}px`;
+      rowDragBtn.style.left = '-28px';
     }
 
     if (rowDelBtn) {
       rowDelBtn.style.top = `${trCenterY - 9}px`;
-      rowDelBtn.style.left = `${trRect.left - 52 + wrapper.scrollLeft}px`;
+      rowDelBtn.style.left = '-52px';
     }
 
     if (insertRowBtn) {
       insertRowBtn.style.top = `${trRect.top + trRect.height - 9}px`;
-      insertRowBtn.style.left = `${trRect.left - 28 + wrapper.scrollLeft}px`;
+      insertRowBtn.style.left = '-28px';
     }
   });
 
@@ -154,7 +173,7 @@ export function repositionTableControls(wrapper: HTMLElement): void {
       const addRowBtn = controls.querySelector<HTMLElement>('.row-insert-btn');
       if (addRowBtn) {
         addRowBtn.style.top = `${theadRect.top + theadRect.height - 9}px`;
-        addRowBtn.style.left = `${theadRect.left - 28 + wrapper.scrollLeft}px`;
+        addRowBtn.style.left = '-28px';
       }
     }
   }
@@ -168,6 +187,14 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
   if (!table) return;
 
   const doc = wrapper.ownerDocument;
+
+  let scrollWrapper = wrapper.querySelector<HTMLElement>('.table-scroll-wrapper');
+  if (!scrollWrapper || scrollWrapper !== table.parentElement) {
+    scrollWrapper = doc.createElement('div');
+    scrollWrapper.className = 'table-scroll-wrapper';
+    table.parentNode?.insertBefore(scrollWrapper, table);
+    scrollWrapper.appendChild(table);
+  }
 
   let controls = wrapper.querySelector<HTMLElement>('.table-controls');
   if (!controls) {
@@ -441,7 +468,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     rowDragBtn.className = 'table-row-handle table-row-drag-btn';
     rowDragBtn.setAttribute('data-row-idx', String(rowIdx));
     rowDragBtn.style.top = `${trCenterY - 9}px`;
-    rowDragBtn.style.left = `${trRect.left - 28 + wrapper.scrollLeft}px`;
+    rowDragBtn.style.left = '-28px';
     rowDragBtn.style.width = '18px';
     rowDragBtn.style.height = '18px';
     rowDragBtn.style.display = 'none';
@@ -461,7 +488,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     rowDelBtn.appendChild(createMinusIcon(doc));
     rowDelBtn.title = 'Zeile löschen';
     rowDelBtn.style.top = `${trCenterY - 9}px`;
-    rowDelBtn.style.left = `${trRect.left - 52 + wrapper.scrollLeft}px`;
+    rowDelBtn.style.left = '-52px';
     rowDelBtn.style.display = 'none';
 
     rowDelBtn.addEventListener('mousedown', (e) => {
@@ -598,7 +625,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     insertRowBtn.appendChild(createPlusIcon(doc));
     const isLastRow = rowIdx === tbodyTrs.length - 1;
     insertRowBtn.title = isLastRow ? 'Zeile hinzufügen' : 'Zeile hier einfügen';
-    insertRowBtn.style.left = `${trRect.left - 28 + wrapper.scrollLeft}px`;
+    insertRowBtn.style.left = '-28px';
     insertRowBtn.style.top = `${trRect.top + trRect.height - 9}px`;
     insertRowBtn.style.display = 'none';
     insertRowBtn.addEventListener('mousedown', (e) => {
@@ -626,7 +653,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
       addRowBtn.className = 'table-insert-btn row-insert-btn';
       addRowBtn.appendChild(createPlusIcon(doc));
       addRowBtn.title = 'Zeile hinzufügen';
-      addRowBtn.style.left = `${theadRect.left - 28 + wrapper.scrollLeft}px`;
+      addRowBtn.style.left = '-28px';
       addRowBtn.style.top = `${theadRect.top + theadRect.height - 9}px`;
       addRowBtn.style.display = 'none';
       addRowBtn.addEventListener('mousedown', (e) => {
@@ -646,15 +673,16 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     }
   }
 
-  // Scroll listener on wrapper to keep row handles sticky to visible left gutter when scrolled horizontally
-  if ((wrapper as TableWrapperElement)._tableScrollHandler) {
-    wrapper.removeEventListener('scroll', (wrapper as TableWrapperElement)._tableScrollHandler!);
+  // Scroll listener on scrollWrapper to keep column handles aligned when scrolled horizontally
+  const scrollTarget = scrollWrapper || wrapper;
+  if ((scrollTarget as TableWrapperElement)._tableScrollHandler) {
+    scrollTarget.removeEventListener('scroll', (scrollTarget as TableWrapperElement)._tableScrollHandler!);
   }
-  const onWrapperScroll = () => {
+  const onTableScroll = () => {
     repositionTableControls(wrapper);
   };
-  (wrapper as TableWrapperElement)._tableScrollHandler = onWrapperScroll;
-  wrapper.addEventListener('scroll', onWrapperScroll);
+  (scrollTarget as TableWrapperElement)._tableScrollHandler = onTableScroll;
+  scrollTarget.addEventListener('scroll', onTableScroll);
 
   // ResizeObserver on wrapper & table for automatic dynamic realignment on window/container resize
   if (typeof ResizeObserver !== 'undefined') {
@@ -668,6 +696,9 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     });
     ro.observe(wrapper);
     ro.observe(table);
+    if (scrollWrapper) {
+      ro.observe(scrollWrapper);
+    }
     (wrapper as TableWrapperElement)._tableResizeObserver = ro;
   }
 
@@ -700,12 +731,12 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
       return;
     }
 
-    // 2. Zone check around the table and gutters
-    const tRect = table.getBoundingClientRect();
-    const hitLeft = tRect.left - 70;
-    const hitRight = tRect.right + 40;
-    const hitTop = tRect.top - 60;
-    const hitBottom = tRect.bottom + 40;
+    // 2. Zone check around the visible table and gutters
+    const visibleRect = (scrollWrapper || table).getBoundingClientRect();
+    const hitLeft = visibleRect.left - 70;
+    const hitRight = visibleRect.right + 40;
+    const hitTop = visibleRect.top - 60;
+    const hitBottom = visibleRect.bottom + 40;
 
     const inZone =
       e.clientX >= hitLeft &&
@@ -723,7 +754,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     }
 
     // 3. Mouse in left gutter: keep row handle visible and clickable
-    if (e.clientX < tRect.left) {
+    if (e.clientX < visibleRect.left) {
       let matchedRowIdx: number | null = null;
       if (activeRowIdx !== null && activeRowIdx >= 0 && activeRowIdx < tbodyTrs.length) {
         const trB = tbodyTrs[activeRowIdx].getBoundingClientRect();
@@ -751,7 +782,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     }
 
     // 4. Mouse in top gutter: keep column handle visible and clickable
-    if (e.clientY < tRect.top) {
+    if (e.clientY < visibleRect.top) {
       let matchedColIdx: number | null = null;
       if (activeColIdx !== null && activeColIdx >= 0 && activeColIdx < theadThs.length) {
         const thB = theadThs[activeColIdx].getBoundingClientRect();

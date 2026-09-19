@@ -3,35 +3,48 @@
 ------------------------------------------------------------- */
 .table-wrapper {
   position: relative;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: visible;
   margin-bottom: 4px;
-  /* Natural padding for floating column and row controls without negative margins */
-  padding-top: 50px;
-  padding-left: 56px;
-  padding-right: 20px;
-  padding-bottom: 20px;
+  padding-top: 48px;
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 8px;
   margin-top: 0;
   margin-left: 0;
   margin-right: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.table-scroll-wrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
 }
 
 /* Custom subtle scrollbar for tables */
+.table-scroll-wrapper::-webkit-scrollbar,
 .table-wrapper::-webkit-scrollbar {
   height: 6px;
 }
 
+.table-scroll-wrapper::-webkit-scrollbar-track,
 .table-wrapper::-webkit-scrollbar-track {
   background: rgba(241, 245, 249, 0.7);
   border-radius: 3px;
 }
 
+.table-scroll-wrapper::-webkit-scrollbar-thumb,
 .table-wrapper::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
 }
 
+.table-scroll-wrapper::-webkit-scrollbar-thumb:hover,
 .table-wrapper::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
@@ -293,7 +306,6 @@
   background-color: #ffffff;
   border: 1px solid var(--card-border);
   border-radius: 8px;
-  overflow: hidden;
 }
 
 .editor-table th, .editor-table td {

@@ -1133,6 +1133,31 @@ describe('Editor Interactions', () => {
         assert.strictEqual(rowDragBtn.style.left, insertRowBtn.style.left);
       });
 
+      it('row controls are positioned outside the document to the left with negative coordinates', () => {
+        const input = '| Col1 |\n| --- |\n| A |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        updateTableControls(wrapper, () => {});
+
+        const rowDragBtn = wrapper.querySelector('.table-row-drag-btn[data-row-idx="0"]') as HTMLElement;
+        const rowDelBtn = wrapper.querySelector('.table-row-del-btn[data-row-idx="0"]') as HTMLElement;
+        const insertRowBtn = wrapper.querySelector('.row-insert-btn[data-row-idx="0"]') as HTMLElement;
+
+        assert.ok(rowDragBtn);
+        assert.ok(rowDelBtn);
+        assert.ok(insertRowBtn);
+
+        const dragLeft = parseFloat(rowDragBtn.style.left);
+        const delLeft = parseFloat(rowDelBtn.style.left);
+        const insertLeft = parseFloat(insertRowBtn.style.left);
+
+        // All row controls sit outside the document flow (negative left offset relative to table)
+        assert.ok(dragLeft < 0, `Row drag button (${dragLeft}) should be outside the document (< 0)`);
+        assert.ok(delLeft < 0, `Row delete button (${delLeft}) should be outside the document (< 0)`);
+        assert.ok(insertLeft < 0, `Row insert button (${insertLeft}) should be outside the document (< 0)`);
+        assert.ok(delLeft < dragLeft, `Row delete button (${delLeft}) should be further left than drag handle (${dragLeft})`);
+      });
+
       it('controls contain SVG icons for pixel-perfect alignment without baseline variation', () => {
         const input = '| Col1 | Col2 |\n| --- | --- |\n| A | B |';
         const editor = setupEditor(input);
@@ -1207,6 +1232,35 @@ describe('Editor Interactions', () => {
 
         const mouseupEvent = new dom.window.MouseEvent('mouseup', { bubbles: true });
         document.dispatchEvent(mouseupEvent);
+      });
+
+      it('encloses table in .table-scroll-wrapper to isolate horizontal scroll from the document', () => {
+        const input = '| Col1 | Col2 |\n| --- | --- |\n| A | B |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        updateTableControls(wrapper, () => {});
+
+        const scrollWrapper = wrapper.querySelector('.table-scroll-wrapper');
+        assert.ok(scrollWrapper, 'Table should have .table-scroll-wrapper');
+        const table = scrollWrapper?.querySelector('table.editor-table');
+        assert.ok(table, 'Table should be inside .table-scroll-wrapper');
+      });
+
+      it('keeps row controls fixed in left gutter at negative coordinates', () => {
+        const input = '| Col1 | Col2 |\n| --- | --- |\n| A | B |';
+        const editor = setupEditor(input);
+        const wrapper = editor.querySelector('.table-wrapper') as HTMLElement;
+        updateTableControls(wrapper, () => {});
+
+        repositionTableControls(wrapper);
+
+        const rowDragBtn = wrapper.querySelector('.table-row-drag-btn') as HTMLElement;
+        const rowDelBtn = wrapper.querySelector('.table-row-del-btn') as HTMLElement;
+        const insertRowBtn = wrapper.querySelector('.row-insert-btn') as HTMLElement;
+
+        assert.strictEqual(rowDragBtn.style.left, '-28px');
+        assert.strictEqual(rowDelBtn.style.left, '-52px');
+        assert.strictEqual(insertRowBtn.style.left, '-28px');
       });
     });
   });

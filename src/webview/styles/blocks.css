@@ -3,19 +3,23 @@
 ------------------------------------------------------------- */
 .editor-block-container.widget-block {
   position: relative;
-  padding: 12px 14px;
+  padding: 0;
   margin-top: 14px;
-  margin-bottom: 18px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background-color: #ffffff;
-  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+  margin-bottom: 16px;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .editor-block-container.widget-block:hover,
 .editor-block-container.widget-block.is-active-block {
-  border-color: #cbd5e1;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  border: none;
+  box-shadow: none;
 }
 
 .editor-block-container.widget-block[data-block-type="blockquote"] {
@@ -27,6 +31,25 @@
 
 .editor-block-container.widget-block[data-block-type="blockquote"] blockquote.editor-block {
   margin: 0;
+}
+
+.editor-block-container.widget-block[data-block-type="table"] {
+  margin-top: 4px;
+  margin-bottom: 16px;
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.editor-block-container.widget-block[data-block-type="code_block"] {
+  margin-top: 12px;
+  margin-bottom: 14px;
+}
+
+.editor-block-container.widget-block[data-block-type="hr"] {
+  margin-top: 8px;
+  margin-bottom: 8px;
 }
 
 /* Delete Button for Widget Blocks */
@@ -68,4 +91,24 @@
 
 .block-delete-btn:active {
   transform: scale(0.95);
+}
+
+.editor-block-container.widget-block[data-block-type="table"] .block-delete-btn {
+  top: 2px;
+  right: 2px;
+}
+
+.editor-block-container.widget-block[data-block-type="code_block"] .block-delete-btn {
+  top: 4px;
+  right: 6px;
+}
+
+.editor-block-container.widget-block[data-block-type="blockquote"] .block-delete-btn {
+  top: 6px;
+  right: 6px;
+}
+
+.editor-block-container.widget-block[data-block-type="hr"] .block-delete-btn {
+  top: -11px;
+  right: 0;
 }

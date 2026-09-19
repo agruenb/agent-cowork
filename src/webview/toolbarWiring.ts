@@ -139,15 +139,17 @@ export function insertTable(): void {
     <div class="editor-block-container widget-block" data-block-type="table" contenteditable="false">
       ${BLOCK_DELETE_BTN_HTML}
       <div class="editor-block table-wrapper" data-block-type="table">
-        <table class="editor-table">
-          <thead>
-            <tr><th>Spalte 1</th><th>Spalte 2</th><th>Spalte 3</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Inhalt 1</td><td>Inhalt 2</td><td>Inhalt 3</td></tr>
-            <tr><td>Inhalt 4</td><td>Inhalt 5</td><td>Inhalt 6</td></tr>
-          </tbody>
-        </table>
+        <div class="table-scroll-wrapper">
+          <table class="editor-table">
+            <thead>
+              <tr><th>Spalte 1</th><th>Spalte 2</th><th>Spalte 3</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Inhalt 1</td><td>Inhalt 2</td><td>Inhalt 3</td></tr>
+              <tr><td>Inhalt 4</td><td>Inhalt 5</td><td>Inhalt 6</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
     <p class="editor-block" data-block-type="paragraph"><br></p>
