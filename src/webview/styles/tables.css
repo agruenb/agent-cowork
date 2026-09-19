@@ -306,6 +306,20 @@
   background-color: #ffffff;
   border: 1px solid var(--card-border);
   border-radius: 8px;
+  outline: none !important;
+}
+
+.table-wrapper:focus,
+.table-wrapper:focus-visible,
+.table-wrapper:focus-within,
+.table-scroll-wrapper:focus,
+.table-scroll-wrapper:focus-visible,
+.table-scroll-wrapper:focus-within,
+.editor-table:focus,
+.editor-table:focus-visible,
+.editor-table:focus-within {
+  outline: none !important;
+  box-shadow: none;
 }
 
 .editor-table th, .editor-table td {
@@ -313,6 +327,20 @@
   border: 1px solid var(--card-border);
   text-align: left;
   min-width: 80px;
+  outline: none;
+  transition: background-color 0.12s ease, outline-color 0.12s ease;
+}
+
+/* Focussed Table Cell - Soft Green Outline */
+.editor-table th:focus,
+.editor-table td:focus,
+.editor-table th.is-focused-cell,
+.editor-table td.is-focused-cell {
+  outline: 2px solid #10b981 !important;
+  outline-offset: -1px;
+  position: relative;
+  z-index: 2;
+  background-color: rgba(236, 253, 245, 0.7);
 }
 
 .editor-table th {
@@ -321,7 +349,7 @@
   font-weight: 600;
 }
 
-.editor-table tr:hover td {
+.editor-table tr:hover td:not(.is-focused-cell) {
   background-color: #f0fdf450;
 }
 

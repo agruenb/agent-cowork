@@ -189,12 +189,13 @@ export function handleCanvasKeyDown(e: KeyboardEvent): void {
     return;
   }
 
-  // Tab / Shift+Tab for tables or list indentation / outdenting
-  if (e.key === 'Tab') {
-    if (handleTableKeyDown(e, canvas, () => emitCanvasEdit())) {
-      return;
-    }
+  // Table key handling: Tab, Shift+Tab, and Arrow key navigation
+  if (handleTableKeyDown(e, canvas, () => emitCanvasEdit())) {
+    return;
+  }
 
+  // Tab / Shift+Tab for list indentation / outdenting
+  if (e.key === 'Tab') {
     e.preventDefault();
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {

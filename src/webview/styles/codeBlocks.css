@@ -33,5 +33,15 @@
   line-height: 1.5;
   white-space: pre;
   display: block;
-  outline: none;
+  outline: none !important;
+}
+
+.code-block-wrapper:focus,
+.code-block-wrapper:focus-visible,
+.code-block-wrapper:focus-within,
+.code-block-wrapper pre:focus,
+.code-block-wrapper code:focus,
+.code-block-wrapper code:focus-visible {
+  outline: none !important;
+  box-shadow: none;
 }

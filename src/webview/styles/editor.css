@@ -77,6 +77,14 @@ blockquote.editor-block {
   color: #065f46;
   font-style: italic;
   margin-bottom: 0;
+  outline: none !important;
+}
+
+blockquote.editor-block:focus,
+blockquote.editor-block:focus-visible,
+blockquote.editor-block:focus-within {
+  outline: none !important;
+  box-shadow: none;
 }
 
 blockquote.editor-block p {

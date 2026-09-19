@@ -2,7 +2,7 @@ import assert from 'assert';
 import { JSDOM } from 'jsdom';
 import { markdownToHtml, BLOCK_DELETE_BTN_HTML } from '../src/markdown/parser';
 import { domToMarkdown } from '../src/markdown/serializer';
-import { setActiveBlock, getActiveBlock } from '../src/webview/blockFocus';
+import { setActiveBlock, getActiveBlock, setFocusedCell, getFocusedCell, updateActiveBlock } from '../src/webview/blockFocus';
 import { handleBlockDeleteClick } from '../src/webview/blockDelete';
 import { toggleInlineCode, handleCodeButtonClick } from '../src/webview/inlineCode';
 import { isAtStartOfBlock, isAtEndOfBlock, handleBlockKeyboardGuards } from '../src/webview/keyboardGuards';
@@ -78,6 +78,30 @@ describe('Block Editor Architecture & Interactions', () => {
       setActiveBlock(editor, null);
       assert.ok(!b2.classList.contains('is-active-block'));
       assert.strictEqual(getActiveBlock(editor), null);
+    });
+
+    it('adds is-focused-cell class to focused table cell and removes from previous', () => {
+      editor.innerHTML = `
+        <table class="editor-table">
+          <thead><tr><th id="th1">H1</th><th id="th2">H2</th></tr></thead>
+          <tbody><tr><td id="td1">C1</td><td id="td2">C2</td></tr></tbody>
+        </table>
+      `;
+      const th1 = document.getElementById('th1')!;
+      const td1 = document.getElementById('td1')!;
+
+      setFocusedCell(editor, th1);
+      assert.ok(th1.classList.contains('is-focused-cell'));
+      assert.strictEqual(getFocusedCell(editor), th1);
+
+      setFocusedCell(editor, td1);
+      assert.ok(!th1.classList.contains('is-focused-cell'));
+      assert.ok(td1.classList.contains('is-focused-cell'));
+      assert.strictEqual(getFocusedCell(editor), td1);
+
+      setFocusedCell(editor, null);
+      assert.ok(!td1.classList.contains('is-focused-cell'));
+      assert.strictEqual(getFocusedCell(editor), null);
     });
   });
 

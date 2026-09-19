@@ -915,7 +915,7 @@ describe('Editor Interactions', () => {
       });
     });
 
-    describe('Keyboard Tab navigation', () => {
+    describe('Keyboard Tab and Arrow navigation', () => {
       it('pressing Tab in the last cell adds a new row and triggers edit', () => {
         const input = '| A | B |\n| --- | --- |\n| 1 | 2 |';
         const editor = setupEditor(input);
@@ -941,6 +941,135 @@ describe('Editor Interactions', () => {
 
         const tbodyRows = table.querySelectorAll('tbody tr');
         assert.strictEqual(tbodyRows.length, 2);
+      });
+
+      it('pressing ArrowDown navigates to the cell below at the same column', () => {
+        const input = '| ColA | ColB |\n| --- | --- |\n| 1 | 2 |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+        const headerB = table.querySelectorAll('th')[1];
+
+        const range = document.createRange();
+        range.selectNodeContents(headerB);
+        range.collapse(false);
+        const sel = dom.window.getSelection()!;
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        const event = new dom.window.KeyboardEvent('keydown', { key: 'ArrowDown' });
+        const handled = handleTableKeyDown(event, editor, () => {});
+
+        assert.strictEqual(handled, true);
+        const targetTd = table.querySelectorAll('tbody td')[1];
+        assert.ok(targetTd.contains(sel.anchorNode));
+      });
+
+      it('pressing ArrowUp navigates to the cell above at the same column', () => {
+        const input = '| ColA | ColB |\n| --- | --- |\n| 1 | 2 |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+        const bodyA = table.querySelectorAll('tbody td')[0];
+
+        const range = document.createRange();
+        range.selectNodeContents(bodyA);
+        range.collapse(false);
+        const sel = dom.window.getSelection()!;
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        const event = new dom.window.KeyboardEvent('keydown', { key: 'ArrowUp' });
+        const handled = handleTableKeyDown(event, editor, () => {});
+
+        assert.strictEqual(handled, true);
+        const headerA = table.querySelectorAll('th')[0];
+        assert.ok(headerA.contains(sel.anchorNode));
+      });
+
+      it('pressing ArrowRight at the end of a cell navigates to the next cell', () => {
+        const input = '| ColA | ColB |\n| --- | --- |\n| 1 | 2 |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+        const cellA = table.querySelectorAll('tbody td')[0];
+
+        // Caret at end of cellA ("1")
+        const range = document.createRange();
+        range.selectNodeContents(cellA);
+        range.collapse(false);
+        const sel = dom.window.getSelection()!;
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        const event = new dom.window.KeyboardEvent('keydown', { key: 'ArrowRight' });
+        const handled = handleTableKeyDown(event, editor, () => {});
+
+        assert.strictEqual(handled, true);
+        const cellB = table.querySelectorAll('tbody td')[1];
+        assert.ok(cellB.contains(sel.anchorNode));
+      });
+
+      it('pressing ArrowLeft at the start of a cell navigates to the previous cell', () => {
+        const input = '| ColA | ColB |\n| --- | --- |\n| 1 | 2 |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+        const cellB = table.querySelectorAll('tbody td')[1];
+
+        // Caret at start of cellB ("2")
+        const range = document.createRange();
+        range.selectNodeContents(cellB);
+        range.collapse(true);
+        const sel = dom.window.getSelection()!;
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        const event = new dom.window.KeyboardEvent('keydown', { key: 'ArrowLeft' });
+        const handled = handleTableKeyDown(event, editor, () => {});
+
+        assert.strictEqual(handled, true);
+        const cellA = table.querySelectorAll('tbody td')[0];
+        assert.ok(cellA.contains(sel.anchorNode));
+      });
+
+      it('pressing ArrowRight at end of row wraps to first cell of next row', () => {
+        const input = '| ColA | ColB |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+        const cellRow1End = table.querySelectorAll('tbody tr')[0].querySelectorAll('td')[1];
+
+        const range = document.createRange();
+        range.selectNodeContents(cellRow1End);
+        range.collapse(false);
+        const sel = dom.window.getSelection()!;
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        const event = new dom.window.KeyboardEvent('keydown', { key: 'ArrowRight' });
+        const handled = handleTableKeyDown(event, editor, () => {});
+
+        assert.strictEqual(handled, true);
+        const cellRow2Start = table.querySelectorAll('tbody tr')[1].querySelectorAll('td')[0];
+        assert.ok(cellRow2Start.contains(sel.anchorNode));
+      });
+
+      it('does not navigate between cells when caret is inside text (not at boundary)', () => {
+        const input = '| Hello |\n| --- |\n| World |';
+        const editor = setupEditor(input);
+        const table = editor.querySelector('table')!;
+        const cell = table.querySelectorAll('tbody td')[0];
+        const textNode = cell.firstChild!;
+
+        // Place caret between 'o' and 'r' in "World" (offset 2)
+        const range = document.createRange();
+        range.setStart(textNode, 2);
+        range.collapse(true);
+        const sel = dom.window.getSelection()!;
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        const eventLeft = new dom.window.KeyboardEvent('keydown', { key: 'ArrowLeft' });
+        assert.strictEqual(handleTableKeyDown(eventLeft, editor, () => {}), false);
+
+        const eventRight = new dom.window.KeyboardEvent('keydown', { key: 'ArrowRight' });
+        assert.strictEqual(handleTableKeyDown(eventRight, editor, () => {}), false);
       });
     });
 

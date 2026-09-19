@@ -14,12 +14,17 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  outline: none !important;
 }
 
 .editor-block-container.widget-block:hover,
-.editor-block-container.widget-block.is-active-block {
+.editor-block-container.widget-block.is-active-block,
+.editor-block-container.widget-block:focus,
+.editor-block-container.widget-block:focus-visible,
+.editor-block-container.widget-block:focus-within {
   border: none;
   box-shadow: none;
+  outline: none !important;
 }
 
 .editor-block-container.widget-block[data-block-type="blockquote"] {
