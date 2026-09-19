@@ -322,13 +322,29 @@
   box-shadow: none;
 }
 
+.editor-table tr {
+  height: 44px;
+}
+
 .editor-table th, .editor-table td {
   padding: 10px 14px;
   border: 1px solid var(--card-border);
   text-align: left;
   min-width: 80px;
+  height: 44px;
+  line-height: 1.65;
+  box-sizing: border-box;
+  vertical-align: middle;
   outline: none;
   transition: background-color 0.12s ease, outline-color 0.12s ease;
+}
+
+.editor-table td:empty::before,
+.editor-table th:empty::before {
+  content: '\200B';
+  display: inline-block;
+  line-height: 1.65;
+  pointer-events: none;
 }
 
 /* Focussed Table Cell - Soft Green Outline */

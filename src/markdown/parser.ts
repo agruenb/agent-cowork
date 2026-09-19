@@ -497,7 +497,8 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
             const checkedClass = isChecked ? ' is-checked' : '';
             return `<${tag} class="table-checkbox-cell${checkedClass}" data-checked="${isChecked ? 'true' : 'false'}"><input type="checkbox" class="table-cell-checkbox" ${checkedAttr} contenteditable="false"></${tag}>`;
           }
-          return `<${tag}>${parseInlineMarkdown(content)}</${tag}>`;
+          const parsed = parseInlineMarkdown(content);
+          return `<${tag}>${parsed || '<br>'}</${tag}>`;
         };
 
         const headers = (block.headers || [])
