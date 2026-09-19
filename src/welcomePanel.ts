@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { t, getEffectiveLanguage } from './i18n';
 
 /**
  * Manages the Welcome / Startup Webview Panel.
@@ -24,7 +25,7 @@ export class WelcomePanel {
     // Otherwise, create a new panel.
     const panel = vscode.window.createWebviewPanel(
       WelcomePanel.viewType,
-      vscode.l10n.t('Willkommen bei Agent Cowork'),
+      t('Willkommen bei Agent Cowork'),
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -84,26 +85,31 @@ export class WelcomePanel {
     }
   }
 
+  public updateLanguage(): void {
+    this._update();
+  }
+
   private _update(): void {
     const config = vscode.workspace.getConfiguration('agentCowork');
     const showOnStartup = config.get<boolean>('showWelcomeOnStartup', true);
 
-    this._panel.title = vscode.l10n.t('Willkommen bei Agent Cowork');
+    this._panel.title = t('Willkommen bei Agent Cowork');
     this._panel.webview.html = this._getHtmlForWebview(showOnStartup);
   }
 
   private _getHtmlForWebview(showOnStartup: boolean): string {
-    const title = vscode.l10n.t('Willkommen bei Agent Cowork');
-    const subtitle = vscode.l10n.t('Ihre intuitive Arbeitsumgebung für KI-gestütztes Arbeiten');
-    const openFolder = vscode.l10n.t('Arbeitsordner öffnen');
-    const openFolderDesc = vscode.l10n.t('Wählen Sie einen Arbeitsordner für Ihre Projekte und Dokumente.');
-    const tipsTitle = vscode.l10n.t('Tipps für Einsteiger');
-    const tip1 = vscode.l10n.t('Sie benötigen kein Programmierwissen. Formulieren Sie Ihre Aufgaben einfach in natürlicher Sprache.');
-    const tip2 = vscode.l10n.t('Alle Ihre Änderungen und erstellten Dokumente bleiben sicher auf Ihrem Computer.');
-    const alwaysShow = vscode.l10n.t('Beim Start immer anzeigen');
+    const lang = getEffectiveLanguage();
+    const title = t('Willkommen bei Agent Cowork');
+    const subtitle = t('Ihre intuitive Arbeitsumgebung für KI-gestütztes Arbeiten');
+    const openFolder = t('Arbeitsordner öffnen');
+    const openFolderDesc = t('Wählen Sie einen Arbeitsordner für Ihre Projekte und Dokumente.');
+    const tipsTitle = t('Tipps für Einsteiger');
+    const tip1 = t('Sie benötigen kein Programmierwissen. Formulieren Sie Ihre Aufgaben einfach in natürlicher Sprache.');
+    const tip2 = t('Alle Ihre Änderungen und erstellten Dokumente bleiben sicher auf Ihrem Computer.');
+    const alwaysShow = t('Beim Start immer anzeigen');
 
     return `<!DOCTYPE html>
-<html lang="${vscode.env.language}">
+<html lang="${lang}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">

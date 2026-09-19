@@ -10,6 +10,7 @@ import { wireToolbar, executeCommand } from './toolbarWiring';
 import { wireBlockFocus } from './blockFocus';
 import { wireBlockDelete } from './blockDelete';
 import { handleBlockKeyboardGuards, handleTaskCheckboxBackspace } from './keyboardGuards';
+import { getWebviewLanguage, setWebviewLanguage, tWebview, WebviewLanguage } from './i18n';
 import {
   state,
   showErrorBanner,
@@ -73,7 +74,9 @@ export function setContentFormatted(markdown: string): boolean {
     }
     updateWordCount(markdown);
     showErrorBanner(
-      'Warnung: Formatierungsfehler im Dokument. Um Datenverlust zu verhindern, wurde in den Quelltext-Modus gewechselt.'
+      getWebviewLanguage() === 'en'
+        ? 'Warning: Formatting error in document. Switched to raw source mode to prevent data loss.'
+        : 'Warnung: Formatierungsfehler im Dokument. Um Datenverlust zu verhindern, wurde in den Quelltext-Modus gewechselt.'
     );
     // Switch to raw mode safely WITHOUT calling domToMarkdown(editorCanvas)
     if (!state.isRawMode) {
@@ -82,7 +85,7 @@ export function setContentFormatted(markdown: string): boolean {
       if (textarea) textarea.style.display = 'block';
       if (toggleBtn) {
         toggleBtn.classList.add('is-active');
-        toggleBtn.textContent = '📄 Formatiert';
+        toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
       }
     }
     vscode.postMessage({
@@ -126,7 +129,7 @@ export function toggleRawMode(): void {
     }
     if (toggleBtn) {
       toggleBtn.classList.add('is-active');
-      toggleBtn.textContent = '📄 Formatiert';
+      toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
     }
   } else {
     // Switch to Formatted Mode
@@ -139,7 +142,7 @@ export function toggleRawMode(): void {
       if (textarea) textarea.style.display = 'block';
       if (toggleBtn) {
         toggleBtn.classList.add('is-active');
-        toggleBtn.textContent = '📄 Formatiert';
+        toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
       }
       return;
     }
@@ -449,12 +452,134 @@ export function handleListItemClickOutsideText(e: MouseEvent, canvas: HTMLElemen
   return false;
 }
 
+export function updateEditorLanguage(lang: WebviewLanguage): void {
+  setWebviewLanguage(lang);
+
+  // Update toolbar aria-label
+  if (typeof document !== 'undefined') {
+    const toolbar = document.querySelector('.toolbar');
+    if (toolbar) {
+      toolbar.setAttribute('aria-label', tWebview('Editor Werkzeugleiste'));
+    }
+
+    // Heading select
+    const selectHeading = document.getElementById('select-heading') as HTMLSelectElement | null;
+    if (selectHeading) {
+      selectHeading.title = tWebview('Textformatierung');
+      const optP = selectHeading.querySelector('option[value="p"]');
+      if (optP) optP.textContent = tWebview('Normaler Text');
+      const optH1 = selectHeading.querySelector('option[value="h1"]');
+      if (optH1) optH1.textContent = tWebview('Überschrift 1 (Groß)');
+      const optH2 = selectHeading.querySelector('option[value="h2"]');
+      if (optH2) optH2.textContent = tWebview('Überschrift 2 (Mittel)');
+      const optH3 = selectHeading.querySelector('option[value="h3"]');
+      if (optH3) optH3.textContent = tWebview('Überschrift 3 (Klein)');
+    }
+
+    // Formatting buttons
+    const btnBold = document.getElementById('btn-bold');
+    if (btnBold) btnBold.title = tWebview('Fett (Cmd+B)');
+    const btnItalic = document.getElementById('btn-italic');
+    if (btnItalic) btnItalic.title = tWebview('Kursiv (Cmd+I)');
+    const btnStrike = document.getElementById('btn-strike');
+    if (btnStrike) btnStrike.title = tWebview('Durchgestrichen');
+
+    // List buttons
+    const btnTask = document.getElementById('btn-task');
+    if (btnTask) {
+      btnTask.title = tWebview('Aufgabenliste (Checkliste)');
+      const span = btnTask.querySelector('span');
+      if (span) span.textContent = tWebview('Aufgabe');
+    }
+    const btnBullet = document.getElementById('btn-bullet');
+    if (btnBullet) {
+      btnBullet.title = tWebview('Aufzählungsliste');
+      const span = btnBullet.querySelector('span');
+      if (span) span.textContent = tWebview('Liste');
+    }
+    const btnOrdered = document.getElementById('btn-ordered');
+    if (btnOrdered) {
+      btnOrdered.title = tWebview('Nummerierte Liste');
+      const span = btnOrdered.querySelector('span');
+      if (span) span.textContent = tWebview('Nummeriert');
+    }
+
+    // Insert buttons
+    const btnQuote = document.getElementById('btn-quote');
+    if (btnQuote) {
+      btnQuote.title = tWebview('Zitat / Info-Kasten');
+      btnQuote.textContent = tWebview('❝ Zitat');
+    }
+    const btnTable = document.getElementById('btn-table');
+    if (btnTable) {
+      btnTable.title = tWebview('Tabelle einfügen');
+      btnTable.textContent = tWebview('田 Tabelle');
+    }
+    const btnCode = document.getElementById('btn-code');
+    if (btnCode) {
+      btnCode.title = tWebview('Code-Block');
+    }
+
+    // Toggle raw button
+    const toggleBtn = getRawToggleBtn();
+    if (toggleBtn) {
+      toggleBtn.title = tWebview('Markdown-Quelltext anzeigen oder bearbeiten');
+      if (state.isRawMode) {
+        toggleBtn.textContent = lang === 'en' ? '📄 Formatted' : '📄 Formatiert';
+      }
+    }
+
+    // Cowork button
+    const btnCowork = document.getElementById('btn-cowork');
+    if (btnCowork) {
+      btnCowork.title = tWebview('Mit KI-Agent an diesem Dokument zusammenarbeiten');
+    }
+
+    // Collapse toolbar button
+    const collapseBtn = document.getElementById('btn-toggle-toolbar');
+    if (collapseBtn) {
+      const isCollapsed = collapseBtn.classList.contains('is-collapsed');
+      const title = isCollapsed
+        ? tWebview('Symbolleiste ausklappen')
+        : tWebview('Symbolleiste einklappen');
+      collapseBtn.title = title;
+      collapseBtn.setAttribute('aria-label', title);
+    }
+
+    // Error banner dismiss
+    const dismissBtn = getErrorBannerDismiss();
+    if (dismissBtn) {
+      dismissBtn.title = tWebview('Schließen');
+    }
+
+    // Raw textarea placeholder
+    const textarea = getRawTextarea();
+    if (textarea) {
+      textarea.placeholder = tWebview('Markdown eingeben...');
+    }
+
+    // Update word count
+    if (state.currentMarkdown !== undefined) {
+      updateWordCount(state.currentMarkdown);
+    }
+  }
+}
+
 export function handleWindowMessage(event: MessageEvent): void {
   const message = event.data;
   const textarea = getRawTextarea();
   switch (message?.type) {
     case 'init': {
+      if (message.language) {
+        setWebviewLanguage(message.language);
+      }
       setContentFormatted(message.text || '');
+      break;
+    }
+    case 'setLanguage': {
+      if (message.language) {
+        updateEditorLanguage(message.language);
+      }
       break;
     }
     case 'update': {

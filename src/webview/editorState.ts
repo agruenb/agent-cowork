@@ -1,4 +1,5 @@
 import { safeDomToMarkdown } from '../markdown/serializer';
+import { getWebviewLanguage } from './i18n';
 
 declare function acquireVsCodeApi(): {
   postMessage(message: unknown): void;
@@ -147,7 +148,9 @@ export function updateWordCount(text: string): void {
   const words = clean ? clean.split(/\s+/).filter(Boolean).length : 0;
   const countEl = getWordCountEl();
   if (countEl) {
-    countEl.textContent = `${words} ${words === 1 ? 'Wort' : 'Wörter'}`;
+    const isEn = getWebviewLanguage() === 'en';
+    const wordLabel = isEn ? (words === 1 ? 'word' : 'words') : (words === 1 ? 'Wort' : 'Wörter');
+    countEl.textContent = `${words} ${wordLabel}`;
   }
 }
 

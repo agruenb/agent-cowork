@@ -17,8 +17,9 @@ import {
   applyRawFormatting,
 } from './toolbarOperations';
 import { wireTableInteractions } from './tableInteractions';
-import { BLOCK_DELETE_BTN_HTML } from '../markdown/parser';
+import { getBlockDeleteBtnHtml } from '../markdown/parser';
 import { handleCodeButtonClick } from './inlineCode';
+import { tWebview, getWebviewLanguage } from './i18n';
 
 export interface ToolbarHooks {
   toggleRawMode: () => void;
@@ -42,11 +43,13 @@ export function executeCommand(cmd: string, val: string = ''): void {
   if (cmd === 'strike') {
     document.execCommand('strikeThrough', false, val);
   } else if (cmd === 'quote') {
+    const lang = getWebviewLanguage();
+    const deleteBtn = getBlockDeleteBtnHtml(lang);
     const quoteHtml = `
       <div class="editor-block-container widget-block" data-block-type="blockquote" contenteditable="false">
-        ${BLOCK_DELETE_BTN_HTML}
+        ${deleteBtn}
         <blockquote class="editor-block" data-block-type="blockquote" contenteditable="true">
-          <p>Zitat...</p>
+          <p>${tWebview('Zitat...')}</p>
         </blockquote>
       </div>
       <p class="editor-block" data-block-type="paragraph"><br></p>
@@ -56,9 +59,11 @@ export function executeCommand(cmd: string, val: string = ''): void {
     });
     return;
   } else if (cmd === 'hr') {
+    const lang = getWebviewLanguage();
+    const deleteBtn = getBlockDeleteBtnHtml(lang);
     const hrHtml = `
       <div class="editor-block-container widget-block" data-block-type="hr" contenteditable="false">
-        ${BLOCK_DELETE_BTN_HTML}
+        ${deleteBtn}
         <hr class="editor-block" data-block-type="hr">
       </div>
       <p class="editor-block" data-block-type="paragraph"><br></p>
@@ -140,18 +145,20 @@ export function insertTable(): void {
     return;
   }
   focusCanvas(canvas);
+  const lang = getWebviewLanguage();
+  const deleteBtn = getBlockDeleteBtnHtml(lang);
   const tableHtml = `
     <div class="editor-block-container widget-block" data-block-type="table" contenteditable="false">
-      ${BLOCK_DELETE_BTN_HTML}
+      ${deleteBtn}
       <div class="editor-block table-wrapper" data-block-type="table">
         <div class="table-scroll-wrapper">
           <table class="editor-table" contenteditable="true">
             <thead>
-              <tr><th>Spalte 1</th><th>Spalte 2</th><th>Spalte 3</th></tr>
+              <tr><th>${tWebview('Spalte 1')}</th><th>${tWebview('Spalte 2')}</th><th>${tWebview('Spalte 3')}</th></tr>
             </thead>
             <tbody>
-              <tr><td>Inhalt 1</td><td>Inhalt 2</td><td>Inhalt 3</td></tr>
-              <tr><td>Inhalt 4</td><td>Inhalt 5</td><td>Inhalt 6</td></tr>
+              <tr><td>${tWebview('Inhalt 1')}</td><td>${tWebview('Inhalt 2')}</td><td>${tWebview('Inhalt 3')}</td></tr>
+              <tr><td>${tWebview('Inhalt 4')}</td><td>${tWebview('Inhalt 5')}</td><td>${tWebview('Inhalt 6')}</td></tr>
             </tbody>
           </table>
         </div>
@@ -173,14 +180,16 @@ export function insertCodeBlock(): void {
     return;
   }
   focusCanvas(canvas);
+  const lang = getWebviewLanguage();
+  const deleteBtn = getBlockDeleteBtnHtml(lang);
   const codeHtml = `
     <div class="editor-block-container widget-block" data-block-type="code_block" data-language="" contenteditable="false">
-      ${BLOCK_DELETE_BTN_HTML}
+      ${deleteBtn}
       <div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="">
         <div class="code-block-header">
-          <input type="text" class="code-lang-input" value="" placeholder="Code" title="Code-Typ bearbeiten" spellcheck="false" autocomplete="off" />
+          <input type="text" class="code-lang-input" value="" placeholder="${tWebview('Code')}" title="${tWebview('Code-Typ bearbeiten')}" spellcheck="false" autocomplete="off" />
         </div>
-        <pre><code class="editor-code" contenteditable="true">// Code hier eingeben...</code></pre>
+        <pre><code class="editor-code" contenteditable="true">${tWebview('// Code hier eingeben...')}</code></pre>
       </div>
     </div>
     <p class="editor-block" data-block-type="paragraph"><br></p>
@@ -333,15 +342,15 @@ export function setToolbarCollapsed(collapsed: boolean): void {
   if (collapsed) {
     toolbar.classList.add('is-collapsed');
     if (toggleBtn) {
-      toggleBtn.setAttribute('title', 'Symbolleiste ausklappen');
-      toggleBtn.setAttribute('aria-label', 'Symbolleiste ausklappen');
+      toggleBtn.setAttribute('title', tWebview('Symbolleiste ausklappen'));
+      toggleBtn.setAttribute('aria-label', tWebview('Symbolleiste ausklappen'));
       toggleBtn.setAttribute('aria-expanded', 'false');
     }
   } else {
     toolbar.classList.remove('is-collapsed');
     if (toggleBtn) {
-      toggleBtn.setAttribute('title', 'Symbolleiste einklappen');
-      toggleBtn.setAttribute('aria-label', 'Symbolleiste einklappen');
+      toggleBtn.setAttribute('title', tWebview('Symbolleiste einklappen'));
+      toggleBtn.setAttribute('aria-label', tWebview('Symbolleiste einklappen'));
       toggleBtn.setAttribute('aria-expanded', 'true');
     }
   }

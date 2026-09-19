@@ -3,6 +3,8 @@
  * Handles click events on `.block-delete-btn` buttons to remove the enclosing block.
  */
 
+import { tWebview } from './i18n';
+
 let activeBlockConfirmPopup: HTMLElement | null = null;
 let activeCleanup: (() => void) | null = null;
 
@@ -13,28 +15,28 @@ function getBlockTypeLabels(blockType: string | null): { title: string; desc: st
   switch (blockType) {
     case 'table':
       return {
-        title: 'Tabelle löschen?',
-        desc: 'Möchten Sie diese Tabelle wirklich löschen?',
+        title: tWebview('Tabelle löschen?'),
+        desc: tWebview('Möchten Sie diese Tabelle wirklich löschen?'),
       };
     case 'code_block':
       return {
-        title: 'Code-Block löschen?',
-        desc: 'Möchten Sie diesen Code-Block wirklich löschen?',
+        title: tWebview('Code-Block löschen?'),
+        desc: tWebview('Möchten Sie diesen Code-Block wirklich löschen?'),
       };
     case 'blockquote':
       return {
-        title: 'Zitat löschen?',
-        desc: 'Möchten Sie dieses Zitat wirklich löschen?',
+        title: tWebview('Zitat löschen?'),
+        desc: tWebview('Möchten Sie dieses Zitat wirklich löschen?'),
       };
     case 'hr':
       return {
-        title: 'Trennlinie löschen?',
-        desc: 'Möchten Sie diese Trennlinie wirklich löschen?',
+        title: tWebview('Trennlinie löschen?'),
+        desc: tWebview('Möchten Sie diese Trennlinie wirklich löschen?'),
       };
     default:
       return {
-        title: 'Block löschen?',
-        desc: 'Möchten Sie diesen Block wirklich löschen?',
+        title: tWebview('Block löschen?'),
+        desc: tWebview('Möchten Sie diesen Block wirklich löschen?'),
       };
   }
 }
@@ -112,12 +114,12 @@ export function showBlockDeleteConfirm(
   const cancelBtn = doc.createElement('button');
   cancelBtn.className = 'block-confirm-btn block-confirm-cancel';
   cancelBtn.type = 'button';
-  cancelBtn.textContent = 'Abbrechen';
+  cancelBtn.textContent = tWebview('Abbrechen');
 
   const confirmBtn = doc.createElement('button');
   confirmBtn.className = 'block-confirm-btn block-confirm-delete';
   confirmBtn.type = 'button';
-  confirmBtn.textContent = 'Löschen';
+  confirmBtn.textContent = tWebview('Löschen');
 
   actionsEl.appendChild(cancelBtn);
   actionsEl.appendChild(confirmBtn);

@@ -1,4 +1,5 @@
 import { indentRawText, outdentRawText } from '../markdown/listOperations';
+import { tWebview } from './i18n';
 
 /**
  * Applies markdown formatting to a raw textarea based on the toolbar action.
@@ -65,7 +66,8 @@ export function applyRawFormatting(
 
     case 'code': {
       if (selectedText.includes('\n') || !selectedText) {
-        const block = `\`\`\`markdown\n${selectedText || '// Code hier eingeben...'}\n\`\`\``;
+        const placeholder = tWebview('// Code hier eingeben...');
+        const block = `\`\`\`markdown\n${selectedText || placeholder}\n\`\`\``;
         newText = val.slice(0, start) + block + val.slice(end);
         newEnd = start + block.length;
       } else {
@@ -179,7 +181,16 @@ export function applyRawFormatting(
     }
 
     case 'table': {
-      const tableMarkdown = `\n| Spalte 1 | Spalte 2 | Spalte 3 |\n| --- | --- | --- |\n| Inhalt 1 | Inhalt 2 | Inhalt 3 |\n| Inhalt 4 | Inhalt 5 | Inhalt 6 |\n`;
+      const col1 = tWebview('Spalte 1');
+      const col2 = tWebview('Spalte 2');
+      const col3 = tWebview('Spalte 3');
+      const val1 = tWebview('Inhalt 1');
+      const val2 = tWebview('Inhalt 2');
+      const val3 = tWebview('Inhalt 3');
+      const val4 = tWebview('Inhalt 4');
+      const val5 = tWebview('Inhalt 5');
+      const val6 = tWebview('Inhalt 6');
+      const tableMarkdown = `\n| ${col1} | ${col2} | ${col3} |\n| --- | --- | --- |\n| ${val1} | ${val2} | ${val3} |\n| ${val4} | ${val5} | ${val6} |\n`;
       newText = val.slice(0, start) + tableMarkdown + val.slice(end);
       newEnd = start + tableMarkdown.length;
       break;

@@ -11,6 +11,7 @@ import {
   TREE_VIEW_MIME_TYPE,
   URI_LIST_MIME_TYPE,
 } from './utils/dragAndDrop';
+import { t } from './i18n';
 
 export { isSameOrDescendant };
 
@@ -226,7 +227,7 @@ export class FolderTreeProvider
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       vscode.window.showErrorMessage(
-        vscode.l10n.t('Fehler beim Verschieben/Kopieren: {0}', message)
+        t('Fehler beim Verschieben/Kopieren: {0}', message)
       );
     }
   }
@@ -252,7 +253,7 @@ export class FolderTreeProvider
       // Cannot move a folder into itself or one of its descendants
       if (source.isDirectory && isSameOrDescendant(sourcePath, targetDirPath)) {
         vscode.window.showWarningMessage(
-          vscode.l10n.t(
+          t(
             'Der Ordner "{0}" kann nicht in sich selbst oder einen Unterordner verschoben werden.',
             path.basename(sourcePath)
           )
@@ -264,15 +265,15 @@ export class FolderTreeProvider
 
       if (await this._pathExists(destUri)) {
         const replaceChoice = await vscode.window.showWarningMessage(
-          vscode.l10n.t(
+          t(
             '"{0}" existiert am Zielort bereits. Möchten Sie es ersetzen?',
             path.basename(destUri.fsPath)
           ),
           { modal: true },
-          vscode.l10n.t('Ersetzen'),
-          vscode.l10n.t('Überspringen')
+          t('Ersetzen'),
+          t('Überspringen')
         );
-        if (replaceChoice !== vscode.l10n.t('Ersetzen')) {
+        if (replaceChoice !== t('Ersetzen')) {
           continue;
         }
       }
@@ -333,15 +334,15 @@ export class FolderTreeProvider
         const destUri = vscode.Uri.joinPath(targetDirUri, file.name);
         if (await this._pathExists(destUri)) {
           const replaceChoice = await vscode.window.showWarningMessage(
-            vscode.l10n.t(
+            t(
               '"{0}" existiert am Zielort bereits. Möchten Sie die Datei ersetzen?',
               file.name
             ),
             { modal: true },
-            vscode.l10n.t('Ersetzen'),
-            vscode.l10n.t('Überspringen')
+            t('Ersetzen'),
+            t('Überspringen')
           );
-          if (replaceChoice !== vscode.l10n.t('Ersetzen')) {
+          if (replaceChoice !== t('Ersetzen')) {
             continue;
           }
         }
@@ -377,7 +378,7 @@ export class FolderTreeProvider
 
     if (isDir && isSameOrDescendant(sourcePath, targetDirPath)) {
       vscode.window.showWarningMessage(
-        vscode.l10n.t(
+        t(
           'Der Ordner "{0}" kann nicht in sich selbst oder einen Unterordner verschoben werden.',
           path.basename(sourcePath)
         )
@@ -389,15 +390,15 @@ export class FolderTreeProvider
 
     if (await this._pathExists(destUri)) {
       const replaceChoice = await vscode.window.showWarningMessage(
-        vscode.l10n.t(
+        t(
           '"{0}" existiert am Zielort bereits. Möchten Sie es ersetzen?',
           path.basename(destUri.fsPath)
         ),
         { modal: true },
-        vscode.l10n.t('Ersetzen'),
-        vscode.l10n.t('Überspringen')
+        t('Ersetzen'),
+        t('Überspringen')
       );
-      if (replaceChoice !== vscode.l10n.t('Ersetzen')) {
+      if (replaceChoice !== t('Ersetzen')) {
         return;
       }
     }

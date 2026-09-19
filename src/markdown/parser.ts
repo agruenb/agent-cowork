@@ -383,20 +383,46 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
   return blocks;
 }
 
-export const BLOCK_DELETE_BTN_HTML =
-  '<button class="block-delete-btn" type="button" title="Block löschen" contenteditable="false" aria-label="Block löschen">' +
-  '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
-  '<line x1="3" y1="3" x2="11" y2="11"/>' +
-  '<line x1="11" y1="3" x2="3" y2="11"/>' +
-  '</svg></button>';
+export function getBlockDeleteBtnHtml(lang?: 'en' | 'de'): string {
+  const isEn = lang === 'en';
+  const label = isEn ? 'Delete block' : 'Block löschen';
+  return (
+    `<button class="block-delete-btn" type="button" title="${label}" contenteditable="false" aria-label="${label}">` +
+    '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">' +
+    '<line x1="3" y1="3" x2="11" y2="11"/>' +
+    '<line x1="11" y1="3" x2="3" y2="11"/>' +
+    '</svg></button>'
+  );
+}
+
+export const BLOCK_DELETE_BTN_HTML = getBlockDeleteBtnHtml('de');
+
+function detectParserLang(lang?: 'en' | 'de'): 'en' | 'de' {
+  if (lang) return lang;
+  if (typeof document !== 'undefined' && document.documentElement) {
+    const docLang = (
+      document.documentElement.lang ||
+      document.documentElement.getAttribute('lang') ||
+      ''
+    ).toLowerCase();
+    if (docLang.startsWith('en')) {
+      return 'en';
+    }
+  }
+  return 'de';
+}
 
 /**
  * Converts parsed MarkdownBlocks into an editable HTML structure.
  */
-export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string {
+export function blocksToHtml(blocks: MarkdownBlock[], isNested = false, lang?: 'en' | 'de'): string {
   if (blocks.length === 0) {
     return isNested ? '' : '<p class="editor-block" data-block-type="paragraph"><br></p>';
   }
+
+  const effectiveLang = detectParserLang(lang);
+  const deleteBtnHtml = getBlockDeleteBtnHtml(effectiveLang);
+  const codeLangTitle = effectiveLang === 'en' ? 'Edit code language' : 'Code-Typ bearbeiten';
 
   const htmlParts: string[] = [];
 
@@ -428,19 +454,19 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
         htmlParts.push(
           isNested
             ? inner
-            : `<div class="editor-block-container widget-block" data-block-type="blockquote" contenteditable="false">${BLOCK_DELETE_BTN_HTML}${inner}</div>`
+            : `<div class="editor-block-container widget-block" data-block-type="blockquote" contenteditable="false">${deleteBtnHtml}${inner}</div>`
         );
         break;
       }
 
       case 'code_block': {
-        const lang = block.language ? escapeHtml(block.language) : '';
+        const langStr = block.language ? escapeHtml(block.language) : '';
         const codeText = escapeHtml(block.content || '');
-        const inner = `<div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="${lang}"><div class="code-block-header"><input type="text" class="code-lang-input" value="${lang}" placeholder="Code" title="Code-Typ bearbeiten" spellcheck="false" autocomplete="off" /></div><pre><code class="editor-code" contenteditable="true">${codeText}</code></pre></div>`;
+        const inner = `<div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="${langStr}"><div class="code-block-header"><input type="text" class="code-lang-input" value="${langStr}" placeholder="Code" title="${codeLangTitle}" spellcheck="false" autocomplete="off" /></div><pre><code class="editor-code" contenteditable="true">${codeText}</code></pre></div>`;
         htmlParts.push(
           isNested
             ? inner
-            : `<div class="editor-block-container widget-block" data-block-type="code_block" contenteditable="false">${BLOCK_DELETE_BTN_HTML}${inner}</div>`
+            : `<div class="editor-block-container widget-block" data-block-type="code_block" contenteditable="false">${deleteBtnHtml}${inner}</div>`
         );
         break;
       }
@@ -452,7 +478,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
           const checkedClass = item.checked ? ' is-checked' : '';
           let childHtml = '';
           if (item.children && item.children.length > 0) {
-            childHtml = blocksToHtml(item.children, true);
+            childHtml = blocksToHtml(item.children, true, effectiveLang);
           }
           return `<li class="task-item${checkedClass}" data-checked="${item.checked ? 'true' : 'false'}"><input type="checkbox" class="task-checkbox" ${checkedAttr} contenteditable="false"><span class="task-content">${parseInlineMarkdown(item.text)}</span>${childHtml}</li>`;
         });
@@ -465,7 +491,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
         const itemHtmls = (block.items || []).map((item) => {
           let childHtml = '';
           if (item.children && item.children.length > 0) {
-            childHtml = blocksToHtml(item.children, true);
+            childHtml = blocksToHtml(item.children, true, effectiveLang);
           }
           return `<li class="list-item">${parseInlineMarkdown(item.text)}${childHtml}</li>`;
         });
@@ -478,7 +504,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
         const itemHtmls = (block.items || []).map((item) => {
           let childHtml = '';
           if (item.children && item.children.length > 0) {
-            childHtml = blocksToHtml(item.children, true);
+            childHtml = blocksToHtml(item.children, true, effectiveLang);
           }
           return `<li class="list-item">${parseInlineMarkdown(item.text)}${childHtml}</li>`;
         });
@@ -514,7 +540,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
         htmlParts.push(
           isNested
             ? inner
-            : `<div class="editor-block-container widget-block" data-block-type="table" contenteditable="false">${BLOCK_DELETE_BTN_HTML}${inner}</div>`
+            : `<div class="editor-block-container widget-block" data-block-type="table" contenteditable="false">${deleteBtnHtml}${inner}</div>`
         );
         break;
       }
@@ -524,7 +550,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
         htmlParts.push(
           isNested
             ? inner
-            : `<div class="editor-block-container widget-block" data-block-type="hr" contenteditable="false">${BLOCK_DELETE_BTN_HTML}${inner}</div>`
+            : `<div class="editor-block-container widget-block" data-block-type="hr" contenteditable="false">${deleteBtnHtml}${inner}</div>`
         );
         break;
       }
@@ -538,9 +564,9 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false): string 
 /**
  * Complete parser converting markdown string to formatted HTML.
  */
-export function markdownToHtml(markdown: string): string {
+export function markdownToHtml(markdown: string, lang?: 'en' | 'de'): string {
   const blocks = parseMarkdownToBlocks(markdown);
-  return blocksToHtml(blocks);
+  return blocksToHtml(blocks, false, lang);
 }
 
 /**
@@ -548,9 +574,9 @@ export function markdownToHtml(markdown: string): string {
  * and guards against returning an empty HTML string when the source Markdown
  * contains non-whitespace content.
  */
-export function safeMarkdownToHtml(markdown: string): { html: string; error?: Error } {
+export function safeMarkdownToHtml(markdown: string, lang?: 'en' | 'de'): { html: string; error?: Error } {
   try {
-    const html = markdownToHtml(markdown);
+    const html = markdownToHtml(markdown, lang);
     if (markdown.trim().length > 0 && html.trim().length === 0) {
       return {
         html: '',

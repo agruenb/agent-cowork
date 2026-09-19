@@ -13,6 +13,7 @@ import {
   deleteItem,
 } from './fileOperations';
 import { ensureDefaultExtension, getDefaultDatePrefix } from './utils/fileOperations';
+import { t } from './i18n';
 
 const THEME_NAME = 'Agent Cowork Light';
 const ICON_THEME_NAME = 'agent-cowork-icons';
@@ -399,8 +400,8 @@ export async function openWorkspaceFolder(): Promise<void> {
       canSelectFiles: false,
       canSelectFolders: true,
       canSelectMany: false,
-      openLabel: vscode.l10n.t('Ordner auswählen'),
-      title: vscode.l10n.t('Arbeitsordner auswählen'),
+      openLabel: t('Ordner auswählen'),
+      title: t('Arbeitsordner auswählen'),
     });
 
     if (uris && uris.length > 0) {
@@ -426,7 +427,7 @@ export async function createNewFile(targetFolderUri?: vscode.Uri): Promise<void>
     const folders = vscode.workspace.workspaceFolders;
     if (!folders || folders.length === 0) {
       vscode.window.showWarningMessage(
-        vscode.l10n.t('Bitte öffnen Sie zuerst einen Ordner, um eine Datei zu erstellen.')
+        t('Bitte öffnen Sie zuerst einen Ordner, um eine Datei zu erstellen.')
       );
       return;
     }
@@ -436,17 +437,17 @@ export async function createNewFile(targetFolderUri?: vscode.Uri): Promise<void>
   const defaultPrefix = getDefaultDatePrefix();
 
   const fileName = await vscode.window.showInputBox({
-    prompt: vscode.l10n.t('Dateinamen eingeben (z. B. aufgabe.md)'),
+    prompt: t('Dateinamen eingeben (z. B. aufgabe.md)'),
     value: defaultPrefix,
     valueSelection: [defaultPrefix.length, defaultPrefix.length],
     placeHolder: `${defaultPrefix}aufgabe.md`,
     validateInput: (value) => {
       const trimmed = value.trim();
       if (!trimmed) {
-        return vscode.l10n.t('Der Dateiname darf nicht leer sein.');
+        return t('Der Dateiname darf nicht leer sein.');
       }
       if (/[/\\?%*:|"<>]/g.test(trimmed)) {
-        return vscode.l10n.t('Der Dateiname enthält ungültige Zeichen.');
+        return t('Der Dateiname enthält ungültige Zeichen.');
       }
       return null;
     },
@@ -465,7 +466,7 @@ export async function createNewFile(targetFolderUri?: vscode.Uri): Promise<void>
     try {
       await vscode.workspace.fs.stat(fileUri);
       vscode.window.showErrorMessage(
-        vscode.l10n.t('Eine Datei mit diesem Namen existiert bereits.')
+        t('Eine Datei mit diesem Namen existiert bereits.')
       );
       return;
     } catch {
@@ -479,7 +480,7 @@ export async function createNewFile(targetFolderUri?: vscode.Uri): Promise<void>
     await vscode.commands.executeCommand('vscode.open', fileUri);
   } catch (error) {
     vscode.window.showErrorMessage(
-      vscode.l10n.t('Fehler beim Erstellen der Datei: {0}', String(error))
+      t('Fehler beim Erstellen der Datei: {0}', String(error))
     );
   }
 }
@@ -494,7 +495,7 @@ export async function createNewFolder(targetFolderUri?: vscode.Uri): Promise<voi
     const folders = vscode.workspace.workspaceFolders;
     if (!folders || folders.length === 0) {
       vscode.window.showWarningMessage(
-        vscode.l10n.t('Bitte öffnen Sie zuerst einen Ordner, um einen Ordner zu erstellen.')
+        t('Bitte öffnen Sie zuerst einen Ordner, um einen Ordner zu erstellen.')
       );
       return;
     }
@@ -502,15 +503,15 @@ export async function createNewFolder(targetFolderUri?: vscode.Uri): Promise<voi
   }
 
   const folderName = await vscode.window.showInputBox({
-    prompt: vscode.l10n.t('Ordnernamen eingeben'),
+    prompt: t('Ordnernamen eingeben'),
     placeHolder: 'neuer-ordner',
     validateInput: (value) => {
       const trimmed = value.trim();
       if (!trimmed) {
-        return vscode.l10n.t('Der Ordnername darf nicht leer sein.');
+        return t('Der Ordnername darf nicht leer sein.');
       }
       if (/[/\\?%*:|"<>]/g.test(trimmed)) {
-        return vscode.l10n.t('Der Ordnername enthält ungültige Zeichen.');
+        return t('Der Ordnername enthält ungültige Zeichen.');
       }
       return null;
     },
@@ -528,7 +529,7 @@ export async function createNewFolder(targetFolderUri?: vscode.Uri): Promise<voi
     try {
       await vscode.workspace.fs.stat(folderUri);
       vscode.window.showErrorMessage(
-        vscode.l10n.t('Ein Ordner oder eine Datei mit diesem Namen existiert bereits.')
+        t('Ein Ordner oder eine Datei mit diesem Namen existiert bereits.')
       );
       return;
     } catch {
@@ -539,7 +540,7 @@ export async function createNewFolder(targetFolderUri?: vscode.Uri): Promise<voi
     await vscode.workspace.fs.createDirectory(folderUri);
   } catch (error) {
     vscode.window.showErrorMessage(
-      vscode.l10n.t('Fehler beim Erstellen des Ordners: {0}', String(error))
+      t('Fehler beim Erstellen des Ordners: {0}', String(error))
     );
   }
 }
@@ -601,14 +602,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Register helloWorld command with localization
   const helloWorldCmd = vscode.commands.registerCommand('agent-cowork.helloWorld', () => {
-    vscode.window.showInformationMessage(vscode.l10n.t('Hallo von Agent Cowork!'));
+    vscode.window.showInformationMessage(t('Hallo von Agent Cowork!'));
   });
 
   // Register applyTheme command with localization
   const applyThemeCmd = vscode.commands.registerCommand('agent-cowork.applyTheme', async () => {
     await enforceTheme();
     await enforceBrowserTabBar();
-    vscode.window.showInformationMessage(vscode.l10n.t('Agent Cowork Light Theme angewendet!'));
+    vscode.window.showInformationMessage(t('Agent Cowork Light Theme angewendet!'));
   });
 
   // Register simplifyLayout command with localization
@@ -616,7 +617,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await enforceSimpleLayout();
     await enforceBrowserTabBar();
     vscode.window.showInformationMessage(
-      vscode.l10n.t('Vereinfachte Ansicht aktiviert! Seitenleisten-Buttons wurden ausgeblendet.')
+      t('Vereinfachte Ansicht aktiviert! Seitenleisten-Buttons wurden ausgeblendet.')
     );
   });
 
@@ -756,6 +757,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     deleteItemCmd,
     markdownEditorDisposable,
   );
+
+  // Listen to configuration changes (e.g. language change in editor settings)
+  const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
+    if (e.affectsConfiguration('agentCowork.language')) {
+      MarkdownEditorProvider.notifyLanguageChanged();
+      if (WelcomePanel.currentPanel) {
+        WelcomePanel.currentPanel.updateLanguage();
+      }
+    }
+  });
+  context.subscriptions.push(configWatcher);
 
   // Show welcome startup page if enabled
   const showWelcomeOnStartup = config.get<boolean>('showWelcomeOnStartup', true);

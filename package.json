@@ -307,6 +307,21 @@
           "type": "boolean",
           "default": true,
           "description": "%config.autoSave%"
+        },
+        "agentCowork.language": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "en",
+            "de"
+          ],
+          "enumDescriptions": [
+            "%config.language.auto%",
+            "%config.language.en%",
+            "%config.language.de%"
+          ],
+          "default": "auto",
+          "description": "%config.language%"
         }
       }
     }

@@ -2,6 +2,8 @@
  * Table row and column insertion, deletion, content checking, and confirmation popup.
  */
 
+import { tWebview } from '../i18n';
+
 export interface DeleteConfirmOptions {
   title: string;
   description: string;
@@ -111,7 +113,7 @@ export function addTableColumn(table: HTMLTableElement, insertAtIndex?: number):
 
   const currentCols = headerTr.children.length;
   const th = doc.createElement('th');
-  th.textContent = `Spalte ${currentCols + 1}`;
+  th.textContent = tWebview('Spalte {0}', currentCols + 1);
 
   const headerCells = Array.from(headerTr.children);
   if (insertAtIndex !== undefined && insertAtIndex >= 0 && insertAtIndex < headerCells.length) {
@@ -209,12 +211,12 @@ export function showDeleteConfirmPopup(
   const cancelBtn = doc.createElement('button');
   cancelBtn.className = 'table-confirm-btn table-confirm-cancel';
   cancelBtn.type = 'button';
-  cancelBtn.textContent = 'Abbrechen';
+  cancelBtn.textContent = tWebview('Abbrechen');
 
   const deleteBtn = doc.createElement('button');
   deleteBtn.className = 'table-confirm-btn table-confirm-delete';
   deleteBtn.type = 'button';
-  deleteBtn.textContent = 'Löschen';
+  deleteBtn.textContent = tWebview('Löschen');
 
   actionsEl.appendChild(cancelBtn);
   actionsEl.appendChild(deleteBtn);

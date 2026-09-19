@@ -27,5 +27,9 @@
   "config.browserTabs": "Konfiguriert die Editor-Tabs wie in einem Webbrowser (Tabs passen sich der Fensterbreite an bevor sie horizontal scrollen, Vorschau-Modus deaktiviert).",
   "config.hideGitAndDrawers": "Blendet Git-Funktionen (wie 'Clone Repository') und zusätzliche Schubladen (Gliederung, Zeitachse) für nicht-technische Benutzer aus.",
   "config.autoSave": "Speichert geänderte Dateien automatisch (files.autoSave: afterDelay).",
+  "config.language": "Sprache für Benutzeroberfläche und Editor von Agent Cowork (automatische Auswahl basierend auf Editor-Einstellungen / VS Code-Sprache).",
+  "config.language.auto": "Automatisch (folgt der Spracheinstellung des Editors / von VS Code)",
+  "config.language.en": "Englisch (English)",
+  "config.language.de": "Deutsch",
   "customEditor.markdownEditor.displayName": "Agent Cowork Markdown-Editor"
 }

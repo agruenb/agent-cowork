@@ -10,6 +10,7 @@ import {
   getRelativeRect,
   TableWrapperElement,
 } from './tableInsertDelete';
+import { tWebview } from '../i18n';
 
 let globalIsDragging = false;
 
@@ -286,7 +287,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     colDragBtn.style.height = '18px';
     colDragBtn.style.left = `${colCenterX - 9}px`;
     colDragBtn.style.display = 'none';
-    colDragBtn.title = 'Spalte ziehen zum Verschieben';
+    colDragBtn.title = tWebview('Spalte ziehen zum Verschieben');
 
     const colGrip = doc.createElement('span');
     colGrip.className = 'table-grip col-grip';
@@ -302,7 +303,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
       colDelBtn.className = 'table-btn-del table-col-del-btn col-del';
       colDelBtn.setAttribute('data-col-idx', String(colIdx));
       colDelBtn.appendChild(createMinusIcon(doc));
-      colDelBtn.title = 'Spalte löschen';
+      colDelBtn.title = tWebview('Spalte löschen');
       colDelBtn.style.top = `${thRect.top - 46}px`;
       colDelBtn.style.left = `${colCenterX - 9}px`;
       colDelBtn.style.display = 'none';
@@ -319,8 +320,8 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
         if (needsConfirm) {
           colDelBtn?.classList.add('is-active');
           showDeleteConfirmPopup(colDelBtn!, wrapper, {
-            title: 'Spalte löschen?',
-            description: 'Inhalte in dieser Spalte gehen verloren.',
+            title: tWebview('Spalte löschen?'),
+            description: tWebview('Inhalte in dieser Spalte gehen verloren.'),
             onConfirm: () => {
               colDelBtn?.classList.remove('is-active');
               if (removeTableColumn(table, colIdx, true)) {
@@ -438,7 +439,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     insertColBtn.setAttribute('data-col-idx', String(colIdx));
     insertColBtn.appendChild(createPlusIcon(doc));
     const isLastCol = colIdx === theadThs.length - 1;
-    insertColBtn.title = isLastCol ? 'Spalte hinzufügen' : 'Spalte hier einfügen';
+    insertColBtn.title = isLastCol ? tWebview('Spalte hinzufügen') : tWebview('Spalte hier einfügen');
     insertColBtn.style.left = `${thRect.left + thRect.width - 9}px`;
     insertColBtn.style.top = `${thRect.top - 24}px`;
     insertColBtn.style.display = 'none';
@@ -472,7 +473,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     rowDragBtn.style.width = '18px';
     rowDragBtn.style.height = '18px';
     rowDragBtn.style.display = 'none';
-    rowDragBtn.title = 'Zeile ziehen zum Verschieben';
+    rowDragBtn.title = tWebview('Zeile ziehen zum Verschieben');
 
     const rowGrip = doc.createElement('span');
     rowGrip.className = 'table-grip row-grip';
@@ -486,7 +487,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     rowDelBtn.className = 'table-btn-del table-row-del-btn row-del';
     rowDelBtn.setAttribute('data-row-idx', String(rowIdx));
     rowDelBtn.appendChild(createMinusIcon(doc));
-    rowDelBtn.title = 'Zeile löschen';
+    rowDelBtn.title = tWebview('Zeile löschen');
     rowDelBtn.style.top = `${trCenterY - 9}px`;
     rowDelBtn.style.left = '-52px';
     rowDelBtn.style.display = 'none';
@@ -503,8 +504,8 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
       if (needsConfirm) {
         rowDelBtn.classList.add('is-active');
         showDeleteConfirmPopup(rowDelBtn, wrapper, {
-          title: 'Zeile löschen?',
-          description: 'Inhalte in dieser Zeile gehen verloren.',
+          title: tWebview('Zeile löschen?'),
+          description: tWebview('Inhalte in dieser Zeile gehen verloren.'),
           onConfirm: () => {
             rowDelBtn.classList.remove('is-active');
             if (removeTableRow(table, rowIdx, true)) {
@@ -624,7 +625,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     insertRowBtn.setAttribute('data-row-idx', String(rowIdx));
     insertRowBtn.appendChild(createPlusIcon(doc));
     const isLastRow = rowIdx === tbodyTrs.length - 1;
-    insertRowBtn.title = isLastRow ? 'Zeile hinzufügen' : 'Zeile hier einfügen';
+    insertRowBtn.title = isLastRow ? tWebview('Zeile hinzufügen') : tWebview('Zeile hier einfügen');
     insertRowBtn.style.left = '-28px';
     insertRowBtn.style.top = `${trRect.top + trRect.height - 9}px`;
     insertRowBtn.style.display = 'none';
@@ -652,7 +653,7 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
       const addRowBtn = doc.createElement('button');
       addRowBtn.className = 'table-insert-btn row-insert-btn';
       addRowBtn.appendChild(createPlusIcon(doc));
-      addRowBtn.title = 'Zeile hinzufügen';
+      addRowBtn.title = tWebview('Zeile hinzufügen');
       addRowBtn.style.left = '-28px';
       addRowBtn.style.top = `${theadRect.top + theadRect.height - 9}px`;
       addRowBtn.style.display = 'none';

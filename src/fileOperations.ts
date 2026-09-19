@@ -4,6 +4,7 @@ import * as path from 'path';
 import { FolderItem } from './folderTreeProvider';
 import { getDuplicateName, getRenameSelectionRange } from './utils/fileOperations';
 import { isSameOrDescendant } from './utils/dragAndDrop';
+import { t } from './i18n';
 
 interface ClipboardState {
   uri: vscode.Uri;
@@ -50,7 +51,7 @@ export async function renameItem(
   const uri = resolveItemUri(target);
   if (!uri) {
     vscode.window.showWarningMessage(
-      vscode.l10n.t('Keine Datei oder Ordner zum Umbenennen ausgewählt.')
+      t('Keine Datei oder Ordner zum Umbenennen ausgewählt.')
     );
     return;
   }
@@ -59,19 +60,19 @@ export async function renameItem(
   const selection = getRenameSelectionRange(currentName);
 
   const newName = await vscode.window.showInputBox({
-    prompt: vscode.l10n.t('Neuen Namen eingeben'),
+    prompt: t('Neuen Namen eingeben'),
     value: currentName,
     valueSelection: selection,
     validateInput: (value) => {
       const trimmed = value.trim();
       if (!trimmed) {
-        return vscode.l10n.t('Der Name darf nicht leer sein.');
+        return t('Der Name darf nicht leer sein.');
       }
       if (trimmed === currentName) {
         return null;
       }
       if (/[/\\?%*:|"<>]/g.test(trimmed)) {
-        return vscode.l10n.t('Der Name enthält ungültige Zeichen.');
+        return t('Der Name enthält ungültige Zeichen.');
       }
       return null;
     },
@@ -88,12 +89,12 @@ export async function renameItem(
     try {
       await vscode.workspace.fs.stat(newUri);
       const choice = await vscode.window.showWarningMessage(
-        vscode.l10n.t('"{0}" existiert bereits. Möchten Sie es ersetzen?', newName.trim()),
+        t('"{0}" existiert bereits. Möchten Sie es ersetzen?', newName.trim()),
         { modal: true },
-        vscode.l10n.t('Ersetzen'),
-        vscode.l10n.t('Abbrechen')
+        t('Ersetzen'),
+        t('Abbrechen')
       );
-      if (choice !== vscode.l10n.t('Ersetzen')) {
+      if (choice !== t('Ersetzen')) {
         return;
       }
     } catch {
@@ -104,7 +105,7 @@ export async function renameItem(
     onRefresh?.();
   } catch (error) {
     vscode.window.showErrorMessage(
-      vscode.l10n.t('Fehler beim Umbenennen: {0}', String(error))
+      t('Fehler beim Umbenennen: {0}', String(error))
     );
   }
 }
@@ -119,7 +120,7 @@ export async function duplicateItem(
   const uri = resolveItemUri(target);
   if (!uri) {
     vscode.window.showWarningMessage(
-      vscode.l10n.t('Keine Datei oder Ordner zum Duplizieren ausgewählt.')
+      t('Keine Datei oder Ordner zum Duplizieren ausgewählt.')
     );
     return;
   }
@@ -154,7 +155,7 @@ export async function duplicateItem(
     }
   } catch (error) {
     vscode.window.showErrorMessage(
-      vscode.l10n.t('Fehler beim Duplizieren: {0}', String(error))
+      t('Fehler beim Duplizieren: {0}', String(error))
     );
   }
 }
@@ -170,7 +171,7 @@ export async function copyItem(target?: vscode.Uri | FolderItem): Promise<void> 
   setFileClipboard({ uri, isCut: false });
   await vscode.env.clipboard.writeText(uri.fsPath);
   vscode.window.setStatusBarMessage(
-    vscode.l10n.t('"{0}" kopiert', path.basename(uri.fsPath)),
+    t('"{0}" kopiert', path.basename(uri.fsPath)),
     3000
   );
 }
@@ -186,7 +187,7 @@ export async function cutItem(target?: vscode.Uri | FolderItem): Promise<void> {
   setFileClipboard({ uri, isCut: true });
   await vscode.env.clipboard.writeText(uri.fsPath);
   vscode.window.setStatusBarMessage(
-    vscode.l10n.t('"{0}" ausgeschnitten', path.basename(uri.fsPath)),
+    t('"{0}" ausgeschnitten', path.basename(uri.fsPath)),
     3000
   );
 }
@@ -200,7 +201,7 @@ export async function pasteItem(
 ): Promise<void> {
   if (!clipboardState) {
     vscode.window.showInformationMessage(
-      vscode.l10n.t('Die Zwischenablage enthält keine Datei oder Ordner.')
+      t('Die Zwischenablage enthält keine Datei oder Ordner.')
     );
     return;
   }
@@ -232,7 +233,7 @@ export async function pasteItem(
 
   if (!targetDirUri) {
     vscode.window.showWarningMessage(
-      vscode.l10n.t('Kein Zielordner zum Einfügen gefunden.')
+      t('Kein Zielordner zum Einfügen gefunden.')
     );
     return;
   }
@@ -243,7 +244,7 @@ export async function pasteItem(
 
   if (isSameOrDescendant(sourcePath, targetDirPath)) {
     vscode.window.showWarningMessage(
-      vscode.l10n.t('Der Ordner kann nicht in sich selbst oder einen Unterordner eingefügt werden.')
+      t('Der Ordner kann nicht in sich selbst oder einen Unterordner eingefügt werden.')
     );
     return;
   }
@@ -268,12 +269,12 @@ export async function pasteItem(
       try {
         await vscode.workspace.fs.stat(destUri);
         const choice = await vscode.window.showWarningMessage(
-          vscode.l10n.t('"{0}" existiert am Zielort bereits. Möchten Sie es ersetzen?', destName),
+          t('"{0}" existiert am Zielort bereits. Möchten Sie es ersetzen?', destName),
           { modal: true },
-          vscode.l10n.t('Ersetzen'),
-          vscode.l10n.t('Abbrechen')
+          t('Ersetzen'),
+          t('Abbrechen')
         );
-        if (choice !== vscode.l10n.t('Ersetzen')) {
+        if (choice !== t('Ersetzen')) {
           return;
         }
       } catch {
@@ -291,7 +292,7 @@ export async function pasteItem(
     onRefresh?.();
   } catch (error) {
     vscode.window.showErrorMessage(
-      vscode.l10n.t('Fehler beim Einfügen: {0}', String(error))
+      t('Fehler beim Einfügen: {0}', String(error))
     );
   }
 }
@@ -310,13 +311,13 @@ export async function deleteItem(
 
   const itemName = path.basename(uri.fsPath);
   const choice = await vscode.window.showWarningMessage(
-    vscode.l10n.t('Möchten Sie "{0}" wirklich löschen?', itemName),
+    t('Möchten Sie "{0}" wirklich löschen?', itemName),
     { modal: true },
-    vscode.l10n.t('Löschen'),
-    vscode.l10n.t('Abbrechen')
+    t('Löschen'),
+    t('Abbrechen')
   );
 
-  if (choice !== vscode.l10n.t('Löschen')) {
+  if (choice !== t('Löschen')) {
     return;
   }
 
@@ -325,7 +326,7 @@ export async function deleteItem(
     onRefresh?.();
   } catch (error) {
     vscode.window.showErrorMessage(
-      vscode.l10n.t('Fehler beim Löschen: {0}', String(error))
+      t('Fehler beim Löschen: {0}', String(error))
     );
   }
 }

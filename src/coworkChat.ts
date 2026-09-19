@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { formatFileReference } from './utils/fileReference';
+import { t } from './i18n';
 
 export { formatFileReference };
 
@@ -145,11 +146,11 @@ export async function openCoworkChatWithFile(
   const itemName = path.basename(uri.fsPath);
   vscode.window.showInformationMessage(
     isDirectory
-      ? vscode.l10n.t(
+      ? t(
           'Ordner "{0}" ist bereit für Cowork. Bitte öffnen Sie das KI-Chatfenster (z. B. GitHub Copilot oder Gemini).',
           itemName
         )
-      : vscode.l10n.t(
+      : t(
           'Datei "{0}" ist bereit für Cowork. Bitte öffnen Sie das KI-Chatfenster (z. B. GitHub Copilot oder Gemini).',
           itemName
         )
@@ -188,7 +189,7 @@ export async function coworkWithFile(
 
   if (!uri) {
     vscode.window.showWarningMessage(
-      vscode.l10n.t('Keine Datei und kein Ordner gefunden, um mit dem KI-Agenten zusammenzuarbeiten.')
+      t('Keine Datei und kein Ordner gefunden, um mit dem KI-Agenten zusammenzuarbeiten.')
     );
     return;
   }
