@@ -35,18 +35,11 @@ describe('User Interactions - Toolbar Button Wiring', () => {
       <button id="btn-task" class="tb-btn">Task</button>
       <button id="btn-bullet" class="tb-btn">Bullet</button>
       <button id="btn-ordered" class="tb-btn">Ordered</button>
-      <button id="btn-outdent" class="tb-btn">Outdent</button>
-      <button id="btn-indent" class="tb-btn">Indent</button>
     </div>
     <div class="toolbar-group">
       <button id="btn-quote" class="tb-btn">Quote</button>
       <button id="btn-table" class="tb-btn">Table</button>
       <button id="btn-code" class="tb-btn">Code</button>
-      <button id="btn-hr" class="tb-btn">HR</button>
-    </div>
-    <div class="toolbar-group">
-      <button id="btn-undo" class="tb-btn">Undo</button>
-      <button id="btn-redo" class="tb-btn">Redo</button>
     </div>
     <span id="word-count" class="word-count"></span>
     <button id="btn-toggle-raw" class="raw-toggle-btn">&lt;/&gt; Raw</button>
@@ -222,20 +215,6 @@ describe('User Interactions - Toolbar Button Wiring', () => {
     const bq = editor.querySelector('blockquote.editor-block');
     assert.ok(bq, 'Should insert blockquote');
     assert.ok(domToMarkdown(editor).includes('> Zitat...'));
-  });
-
-  it('clicking #btn-hr inserts a horizontal rule widget', () => {
-    setContentFormatted('Section 1');
-    const p = editor.querySelector('p')!;
-    selectElement(p.firstChild || p, 0);
-
-    const btn = document.getElementById('btn-hr') as HTMLButtonElement;
-    assert.ok(btn);
-    btn.click();
-
-    const hr = editor.querySelector('hr');
-    assert.ok(hr, 'Should insert hr element');
-    assert.ok(domToMarkdown(editor).includes('---'));
   });
 
   it('changing #select-heading dropdown updates block to heading and back to paragraph', () => {

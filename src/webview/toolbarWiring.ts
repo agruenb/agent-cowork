@@ -231,8 +231,6 @@ export function wireToolbar(hooks: ToolbarHooks): void {
   document.getElementById('btn-bullet')?.addEventListener('click', () => handleListToggle('bullet', hooks.wireTaskCheckboxes));
   document.getElementById('btn-ordered')?.addEventListener('click', () => handleListToggle('ordered', hooks.wireTaskCheckboxes));
   document.getElementById('btn-task')?.addEventListener('click', () => handleListToggle('task', hooks.wireTaskCheckboxes));
-  document.getElementById('btn-outdent')?.addEventListener('click', () => handleOutdent(hooks.wireTaskCheckboxes));
-  document.getElementById('btn-indent')?.addEventListener('click', () => handleIndent(hooks.wireTaskCheckboxes));
   document.getElementById('btn-quote')?.addEventListener('click', () => executeCommand('quote'));
   document.getElementById('btn-table')?.addEventListener('click', () => insertTable());
   document.getElementById('btn-code')?.addEventListener('click', () => {
@@ -242,27 +240,6 @@ export function wireToolbar(hooks: ToolbarHooks): void {
       applyRawFormatting(textarea, 'code');
     } else {
       handleCodeButtonClick(canvas, () => insertCodeBlock(), () => emitCanvasEdit());
-    }
-  });
-  document.getElementById('btn-hr')?.addEventListener('click', () => executeCommand('hr'));
-
-  document.getElementById('btn-undo')?.addEventListener('click', () => {
-    const textarea = getRawTextarea();
-    if (state.isRawMode) {
-      textarea?.focus();
-      document.execCommand('undo');
-    } else {
-      executeCommand('undo');
-    }
-  });
-
-  document.getElementById('btn-redo')?.addEventListener('click', () => {
-    const textarea = getRawTextarea();
-    if (state.isRawMode) {
-      textarea?.focus();
-      document.execCommand('redo');
-    } else {
-      executeCommand('redo');
     }
   });
 

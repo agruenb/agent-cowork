@@ -231,8 +231,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         <button id="btn-task" class="tb-btn" tabindex="-1" title="Aufgabenliste (Checkliste)">☑ Aufgabe</button>
         <button id="btn-bullet" class="tb-btn" tabindex="-1" title="Aufzählungsliste">• Liste</button>
         <button id="btn-ordered" class="tb-btn" tabindex="-1" title="Nummerierte Liste">1. Liste</button>
-        <button id="btn-outdent" class="tb-btn" tabindex="-1" title="Einzug verringern (Shift+Tab)">⇤</button>
-        <button id="btn-indent" class="tb-btn" tabindex="-1" title="Einzug vergrößern (Tab)">⇥</button>
       </div>
 
       <div class="toolbar-separator"></div>
@@ -242,15 +240,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         <button id="btn-quote" class="tb-btn" tabindex="-1" title="Zitat / Info-Kasten">❝ Zitat</button>
         <button id="btn-table" class="tb-btn" tabindex="-1" title="Tabelle einfügen">田 Tabelle</button>
         <button id="btn-code" class="tb-btn" tabindex="-1" title="Code-Block">&lt;&gt; Code</button>
-        <button id="btn-hr" class="tb-btn" tabindex="-1" title="Trennlinie">—</button>
-      </div>
-
-      <div class="toolbar-separator"></div>
-
-      <!-- Undo / Redo -->
-      <div class="toolbar-group">
-        <button id="btn-undo" class="tb-btn" tabindex="-1" title="Rückgängig (Cmd+Z)">↺</button>
-        <button id="btn-redo" class="tb-btn" tabindex="-1" title="Wiederholen (Cmd+Shift+Z)">↻</button>
       </div>
 
       <div class="toolbar-spacer"></div>
