@@ -64,5 +64,13 @@
   "Agent Cowork: Formatierungsfehler im Markdown-Dokument ({0}). Es wurde in den Raw-Modus gewechselt, um Datenverlust zu verhindern.": "Agent Cowork: Formatierungsfehler im Markdown-Dokument ({0}). Es wurde in den Raw-Modus gewechselt, um Datenverlust zu verhindern.",
   "Agent Cowork: Fehler beim Konvertieren der Formatierung ({0}). Die Änderung wurde nicht gespeichert, um Datenverlust zu verhindern.": "Agent Cowork: Fehler beim Konvertieren der Formatierung ({0}). Die Änderung wurde nicht gespeichert, um Datenverlust zu verhindern.",
   "Zeilen": "Zeilen",
-  "Zeile": "Zeile"
+  "Zeile": "Zeile",
+  "Cowork: An": "Cowork: An",
+  "Cowork: Aus": "Cowork: Aus",
+  "Agent Cowork Ansicht": "Agent Cowork Ansicht",
+  "Cowork-Ansicht umschalten": "Cowork-Ansicht umschalten",
+  "Cowork-Ansicht umschalten (Derzeit: Aktiviert - Klicken zum Deaktivieren)": "Cowork-Ansicht umschalten (Derzeit: Aktiviert - Klicken zum Deaktivieren)",
+  "Cowork-Ansicht umschalten (Derzeit: Deaktiviert - Klicken zum Aktivieren)": "Cowork-Ansicht umschalten (Derzeit: Deaktiviert - Klicken zum Aktivieren)",
+  "Cowork-Ansicht aktiviert! Individuelle Ordner- und Dokumentenansicht aktiv.": "Cowork-Ansicht aktiviert! Individuelle Ordner- und Dokumentenansicht aktiv.",
+  "Cowork-Ansicht deaktiviert. Standard-Ansicht wiederhergestellt.": "Cowork-Ansicht deaktiviert. Standard-Ansicht wiederhergestellt."
 }

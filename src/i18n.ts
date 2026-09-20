@@ -149,6 +149,18 @@ const enTranslations: Record<string, string> = {
   'Symbolleiste ausklappen': 'Expand toolbar',
   'Schließen': 'Close',
   'Markdown eingeben...': 'Enter Markdown...',
+  'Cowork: An': 'Cowork: On',
+  'Cowork: Aus': 'Cowork: Off',
+  'Agent Cowork Ansicht': 'Agent Cowork View',
+  'Cowork-Ansicht umschalten': 'Toggle Cowork View',
+  'Cowork-Ansicht umschalten (Derzeit: Aktiviert - Klicken zum Deaktivieren)':
+    'Toggle Cowork View (Currently: Enabled - Click to disable)',
+  'Cowork-Ansicht umschalten (Derzeit: Deaktiviert - Klicken zum Aktivieren)':
+    'Toggle Cowork View (Currently: Disabled - Click to enable)',
+  'Cowork-Ansicht aktiviert! Individuelle Ordner- und Dokumentenansicht aktiv.':
+    'Cowork view activated! Custom folder and document views active.',
+  'Cowork-Ansicht deaktiviert. Standard-Ansicht wiederhergestellt.':
+    'Cowork view deactivated. Standard view restored.',
 };
 
 const deTranslations: Record<string, string> = {

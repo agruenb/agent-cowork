@@ -14,29 +14,22 @@ import {
 } from './fileOperations';
 import { ensureDefaultExtension, getDefaultDatePrefix } from './utils/fileOperations';
 import { t } from './i18n';
-
-const THEME_NAME = 'Agent Cowork Light';
-const ICON_THEME_NAME = 'agent-cowork-icons';
+import {
+  createCoworkStatusBarItem,
+  updateCoworkStatusBarItem,
+  isCoworkViewEnabled,
+  toggleCoworkView,
+  applyCoworkView,
+  applyCoworkTheme,
+  setCoworkManagerContext,
+  THEME_NAME,
+} from './coworkViewManager';
 
 /**
  * Enforces the light theme with green accents and custom file icon theme.
  */
 async function enforceTheme(): Promise<void> {
-  const workbenchConfig = vscode.workspace.getConfiguration('workbench');
-  const currentTheme = workbenchConfig.get<string>('colorTheme');
-
-  if (currentTheme !== THEME_NAME) {
-    await workbenchConfig.update('colorTheme', THEME_NAME, vscode.ConfigurationTarget.Global);
-  }
-
-  const currentIconTheme = workbenchConfig.get<string>('iconTheme');
-  if (currentIconTheme !== ICON_THEME_NAME) {
-    try {
-      await workbenchConfig.update('iconTheme', ICON_THEME_NAME, vscode.ConfigurationTarget.Global);
-    } catch (err) {
-      console.warn('Unable to update workbench.iconTheme:', err);
-    }
-  }
+  await applyCoworkTheme(true);
 }
 
 /**
@@ -552,18 +545,35 @@ export async function createNewFolder(targetFolderUri?: vscode.Uri): Promise<voi
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   console.log('Congratulations, your extension "agent-cowork" is now active!');
 
-  const config = vscode.workspace.getConfiguration('agentCowork');
+  setCoworkManagerContext(context);
 
-  // Force the light green theme
-  await enforceTheme();
+  const config = vscode.workspace.getConfiguration('agentCowork');
 
   // Suppress VS Code's default welcome page and tabs
   await suppressDefaultWelcome(context);
 
-  // Simplify layout (hide activity bar buttons, open our custom view) if enabled
-  const simplifyLayout = config.get<boolean>('simplifyLayout', true);
-  if (simplifyLayout) {
-    await enforceSimpleLayout();
+  const isCoworkActive = isCoworkViewEnabled();
+  try {
+    await vscode.commands.executeCommand('setContext', 'agentCowork.coworkView', isCoworkActive);
+  } catch (err) {
+    console.warn('Unable to set context agentCowork.coworkView on startup:', err);
+  }
+
+  // Initialize status bar toggle button in the bottom bar
+  const coworkStatusBarItem = createCoworkStatusBarItem();
+  updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkActive);
+  coworkStatusBarItem.show();
+  context.subscriptions.push(coworkStatusBarItem);
+
+  // Apply Cowork view layout or standard layout
+  if (isCoworkActive) {
+    await enforceTheme();
+    const simplifyLayout = config.get<boolean>('simplifyLayout', true);
+    if (simplifyLayout) {
+      await enforceSimpleLayout();
+    }
+  } else {
+    await applyCoworkView(false);
   }
 
   // Enforce browser-like tab bar if enabled
@@ -736,11 +746,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Register custom formatted Markdown Editor
   const markdownEditorDisposable = MarkdownEditorProvider.register(context);
 
+  // Register toggleCoworkView command
+  const toggleCoworkViewCmd = vscode.commands.registerCommand(
+    'agent-cowork.toggleCoworkView',
+    async () => {
+      await toggleCoworkView(coworkStatusBarItem);
+    }
+  );
+
   context.subscriptions.push(
     openWelcomeCmd,
     helloWorldCmd,
     applyThemeCmd,
     simplifyLayoutCmd,
+    toggleCoworkViewCmd,
     openWorkspaceFolderCmd,
     refreshFolderViewCmd,
     newFileCmd,
@@ -760,11 +779,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Listen to configuration changes (e.g. language change in editor settings)
   const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
+    if (e.affectsConfiguration('agentCowork.coworkView')) {
+      const active = isCoworkViewEnabled();
+      updateCoworkStatusBarItem(coworkStatusBarItem, active);
+    }
     if (e.affectsConfiguration('agentCowork.language')) {
       MarkdownEditorProvider.notifyLanguageChanged();
       if (WelcomePanel.currentPanel) {
         WelcomePanel.currentPanel.updateLanguage();
       }
+      updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled());
     }
   });
   context.subscriptions.push(configWatcher);
