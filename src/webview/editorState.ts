@@ -155,6 +155,7 @@ export interface EditorState {
   debounceTimer: ReturnType<typeof setTimeout> | null;
   isInternalChange: boolean;
   hasParseError: boolean;
+  isCanvasDirty: boolean;
 }
 
 export const state: EditorState = {
@@ -163,6 +164,7 @@ export const state: EditorState = {
   debounceTimer: null,
   isInternalChange: false,
   hasParseError: false,
+  isCanvasDirty: false,
 };
 
 /**
@@ -290,6 +292,7 @@ export function emitEdit(markdown: string): void {
   }
 
   state.debounceTimer = setTimeout(() => {
+    state.debounceTimer = null;
     state.isInternalChange = true;
     vscode.postMessage({
       type: 'edit',
@@ -303,9 +306,28 @@ export function emitEdit(markdown: string): void {
 }
 
 /**
+ * Flushes any pending debounced edit immediately and clears the timer.
+ */
+export function flushPendingEdit(): void {
+  if (state.debounceTimer) {
+    clearTimeout(state.debounceTimer);
+    state.debounceTimer = null;
+    state.isInternalChange = true;
+    vscode.postMessage({
+      type: 'edit',
+      text: state.currentMarkdown,
+    });
+    setTimeout(() => {
+      state.isInternalChange = false;
+    }, 150);
+  }
+}
+
+/**
  * Serializes the canvas and emits an edit if serialization succeeded.
  */
 export function emitCanvasEdit(): void {
+  state.isCanvasDirty = true;
   const md = getMarkdownFromCanvas();
   if (md !== null) {
     emitEdit(md);

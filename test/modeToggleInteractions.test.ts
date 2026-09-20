@@ -71,11 +71,43 @@ describe('User Interactions - Mode Toggle (Raw ↔ Formatted)', () => {
     state.isRawMode = false;
     state.currentMarkdown = '';
     state.hasParseError = false;
+    state.isCanvasDirty = false;
+    state.debounceTimer = null;
 
     lastPostedMessage = null;
     (vscode as any).postMessage = (msg: any) => {
       lastPostedMessage = msg;
     };
+  });
+
+  it('toggling between formatted and raw mode without edits emits NO edit messages to VS Code', () => {
+    const input = '# Pristine Document\n\n* List item 1\n* List item 2';
+    setContentFormatted(input);
+    lastPostedMessage = null;
+
+    // Toggle to raw mode
+    toggleRawMode();
+    assert.strictEqual(state.isRawMode, true);
+    assert.strictEqual(lastPostedMessage, null, 'Switching to raw mode should NOT emit an edit message');
+
+    // Toggle back to formatted mode without editing
+    toggleRawMode();
+    assert.strictEqual(state.isRawMode, false);
+    assert.strictEqual(lastPostedMessage, null, 'Switching back to formatted mode should NOT emit an edit message');
+  });
+
+  it('switching to raw mode preserves original document markdown byte-for-byte when canvas was not edited', () => {
+    // Asterisk bullets and specific spacing that domToMarkdown would reformat to '- '
+    const input = '# Custom Formatting\n\n* bullet A\n* bullet B\n';
+    setContentFormatted(input);
+
+    toggleRawMode();
+    assert.strictEqual(state.isRawMode, true);
+    assert.strictEqual(textarea.value, input, 'Textarea value should preserve original asterisks and spacing');
+
+    toggleRawMode();
+    assert.strictEqual(state.isRawMode, false);
+    assert.strictEqual(state.currentMarkdown, input, 'currentMarkdown should remain byte-for-byte identical');
   });
 
   it('switches from formatted mode to raw mode syncing content and UI state', () => {
@@ -125,6 +157,31 @@ describe('User Interactions - Mode Toggle (Raw ↔ Formatted)', () => {
 
     const serialized = domToMarkdown(editor).trim();
     assert.strictEqual(serialized, '# Updated Title\n\n- [ ] Task 1\n- [x] Task 2');
+    assert.ok(lastPostedMessage, 'Should post edit message when switching back with changes');
+    assert.strictEqual(lastPostedMessage.type, 'edit');
+    assert.strictEqual(lastPostedMessage.text, '# Updated Title\n\n- [ ] Task 1\n- [x] Task 2');
+  });
+
+  it('editing canvas in formatted mode serializes into raw mode when toggled and flushes pending edit', () => {
+    setContentFormatted('# Original');
+    lastPostedMessage = null;
+
+    // Simulate canvas edit
+    const h1 = editor.querySelector('h1')!;
+    h1.textContent = 'Modified in Canvas';
+    const { emitCanvasEdit } = require('../src/webview/editorState');
+    emitCanvasEdit();
+
+    assert.strictEqual(state.isCanvasDirty, true);
+
+    // Toggle to raw mode
+    toggleRawMode();
+    assert.strictEqual(state.isRawMode, true);
+    assert.strictEqual(textarea.value.trim(), '# Modified in Canvas');
+    assert.strictEqual(state.isCanvasDirty, false);
+    assert.ok(lastPostedMessage, 'Pending canvas edit should be flushed when entering raw mode');
+    assert.strictEqual(lastPostedMessage.type, 'edit');
+    assert.strictEqual(lastPostedMessage.text.trim(), '# Modified in Canvas');
   });
 
   it('multi-cycle toggle between raw and formatted preserves document integrity', () => {

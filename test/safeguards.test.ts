@@ -193,6 +193,31 @@ describe('Data Loss Safeguards & Anomaly Detection', () => {
     });
   });
 
+  describe('Provider-level Identical Content Optimization', () => {
+    // Simulates the identical content check in markdownEditorProvider.ts onDidReceiveMessage('edit')
+    function shouldApplyEdit(currentDocText: string, incomingText: string, eol: number = 1): boolean {
+      const normalizedIncoming = eol === 2
+        ? incomingText.replace(/\r?\n/g, '\r\n')
+        : incomingText.replace(/\r\n/g, '\n');
+      if (currentDocText === normalizedIncoming) {
+        return false;
+      }
+      return true;
+    }
+
+    it('skips applying edit when incoming text is identical to current document', () => {
+      assert.strictEqual(shouldApplyEdit('# Same Text\nLine 2', '# Same Text\nLine 2'), false);
+    });
+
+    it('skips applying edit when incoming text is identical after CRLF normalization', () => {
+      assert.strictEqual(shouldApplyEdit('# Same Text\r\nLine 2', '# Same Text\nLine 2', 2), false);
+    });
+
+    it('applies edit when incoming text has actual modifications', () => {
+      assert.strictEqual(shouldApplyEdit('# Old Text', '# New Text'), true);
+    });
+  });
+
   describe('hasVisibleContent utility', () => {
     const { hasVisibleContent } = require('../src/utils/markdownContent');
 

@@ -34,6 +34,7 @@ import {
   autoResizeRawTextarea,
   getRawWrapper,
   getRawGutter,
+  flushPendingEdit,
 } from './editorState';
 import { updateRawLineNumbers } from './rawLineNumbers';
 
@@ -120,6 +121,7 @@ export function setContentFormatted(markdown: string): boolean {
   updateWordCount(markdown);
   wireTaskCheckboxes();
   if (canvas) wireTableInteractions(canvas, () => emitCanvasEdit());
+  state.isCanvasDirty = false;
   return true;
 }
 
@@ -135,10 +137,18 @@ export function toggleRawMode(): void {
 
   if (state.isRawMode) {
     // Switch to Raw Mode
-    const md = getMarkdownFromCanvas();
-    if (md !== null) {
-      if (textarea) textarea.value = md;
-      state.currentMarkdown = md;
+    flushPendingEdit();
+    if (state.isCanvasDirty) {
+      const md = getMarkdownFromCanvas();
+      if (md !== null) {
+        if (textarea) textarea.value = md;
+        state.currentMarkdown = md;
+      }
+      state.isCanvasDirty = false;
+    } else {
+      if (textarea && textarea.value !== state.currentMarkdown) {
+        textarea.value = state.currentMarkdown;
+      }
     }
     if (canvas) canvas.style.display = 'none';
     const wrapper = getRawWrapper();
@@ -158,6 +168,7 @@ export function toggleRawMode(): void {
   } else {
     // Switch to Formatted Mode
     const md = textarea ? textarea.value : '';
+    const isModifiedInRaw = md !== state.currentMarkdown;
     const success = setContentFormatted(md);
     if (!success) {
       // Keep in raw mode if parsing failed
@@ -191,7 +202,10 @@ export function toggleRawMode(): void {
       toggleBtn.classList.remove('is-active');
       toggleBtn.textContent = '</> Raw';
     }
-    emitEdit(md);
+    if (isModifiedInRaw) {
+      emitEdit(md);
+    }
+    flushPendingEdit();
   }
 }
 

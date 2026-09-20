@@ -115,6 +115,14 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             hasParseError = false;
           }
 
+          // Check if document content is already identical
+          const normalizedIncoming = document.eol === vscode.EndOfLine.CRLF
+            ? message.text.replace(/\r?\n/g, '\r\n')
+            : message.text.replace(/\r\n/g, '\n');
+          if (currentText === normalizedIncoming) {
+            return;
+          }
+
           isInternalEdit = true;
           try {
             const edit = new vscode.WorkspaceEdit();
@@ -124,7 +132,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
               document.lineCount,
               document.lineCount > 0 ? document.lineAt(document.lineCount - 1).range.end.character : 0
             );
-            edit.replace(document.uri, fullRange, message.text);
+            edit.replace(document.uri, fullRange, normalizedIncoming);
             await vscode.workspace.applyEdit(edit);
 
             // If autoSave is enabled in configuration, automatically save after edit.
