@@ -46,4 +46,35 @@ describe('Cowork Chat - File Reference Formatting', () => {
     const ref = formatFileReference('/some/path/to/my folder', '', true);
     assert.strictEqual(ref, '#folder:"my folder"');
   });
+
+  it('formats file reference with a single line number', () => {
+    const ref = formatFileReference('/workspace/project/README.md', 'README.md', false, 15);
+    assert.strictEqual(ref, '#file:README.md:15');
+  });
+
+  it('formats file reference with a line range', () => {
+    const ref = formatFileReference('/workspace/project/README.md', 'README.md', false, 10, 25);
+    assert.strictEqual(ref, '#file:README.md:10-25');
+  });
+
+  it('formats single line when startLine equals endLine', () => {
+    const ref = formatFileReference('/workspace/project/README.md', 'README.md', false, 12, 12);
+    assert.strictEqual(ref, '#file:README.md:12');
+  });
+
+  it('formats quoted file reference with a line range', () => {
+    const ref = formatFileReference(
+      '/workspace/project/Mein Dokument.md',
+      'Mein Dokument.md',
+      false,
+      5,
+      18
+    );
+    assert.strictEqual(ref, '#file:"Mein Dokument.md":5-18');
+  });
+
+  it('ignores line numbers when reference is a folder', () => {
+    const ref = formatFileReference('/workspace/project/docs', 'docs', true, 5, 18);
+    assert.strictEqual(ref, '#folder:docs');
+  });
 });

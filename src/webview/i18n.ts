@@ -59,6 +59,7 @@ const enWebviewTranslations: Record<string, string> = {
   '0 Wörter': '0 words',
   'Markdown-Quelltext anzeigen oder bearbeiten': 'View or edit Markdown source',
   'Mit KI-Agent an diesem Dokument zusammenarbeiten': 'Cowork with AI Agent on this document',
+  'Mit KI-Agent an den ausgewählten Zeilen zusammenarbeiten': 'Cowork with AI Agent on selected lines',
   'Symbolleiste einklappen': 'Collapse toolbar',
   'Symbolleiste ausklappen': 'Expand toolbar',
   'Schließen': 'Close',

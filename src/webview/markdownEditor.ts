@@ -12,6 +12,11 @@ import { wireBlockDelete } from './blockDelete';
 import { handleBlockKeyboardGuards, handleTaskCheckboxBackspace } from './keyboardGuards';
 import { getWebviewLanguage, setWebviewLanguage, tWebview, WebviewLanguage } from './i18n';
 import {
+  wireSelectionCowork,
+  hideSelectionCoworkButton,
+  updateSelectionCoworkButtonLanguage,
+} from './selectionCowork';
+import {
   state,
   showErrorBanner,
   hideErrorBanner,
@@ -110,6 +115,7 @@ export function setContentFormatted(markdown: string): boolean {
  * Toggles between Formatted View (default) and Raw Markdown source mode.
  */
 export function toggleRawMode(): void {
+  hideSelectionCoworkButton();
   const canvas = getEditorCanvas();
   const textarea = getRawTextarea();
   const toggleBtn = getRawToggleBtn();
@@ -534,6 +540,7 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
     if (btnCowork) {
       btnCowork.title = tWebview('Mit KI-Agent an diesem Dokument zusammenarbeiten');
     }
+    updateSelectionCoworkButtonLanguage();
 
     // Collapse toolbar button
     const collapseBtn = document.getElementById('btn-toggle-toolbar');
@@ -710,6 +717,9 @@ export function initMarkdownEditor(): void {
   // Initialize block focus and delete button handlers
   wireBlockFocus(canvas);
   wireBlockDelete(canvas, () => emitCanvasEdit());
+
+  // Initialize selection Cowork floating button
+  wireSelectionCowork();
 
   window.addEventListener('message', handleWindowMessage);
 }

@@ -188,8 +188,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           if (document.isDirty) {
             await document.save();
           }
+          const hasLines = typeof message.startLine === 'number' && message.startLine > 0;
           await vscode.commands.executeCommand('agent-cowork.coworkWithFile', document.uri, {
-            newConversation: true,
+            newConversation: hasLines ? false : true,
+            startLine: hasLines ? message.startLine : undefined,
+            endLine: hasLines ? message.endLine : undefined,
           });
           break;
         }
@@ -325,6 +328,14 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         <textarea id="raw-textarea" class="raw-textarea" spellcheck="false" placeholder="${t('Markdown eingeben...')}"></textarea>
       </div>
     </div>
+
+    <!-- Floating Cowork button on text selection -->
+    <button id="btn-selection-cowork" class="selection-cowork-btn" tabindex="-1" title="${t('Mit KI-Agent an den ausgewählten Zeilen zusammenarbeiten')}" aria-label="Cowork">
+      <span>Cowork</span>
+      <svg class="cowork-arrow-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+        <path fill-rule="evenodd" d="M1 8a.75.75 0 0 1 .75-.75h10.19L8.22 3.53a.75.75 0 0 1 1.06-1.06l5 5a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 0 1-1.06-1.06l3.72-3.72H1.75A.75.75 0 0 1 1 8z"/>
+      </svg>
+    </button>
   </div>
 
   <script nonce="${nonce}" src="${scriptUri}"></script>

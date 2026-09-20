@@ -8,9 +8,14 @@ export { formatFileReference };
 /**
  * Formats a file or folder reference for VS Code Chat prompt input from a vscode.Uri.
  */
-export function formatChatFileReference(uri: vscode.Uri, isDirectory: boolean = false): string {
+export function formatChatFileReference(
+  uri: vscode.Uri,
+  isDirectory: boolean = false,
+  startLine?: number,
+  endLine?: number
+): string {
   const relativePath = vscode.workspace.asRelativePath(uri, false);
-  return formatFileReference(uri.fsPath, relativePath, isDirectory);
+  return formatFileReference(uri.fsPath, relativePath, isDirectory, startLine, endLine);
 }
 
 export interface CoworkChatOptions {
@@ -19,6 +24,14 @@ export interface CoworkChatOptions {
    * Defaults to false (only adds the file to explicit context in the active AI chat).
    */
   newConversation?: boolean;
+  /**
+   * Optional 1-based start line of selection.
+   */
+  startLine?: number;
+  /**
+   * Optional 1-based end line of selection.
+   */
+  endLine?: number;
 }
 
 /**
@@ -37,7 +50,12 @@ export async function openCoworkChatWithFile(
     // ignore
   }
 
-  const fileReference = formatChatFileReference(uri, isDirectory);
+  const fileReference = formatChatFileReference(
+    uri,
+    isDirectory,
+    options?.startLine,
+    options?.endLine
+  );
   const availableCommands = new Set(await vscode.commands.getCommands(true));
 
   // 1. Only start a fresh new chat session if explicitly requested (e.g. from Markdown Editor)
@@ -94,9 +112,11 @@ export async function openCoworkChatWithFile(
     try {
       const openOptions: Record<string, unknown> = {
         attachFiles: [uri],
+        attachFileUris: [uri],
       };
-      if (!itemAttached) {
-        openOptions.query = `${fileReference} `;
+      const queryText = `${fileReference}\n`;
+      if (options?.startLine !== undefined || !itemAttached) {
+        openOptions.query = queryText;
         openOptions.isPartialQuery = true;
       }
       await vscode.commands.executeCommand('workbench.action.chat.open', openOptions);
@@ -104,7 +124,7 @@ export async function openCoworkChatWithFile(
     } catch (err) {
       console.warn('workbench.action.chat.open with options failed, attempting string query:', err);
       try {
-        await vscode.commands.executeCommand('workbench.action.chat.open', `${fileReference} `);
+        await vscode.commands.executeCommand('workbench.action.chat.open', `${fileReference}\n`);
         return;
       } catch (err2) {
         console.warn('workbench.action.chat.open with string failed:', err2);
@@ -116,7 +136,7 @@ export async function openCoworkChatWithFile(
   if (availableCommands.has('workbench.action.quickchat.open')) {
     try {
       await vscode.commands.executeCommand('workbench.action.quickchat.open', {
-        query: `${fileReference} `,
+        query: `${fileReference}\n`,
       });
       return;
     } catch (err) {
@@ -144,6 +164,12 @@ export async function openCoworkChatWithFile(
 
   // Fallback 6: If no chat provider is detected, notify the user gracefully
   const itemName = path.basename(uri.fsPath);
+  const lineDetails =
+    options?.startLine !== undefined
+      ? options.endLine !== undefined && options.endLine > options.startLine
+        ? ` (${t('Zeilen')} ${options.startLine}-${options.endLine})`
+        : ` (${t('Zeile')} ${options.startLine})`
+      : '';
   vscode.window.showInformationMessage(
     isDirectory
       ? t(
@@ -152,7 +178,7 @@ export async function openCoworkChatWithFile(
         )
       : t(
           'Datei "{0}" ist bereit für Cowork. Bitte öffnen Sie das KI-Chatfenster (z. B. GitHub Copilot oder Gemini).',
-          itemName
+          `${itemName}${lineDetails}`
         )
   );
 }

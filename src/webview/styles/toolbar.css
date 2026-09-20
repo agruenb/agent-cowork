@@ -314,3 +314,52 @@
 .toolbar.is-collapsed .tb-collapse-icon {
   transform: rotate(180deg);
 }
+
+/* Floating Selection Cowork Button */
+.selection-cowork-btn {
+  position: fixed;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background-color: var(--primary);
+  color: #ffffff;
+  border: 1px solid #047857;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 10px;
+  height: 26px;
+  cursor: pointer;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(5, 150, 105, 0.25);
+  user-select: none;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px) scale(0.95);
+  transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+  pointer-events: auto;
+}
+
+.selection-cowork-btn.is-visible {
+  display: inline-flex;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.selection-cowork-btn:hover {
+  background-color: var(--primary-hover);
+  border-color: #065f46;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(5, 150, 105, 0.3);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.selection-cowork-btn:active {
+  background-color: #065f46;
+  transform: translateY(0) scale(0.98);
+}
+
+.selection-cowork-btn .cowork-arrow-icon {
+  display: inline-block;
+  flex-shrink: 0;
+}

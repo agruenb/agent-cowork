@@ -165,7 +165,7 @@ export function serializeListBlock(listEl: HTMLElement, indentLevel = 0): string
 /**
  * Serializes a single block element or container element into one or more Markdown blocks.
  */
-function serializeBlockElement(blockEl: HTMLElement): string[] {
+export function serializeBlockElement(blockEl: HTMLElement): string[] {
   // Block containers: unwrap and serialize child blocks (skipping UI buttons/controls)
   if (blockEl.classList.contains('editor-block-container')) {
     const subBlocks: string[] = [];
