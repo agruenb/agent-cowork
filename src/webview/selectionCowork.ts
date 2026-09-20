@@ -475,10 +475,13 @@ export function checkAndDisplaySelectionButton(): void {
       return;
     }
     cachedSelectionRange = range;
-    // Position near mouseup coordinate if available or textarea edge
+    // Position near mouseup coordinate if available or visible textarea edge
+    const rect = typeof textarea.getBoundingClientRect === 'function' ? textarea.getBoundingClientRect() : null;
     const coords = lastMouseUpCoords || {
-      x: textarea.offsetLeft + textarea.offsetWidth - 100,
-      y: textarea.offsetTop + 40,
+      x: rect
+        ? Math.min((typeof window !== 'undefined' ? window.innerWidth : 800) - 100, rect.left + rect.width - 20)
+        : textarea.offsetLeft + textarea.offsetWidth - 100,
+      y: rect ? Math.max(60, rect.top + 40) : textarea.offsetTop + 40,
     };
     positionSelectionButton(btn, {
       top: coords.y,

@@ -1,5 +1,7 @@
 import { indentRawText, outdentRawText } from '../markdown/listOperations';
 import { tWebview } from './i18n';
+import { autoResizeRawTextarea } from './editorState';
+import { updateRawLineNumbers } from './rawLineNumbers';
 
 /**
  * Applies markdown formatting to a raw textarea based on the toolbar action.
@@ -226,6 +228,8 @@ export function applyRawFormatting(
   textarea.value = newText;
   textarea.selectionStart = newStart;
   textarea.selectionEnd = newEnd;
+  autoResizeRawTextarea();
+  updateRawLineNumbers();
   textarea.focus();
   const win = textarea.ownerDocument?.defaultView;
   const Evt = win ? win.Event : Event;

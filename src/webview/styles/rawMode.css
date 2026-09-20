@@ -1,26 +1,128 @@
 /* -------------------------------------------------------------
-   Raw Markdown Textarea & Safety Banner
+   Raw Markdown Container, Gutter & Textarea
 ------------------------------------------------------------- */
+.raw-wrapper {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-height: 500px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.raw-gutter {
+  display: none;
+  flex-shrink: 0;
+  min-width: 44px;
+  padding: 0 14px 0 0;
+  margin: 0 16px 0 0;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  border-right: 1px solid var(--card-border, #e2e8f0);
+  user-select: none;
+  pointer-events: auto;
+  text-align: right;
+  color: var(--vscode-editorLineNumber-foreground, #94a3b8);
+  font-family: var(--mono-font);
+  font-size: 15px;
+  line-height: 1.7;
+  letter-spacing: -0.01em;
+  box-sizing: border-box;
+}
+
+.raw-gutter-line {
+  display: block;
+  text-align: right;
+  font-family: var(--mono-font);
+  font-size: 15px;
+  line-height: 1.7;
+  letter-spacing: -0.01em;
+  color: var(--vscode-editorLineNumber-foreground, #94a3b8);
+  cursor: pointer;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.raw-gutter-line:hover {
+  color: var(--primary, #059669);
+}
+
 .raw-textarea {
   display: none;
+  flex: 1;
+  min-width: 0;
   width: 100%;
+  max-width: 100%;
   min-height: 500px;
+  box-sizing: border-box;
   font-family: var(--mono-font);
-  font-size: 14px;
-  line-height: 1.6;
-  padding: 16px;
-  border: 1.5px solid var(--card-border);
-  border-radius: 8px;
+  font-size: 15px;
+  line-height: 1.7;
+  letter-spacing: -0.01em;
+  tab-size: 2;
+  -moz-tab-size: 2;
+  padding: 0;
+  border: none;
+  border-radius: 0;
   outline: none;
-  resize: vertical;
-  background-color: #fdfdfd;
+  resize: none;
+  background-color: transparent;
   color: var(--text);
-  transition: border-color 0.2s ease;
+  caret-color: var(--primary);
+  overflow-y: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  field-sizing: content;
 }
 
 .raw-textarea:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  outline: none;
+  box-shadow: none;
+  border: none;
+}
+
+.raw-textarea::placeholder {
+  color: #94a3b8;
+  font-style: italic;
+  font-family: var(--font-family);
+}
+
+.raw-textarea::selection {
+  background-color: rgba(5, 150, 105, 0.2);
+  color: inherit;
+}
+
+/* Off-screen mirror for measuring wrapped line heights */
+.raw-mirror {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -9999;
+  font-family: var(--mono-font);
+  font-size: 15px;
+  line-height: 1.7;
+  letter-spacing: -0.01em;
+  tab-size: 2;
+  -moz-tab-size: 2;
+  padding: 0;
+  border: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.raw-mirror-line {
+  margin: 0;
+  padding: 0;
+  line-height: 1.7;
+  min-height: 25.5px;
+  box-sizing: border-box;
 }
 
 /* Safety & Error Warning Banner */

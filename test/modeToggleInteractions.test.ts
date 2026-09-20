@@ -1,10 +1,20 @@
 import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
 import { JSDOM } from 'jsdom';
-import { state, vscode } from '../src/webview/editorState';
+import {
+  state,
+  vscode,
+  autoResizeRawTextarea,
+  getRawWrapper,
+  getRawGutter,
+  getRawMirror,
+} from '../src/webview/editorState';
 import {
   setContentFormatted,
   toggleRawMode,
 } from '../src/webview/markdownEditor';
+import { updateRawLineNumbers } from '../src/webview/rawLineNumbers';
 import { domToMarkdown } from '../src/markdown/serializer';
 
 describe('User Interactions - Mode Toggle (Raw ↔ Formatted)', () => {
@@ -33,7 +43,11 @@ describe('User Interactions - Mode Toggle (Raw ↔ Formatted)', () => {
   </div>
   <div class="document-viewport">
     <div id="editor" contenteditable="true"></div>
-    <textarea id="raw-textarea" style="display: none;"></textarea>
+    <div id="raw-wrapper" class="raw-wrapper" style="display: none;">
+      <div id="raw-gutter" class="raw-gutter" style="display: none;"></div>
+      <textarea id="raw-textarea" class="raw-textarea" style="display: none;"></textarea>
+      <div id="raw-mirror" class="raw-mirror"></div>
+    </div>
   </div>
 </body>
 </html>`);
@@ -145,5 +159,127 @@ describe('User Interactions - Mode Toggle (Raw ↔ Formatted)', () => {
 
     assert.strictEqual(errorBanner.style.display, 'flex');
     assert.strictEqual(bannerText.textContent, 'Syntax-Fehler');
+  });
+
+  it('autoResizeRawTextarea expands textarea height to fit content scrollHeight without inner scrollbar', () => {
+    Object.defineProperty(textarea, 'scrollHeight', {
+      configurable: true,
+      get: () => 1200,
+    });
+
+    autoResizeRawTextarea();
+
+    assert.strictEqual(textarea.style.height, '1200px');
+  });
+
+  it('autoResizeRawTextarea enforces a minimum height of 500px for short documents', () => {
+    Object.defineProperty(textarea, 'scrollHeight', {
+      configurable: true,
+      get: () => 150,
+    });
+
+    autoResizeRawTextarea();
+
+    assert.strictEqual(textarea.style.height, '500px');
+  });
+
+  it('autoResizeRawTextarea preserves viewport scroll position to eliminate scroll jumps', () => {
+    const viewport = document.querySelector('.document-viewport') as HTMLElement;
+    viewport.scrollTop = 350;
+
+    Object.defineProperty(textarea, 'scrollHeight', {
+      configurable: true,
+      get: () => 1800,
+    });
+
+    autoResizeRawTextarea();
+
+    assert.strictEqual(viewport.scrollTop, 350);
+    assert.strictEqual(textarea.style.height, '1800px');
+  });
+
+  it('toggleRawMode invokes auto-resizing so the raw view displays as full scrollable content', () => {
+    setContentFormatted('# Full Document\n\n' + 'Line of text\n'.repeat(50));
+    Object.defineProperty(textarea, 'scrollHeight', {
+      configurable: true,
+      get: () => 2400,
+    });
+
+    toggleRawMode();
+
+    assert.strictEqual(state.isRawMode, true);
+    assert.strictEqual(textarea.style.height, '2400px');
+  });
+
+  it('rawMode.css defines borderless, transparent, non-resizable document styling with overflow hidden', () => {
+    const cssPath = path.resolve(__dirname, '../src/webview/styles/rawMode.css');
+    const cssContent = fs.readFileSync(cssPath, 'utf8');
+
+    assert.ok(cssContent.includes('border: none;'), 'Should have border: none');
+    assert.ok(cssContent.includes('background-color: transparent;'), 'Should have background-color: transparent');
+    assert.ok(cssContent.includes('resize: none;'), 'Should have resize: none');
+    assert.ok(cssContent.includes('overflow-y: hidden;'), 'Should have overflow-y: hidden');
+    assert.ok(cssContent.includes('field-sizing: content;'), 'Should have field-sizing: content');
+    assert.ok(cssContent.includes('.raw-gutter {'), 'Should have .raw-gutter');
+    assert.ok(cssContent.includes('.raw-gutter-line {'), 'Should have .raw-gutter-line');
+    assert.ok(cssContent.includes('.raw-mirror {'), 'Should have .raw-mirror');
+  });
+
+  it('updateRawLineNumbers renders line numbers in gutter matching line count without altering text content', () => {
+    const originalText = '# Title\n\nParagraph 1\nParagraph 2\n\n- [ ] Task item';
+    textarea.value = originalText;
+
+    updateRawLineNumbers();
+
+    const gutter = getRawGutter()!;
+    const lines = gutter.querySelectorAll<HTMLElement>('.raw-gutter-line');
+    const expectedLineCount = originalText.split('\n').length; // 6 lines
+
+    assert.strictEqual(lines.length, expectedLineCount);
+    assert.strictEqual(lines[0].textContent, '1');
+    assert.strictEqual(lines[0].getAttribute('data-line'), '1');
+    assert.strictEqual(lines[5].textContent, '6');
+    assert.strictEqual(lines[5].getAttribute('data-line'), '6');
+
+    // Text content in textarea MUST remain untouched (no line number prefix inserted)
+    assert.strictEqual(textarea.value, originalText);
+  });
+
+  it('clicking a line number in the gutter moves textarea caret to the start of that line', () => {
+    textarea.value = 'First line\nSecond line\nThird line\nFourth line';
+    updateRawLineNumbers();
+
+    const gutter = getRawGutter()!;
+    const line3 = gutter.querySelector<HTMLElement>('.raw-gutter-line[data-line="3"]')!;
+    assert.ok(line3, 'Should find line 3 in gutter');
+
+    // Expected offset of line 3 is length of "First line\n" (11) + "Second line\n" (12) = 23
+    line3.click();
+
+    assert.strictEqual(textarea.selectionStart, 23);
+    assert.strictEqual(textarea.selectionEnd, 23);
+  });
+
+  it('toggleRawMode toggles raw-wrapper and raw-gutter display states in sync', () => {
+    setContentFormatted('# Document');
+    const rawWrapper = getRawWrapper()!;
+    const rawGutter = getRawGutter()!;
+
+    assert.strictEqual(rawWrapper.style.display, 'none');
+    assert.strictEqual(rawGutter.style.display, 'none');
+
+    // Toggle to raw mode
+    toggleRawMode();
+    assert.strictEqual(state.isRawMode, true);
+    assert.strictEqual(rawWrapper.style.display, 'flex');
+    assert.strictEqual(rawGutter.style.display, 'block');
+    assert.strictEqual(textarea.style.display, 'block');
+
+    // Toggle back to formatted mode
+    toggleRawMode();
+    assert.strictEqual(state.isRawMode, false);
+    assert.strictEqual(rawWrapper.style.display, 'none');
+    assert.strictEqual(rawGutter.style.display, 'none');
+    assert.strictEqual(textarea.style.display, 'none');
   });
 });

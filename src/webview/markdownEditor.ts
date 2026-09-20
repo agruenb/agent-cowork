@@ -31,7 +31,11 @@ import {
   getRawTextarea,
   getRawToggleBtn,
   getErrorBannerDismiss,
+  autoResizeRawTextarea,
+  getRawWrapper,
+  getRawGutter,
 } from './editorState';
+import { updateRawLineNumbers } from './rawLineNumbers';
 
 // -------------------------------------------------------------
 // Core View Management
@@ -87,7 +91,15 @@ export function setContentFormatted(markdown: string): boolean {
     if (!state.isRawMode) {
       state.isRawMode = true;
       if (canvas) canvas.style.display = 'none';
-      if (textarea) textarea.style.display = 'block';
+      const wrapper = getRawWrapper();
+      if (wrapper) wrapper.style.display = 'flex';
+      const gutter = getRawGutter();
+      if (gutter) gutter.style.display = 'block';
+      if (textarea) {
+        textarea.style.display = 'block';
+        autoResizeRawTextarea();
+        updateRawLineNumbers();
+      }
       if (toggleBtn) {
         toggleBtn.classList.add('is-active');
         toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
@@ -129,8 +141,14 @@ export function toggleRawMode(): void {
       state.currentMarkdown = md;
     }
     if (canvas) canvas.style.display = 'none';
+    const wrapper = getRawWrapper();
+    if (wrapper) wrapper.style.display = 'flex';
+    const gutter = getRawGutter();
+    if (gutter) gutter.style.display = 'block';
     if (textarea) {
       textarea.style.display = 'block';
+      autoResizeRawTextarea();
+      updateRawLineNumbers();
       textarea.focus();
     }
     if (toggleBtn) {
@@ -145,13 +163,25 @@ export function toggleRawMode(): void {
       // Keep in raw mode if parsing failed
       state.isRawMode = true;
       if (canvas) canvas.style.display = 'none';
-      if (textarea) textarea.style.display = 'block';
+      const wrapper = getRawWrapper();
+      if (wrapper) wrapper.style.display = 'flex';
+      const gutter = getRawGutter();
+      if (gutter) gutter.style.display = 'block';
+      if (textarea) {
+        textarea.style.display = 'block';
+        autoResizeRawTextarea();
+        updateRawLineNumbers();
+      }
       if (toggleBtn) {
         toggleBtn.classList.add('is-active');
         toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
       }
       return;
     }
+    const wrapper = getRawWrapper();
+    if (wrapper) wrapper.style.display = 'none';
+    const gutter = getRawGutter();
+    if (gutter) gutter.style.display = 'none';
     if (textarea) textarea.style.display = 'none';
     if (canvas) {
       canvas.style.display = 'block';
@@ -581,6 +611,10 @@ export function handleWindowMessage(event: MessageEvent): void {
         setWebviewLanguage(message.language);
       }
       setContentFormatted(message.text || '');
+      if (state.isRawMode) {
+        autoResizeRawTextarea();
+        updateRawLineNumbers();
+      }
       break;
     }
     case 'setLanguage': {
@@ -596,6 +630,8 @@ export function handleWindowMessage(event: MessageEvent): void {
           textarea.value = message.text || '';
           state.currentMarkdown = message.text || '';
           updateWordCount(state.currentMarkdown);
+          autoResizeRawTextarea();
+          updateRawLineNumbers();
         } else {
           setContentFormatted(message.text || '');
         }
@@ -702,11 +738,35 @@ export function initMarkdownEditor(): void {
   });
 
   textarea.addEventListener('input', () => {
+    autoResizeRawTextarea();
+    updateRawLineNumbers();
     emitEdit(textarea.value);
   });
 
   textarea.addEventListener('keydown', handleRawKeyDown);
   canvas.addEventListener('keydown', handleCanvasKeyDown);
+
+  // Resize raw textarea and line numbers when window width / wrapped lines change
+  window.addEventListener('resize', () => {
+    if (state.isRawMode) {
+      autoResizeRawTextarea();
+      updateRawLineNumbers();
+    }
+  });
+
+  // Focus textarea when clicking in empty document viewport space in raw mode
+  const doc = canvas.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  const viewport = doc?.querySelector('.document-viewport');
+  viewport?.addEventListener('click', (e: Event) => {
+    if (e.target === viewport) {
+      if (state.isRawMode) {
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+      } else {
+        canvas.focus();
+      }
+    }
+  });
 
   // Initialize toolbar wiring
   wireToolbar({

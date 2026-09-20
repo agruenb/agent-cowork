@@ -324,8 +324,12 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         <!-- Formatted Editable Document Canvas -->
         <div id="editor" class="editor-canvas" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true"></div>
 
-        <!-- Raw Markdown Textarea (un-prominent toggle) -->
-        <textarea id="raw-textarea" class="raw-textarea" spellcheck="false" placeholder="${t('Markdown eingeben...')}"></textarea>
+        <!-- Raw Markdown View with Synchronized Line Numbers Gutter -->
+        <div id="raw-wrapper" class="raw-wrapper" style="display: none;">
+          <div id="raw-gutter" class="raw-gutter" aria-hidden="true"></div>
+          <textarea id="raw-textarea" class="raw-textarea" spellcheck="false" placeholder="${t('Markdown eingeben...')}"></textarea>
+          <div id="raw-mirror" class="raw-mirror" aria-hidden="true"></div>
+        </div>
       </div>
     </div>
 

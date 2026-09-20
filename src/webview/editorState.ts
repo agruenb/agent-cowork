@@ -25,6 +25,18 @@ export const rawTextarea = (typeof document !== 'undefined'
   ? document.getElementById('raw-textarea')
   : null) as HTMLTextAreaElement;
 
+export const rawWrapper = (typeof document !== 'undefined'
+  ? document.getElementById('raw-wrapper')
+  : null) as HTMLElement | null;
+
+export const rawGutter = (typeof document !== 'undefined'
+  ? document.getElementById('raw-gutter')
+  : null) as HTMLElement | null;
+
+export const rawMirror = (typeof document !== 'undefined'
+  ? document.getElementById('raw-mirror')
+  : null) as HTMLElement | null;
+
 export const rawToggleBtn = (typeof document !== 'undefined'
   ? document.getElementById('btn-toggle-raw')
   : null) as HTMLButtonElement;
@@ -69,6 +81,18 @@ export function getRawTextarea(): HTMLTextAreaElement {
   return (rawTextarea?.isConnected ? rawTextarea : (typeof document !== 'undefined' ? document.getElementById('raw-textarea') : null)) as HTMLTextAreaElement;
 }
 
+export function getRawWrapper(): HTMLElement | null {
+  return (rawWrapper?.isConnected ? rawWrapper : (typeof document !== 'undefined' ? document.getElementById('raw-wrapper') : null)) as HTMLElement | null;
+}
+
+export function getRawGutter(): HTMLElement | null {
+  return (rawGutter?.isConnected ? rawGutter : (typeof document !== 'undefined' ? document.getElementById('raw-gutter') : null)) as HTMLElement | null;
+}
+
+export function getRawMirror(): HTMLElement | null {
+  return (rawMirror?.isConnected ? rawMirror : (typeof document !== 'undefined' ? document.getElementById('raw-mirror') : null)) as HTMLElement | null;
+}
+
 export function getRawToggleBtn(): HTMLButtonElement {
   return (rawToggleBtn?.isConnected ? rawToggleBtn : (typeof document !== 'undefined' ? document.getElementById('btn-toggle-raw') : null)) as HTMLButtonElement;
 }
@@ -99,6 +123,29 @@ export function getToolbarEl(): HTMLElement | null {
 
 export function getToolbarToggleBtn(): HTMLButtonElement | null {
   return (toolbarToggleBtn?.isConnected ? toolbarToggleBtn : (typeof document !== 'undefined' ? document.getElementById('btn-toggle-toolbar') : null)) as HTMLButtonElement | null;
+}
+
+/**
+ * Auto-expands the raw textarea height to match its content scrollHeight, ensuring
+ * the outer document viewport handles all scrolling naturally without an internal scrollbar.
+ */
+export function autoResizeRawTextarea(): void {
+  const textarea = getRawTextarea();
+  if (!textarea) return;
+
+  const doc = textarea.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  const viewport =
+    textarea.closest('.document-viewport') ||
+    (doc ? doc.querySelector('.document-viewport') : null);
+  const prevScrollTop = viewport ? viewport.scrollTop : null;
+
+  textarea.style.height = 'auto';
+  const targetHeight = Math.max(textarea.scrollHeight, 500);
+  textarea.style.height = `${targetHeight}px`;
+
+  if (viewport && prevScrollTop !== null && viewport.scrollTop !== prevScrollTop) {
+    viewport.scrollTop = prevScrollTop;
+  }
 }
 
 // Editor State
