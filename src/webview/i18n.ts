@@ -56,7 +56,6 @@ const enWebviewTranslations: Record<string, string> = {
   '田 Tabelle': '田 Table',
   'Code-Block': 'Code block',
   '<> Code': '<> Code',
-  '0 Wörter': '0 words',
   'Markdown-Quelltext anzeigen oder bearbeiten': 'View or edit Markdown source',
   'Mit KI-Agent an diesem Dokument zusammenarbeiten': 'Cowork with AI Agent on this document',
   'Mit KI-Agent an den ausgewählten Zeilen zusammenarbeiten': 'Cowork with AI Agent on selected lines',
@@ -64,10 +63,6 @@ const enWebviewTranslations: Record<string, string> = {
   'Symbolleiste ausklappen': 'Expand toolbar',
   'Schließen': 'Close',
   'Markdown eingeben...': 'Enter Markdown...',
-
-  // Word counter
-  'Wort': 'word',
-  'Wörter': 'words',
 
   // Code block
   'Code': 'Code',

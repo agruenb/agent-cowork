@@ -35,7 +35,6 @@ describe('User Interactions - Mode Toggle (Raw ↔ Formatted)', () => {
     <select id="select-heading"><option value="p">Normal</option></select>
     <button id="btn-toggle-raw" class="raw-toggle-btn">&lt;/&gt; Raw</button>
     <button id="btn-cowork">Cowork</button>
-    <span id="word-count"></span>
   </div>
   <div id="error-banner" class="error-banner" style="display: none;">
     <span id="error-banner-text"></span>

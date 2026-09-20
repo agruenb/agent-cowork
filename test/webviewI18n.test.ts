@@ -6,7 +6,6 @@ import {
   tWebview,
   translateWebview,
 } from '../src/webview/i18n';
-import { updateWordCount } from '../src/webview/editorState';
 import { setToolbarCollapsed } from '../src/webview/toolbarWiring';
 import { showBlockDeleteConfirm } from '../src/webview/blockDelete';
 import { addTableColumn } from '../src/webview/tableInteractions/tableInsertDelete';
@@ -43,7 +42,6 @@ describe('Webview i18n & Localization', () => {
     <button id="btn-toggle-raw" title="Markdown-Quelltext anzeigen oder bearbeiten">Markdown</button>
     <button id="btn-cowork" title="Mit KI-Agent an diesem Dokument zusammenarbeiten">Cowork</button>
   </div>
-  <div id="word-count">0 Wörter</div>
   <div id="editor" contenteditable="true"></div>
   <textarea id="raw-editor" style="display: none;"></textarea>
 </body>
@@ -95,36 +93,6 @@ describe('Webview i18n & Localization', () => {
 
       setWebviewLanguage('de');
       assert.strictEqual(tWebview('Symbolleiste einklappen'), 'Symbolleiste einklappen');
-    });
-  });
-
-  describe('Word Count Localization', () => {
-    it('formats singular and plural correctly in German', () => {
-      setWebviewLanguage('de');
-      const counter = document.getElementById('word-count')!;
-
-      updateWordCount('Hallo');
-      assert.strictEqual(counter.textContent, '1 Wort');
-
-      updateWordCount('Hallo Welt schön');
-      assert.strictEqual(counter.textContent, '3 Wörter');
-
-      updateWordCount('');
-      assert.strictEqual(counter.textContent, '0 Wörter');
-    });
-
-    it('formats singular and plural correctly in English', () => {
-      setWebviewLanguage('en');
-      const counter = document.getElementById('word-count')!;
-
-      updateWordCount('Hello');
-      assert.strictEqual(counter.textContent, '1 word');
-
-      updateWordCount('Hello beautiful world');
-      assert.strictEqual(counter.textContent, '3 words');
-
-      updateWordCount('');
-      assert.strictEqual(counter.textContent, '0 words');
     });
   });
 

@@ -295,9 +295,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
       <div class="toolbar-spacer"></div>
 
-      <!-- Word count stats -->
-      <span id="word-count" class="word-count">${t('0 Wörter')}</span>
-
       <!-- Discreet / un-prominent Raw Markdown source toggle -->
       <button id="btn-toggle-raw" class="raw-toggle-btn" tabindex="-1" title="${t('Markdown-Quelltext anzeigen oder bearbeiten')}">&lt;/&gt; Raw</button>
 

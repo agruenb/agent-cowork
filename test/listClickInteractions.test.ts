@@ -16,7 +16,6 @@ describe('User Interactions - List Item Click Caret Placement', () => {
     <select id="select-heading"><option value="p">Normal</option></select>
     <button id="btn-toggle-raw">Raw</button>
     <button id="btn-cowork">Cowork</button>
-    <span id="word-count"></span>
   </div>
   <div id="error-banner" style="display: none;"><span id="error-banner-text"></span></div>
   <div id="editor" contenteditable="true"></div>

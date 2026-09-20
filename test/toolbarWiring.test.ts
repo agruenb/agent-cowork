@@ -41,7 +41,6 @@ describe('User Interactions - Toolbar Button Wiring', () => {
       <button id="btn-table" class="tb-btn tb-btn-stacked">Table</button>
       <button id="btn-code" class="tb-btn tb-btn-stacked">Code</button>
     </div>
-    <span id="word-count" class="word-count"></span>
     <button id="btn-toggle-raw" class="raw-toggle-btn">&lt;/&gt; Raw</button>
     <button id="btn-cowork" class="cowork-btn">Cowork</button>
     <button id="btn-toggle-toolbar" class="toolbar-toggle-btn" title="Symbolleiste einklappen" aria-label="Symbolleiste einklappen" aria-expanded="true">

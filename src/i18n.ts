@@ -142,7 +142,6 @@ const enTranslations: Record<string, string> = {
   'Tabelle einfügen': 'Insert table',
   '田 Tabelle': '田 Table',
   'Code-Block': 'Code block',
-  '0 Wörter': '0 words',
   'Markdown-Quelltext anzeigen oder bearbeiten': 'View or edit Markdown source',
   'Mit KI-Agent an diesem Dokument zusammenarbeiten':
     'Cowork with AI Agent on this document',

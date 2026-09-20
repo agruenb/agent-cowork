@@ -1,5 +1,4 @@
 import { safeDomToMarkdown } from '../markdown/serializer';
-import { getWebviewLanguage } from './i18n';
 
 declare function acquireVsCodeApi(): {
   postMessage(message: unknown): void;
@@ -44,10 +43,6 @@ export const rawToggleBtn = (typeof document !== 'undefined'
 export const headingSelect = (typeof document !== 'undefined'
   ? document.getElementById('select-heading')
   : null) as HTMLSelectElement;
-
-export const wordCountEl = (typeof document !== 'undefined'
-  ? document.getElementById('word-count')
-  : null) as HTMLElement;
 
 export const coworkBtn = (typeof document !== 'undefined'
   ? document.getElementById('btn-cowork')
@@ -99,10 +94,6 @@ export function getRawToggleBtn(): HTMLButtonElement {
 
 export function getHeadingSelect(): HTMLSelectElement {
   return (headingSelect?.isConnected ? headingSelect : (typeof document !== 'undefined' ? document.getElementById('select-heading') : null)) as HTMLSelectElement;
-}
-
-export function getWordCountEl(): HTMLElement | null {
-  return (wordCountEl?.isConnected ? wordCountEl : (typeof document !== 'undefined' ? document.getElementById('word-count') : null)) as HTMLElement | null;
 }
 
 export function getErrorBanner(): HTMLElement | null {
@@ -190,20 +181,6 @@ export function hideErrorBanner(): void {
 }
 
 /**
- * Updates word count display.
- */
-export function updateWordCount(text: string): void {
-  const clean = text.replace(/[#*`~>[\]()|_-]/g, ' ').trim();
-  const words = clean ? clean.split(/\s+/).filter(Boolean).length : 0;
-  const countEl = getWordCountEl();
-  if (countEl) {
-    const isEn = getWebviewLanguage() === 'en';
-    const wordLabel = isEn ? (words === 1 ? 'word' : 'words') : (words === 1 ? 'Wort' : 'Wörter');
-    countEl.textContent = `${words} ${wordLabel}`;
-  }
-}
-
-/**
  * Checks whether a markdown string contains any visible, readable text
  * beyond pure syntax characters (heading markers, list bullets, fences, etc.)
  * and whitespace. Used as a client-side guard against content erasure.
@@ -285,7 +262,6 @@ export function emitEdit(markdown: string): void {
   }
 
   state.currentMarkdown = markdown;
-  updateWordCount(markdown);
 
   if (state.debounceTimer) {
     clearTimeout(state.debounceTimer);

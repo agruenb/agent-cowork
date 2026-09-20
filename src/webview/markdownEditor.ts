@@ -20,7 +20,6 @@ import {
   state,
   showErrorBanner,
   hideErrorBanner,
-  updateWordCount,
   emitEdit,
   emitCanvasEdit,
   getMarkdownFromCanvas,
@@ -82,7 +81,6 @@ export function setContentFormatted(markdown: string): boolean {
     if (textarea) {
       textarea.value = markdown;
     }
-    updateWordCount(markdown);
     showErrorBanner(
       getWebviewLanguage() === 'en'
         ? 'Warning: Formatting error in document. Switched to raw source mode to prevent data loss.'
@@ -118,7 +116,6 @@ export function setContentFormatted(markdown: string): boolean {
   state.currentMarkdown = markdown;
   if (canvas) canvas.innerHTML = html;
   if (textarea) textarea.value = markdown;
-  updateWordCount(markdown);
   wireTaskCheckboxes();
   if (canvas) wireTableInteractions(canvas, () => emitCanvasEdit());
   state.isCanvasDirty = false;
@@ -608,11 +605,6 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
     if (textarea) {
       textarea.placeholder = tWebview('Markdown eingeben...');
     }
-
-    // Update word count
-    if (state.currentMarkdown !== undefined) {
-      updateWordCount(state.currentMarkdown);
-    }
   }
 }
 
@@ -643,7 +635,6 @@ export function handleWindowMessage(event: MessageEvent): void {
         if (state.isRawMode && textarea) {
           textarea.value = message.text || '';
           state.currentMarkdown = message.text || '';
-          updateWordCount(state.currentMarkdown);
           autoResizeRawTextarea();
           updateRawLineNumbers();
         } else {
