@@ -48,6 +48,7 @@ export interface MarkdownListItem {
   text: string;
   checked?: boolean;
   children?: MarkdownBlock[];
+  line?: number;
 }
 
 export interface MarkdownBlock {
@@ -67,6 +68,8 @@ export interface MarkdownBlock {
   language?: string;
   headers?: string[];
   rows?: string[][];
+  startLine?: number;
+  endLine?: number;
 }
 
 interface ParsedListLine {
@@ -145,6 +148,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
 
     // Fenced Code Block: ```lang
     if (trimmed.startsWith('```')) {
+      const startLine = i + 1;
       const language = trimmed.slice(3).trim();
       const codeLines: string[] = [];
       i++;
@@ -159,13 +163,19 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         type: 'code_block',
         language,
         content: codeLines.join('\n'),
+        startLine,
+        endLine: i,
       });
       continue;
     }
 
     // Horizontal Rule: ---, ***, ___
     if (/^(\*{3,}|-{3,}|_{3,})$/.test(trimmed)) {
-      blocks.push({ type: 'hr' });
+      blocks.push({
+        type: 'hr',
+        startLine: i + 1,
+        endLine: i + 1,
+      });
       i++;
       continue;
     }
@@ -177,6 +187,8 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         type: 'heading',
         level: headingMatch[1].length,
         content: headingMatch[2],
+        startLine: i + 1,
+        endLine: i + 1,
       });
       i++;
       continue;
@@ -184,6 +196,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
 
     // Blockquote: > line
     if (trimmed.startsWith('>')) {
+      const startLine = i + 1;
       const quoteLines: string[] = [];
       while (i < lines.length && lines[i].trim().startsWith('>')) {
         quoteLines.push(lines[i].trim().replace(/^>\s?/, ''));
@@ -192,12 +205,15 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
       blocks.push({
         type: 'blockquote',
         content: quoteLines.join('\n'),
+        startLine,
+        endLine: i,
       });
       continue;
     }
 
     // Table: starts with | and contains |
     if (trimmed.startsWith('|') && trimmed.includes('|') && i + 1 < lines.length && lines[i + 1].trim().startsWith('|') && /\|[\s-:]+\|/.test(lines[i + 1].trim())) {
+      const startLine = i + 1;
       const parseRow = (r: string) =>
         r
           .trim()
@@ -219,6 +235,8 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         type: 'table',
         headers,
         rows,
+        startLine,
+        endLine: i,
       });
       continue;
     }
@@ -226,12 +244,15 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
     // List item (Task list, Unordered list, or Ordered list) with nested support
     const initialListLine = matchListItem(line);
     if (initialListLine) {
+      const startLine = i + 1;
       const rootBlock: MarkdownBlock = {
         type: initialListLine.listType,
         items: [],
+        startLine,
       };
       const firstItem: MarkdownListItem = {
         text: initialListLine.text,
+        line: startLine,
         ...(initialListLine.checked !== undefined ? { checked: initialListLine.checked } : {}),
       };
       rootBlock.items!.push(firstItem);
@@ -266,8 +287,10 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
 
         const parsed = matchListItem(curLine);
         if (parsed) {
+          const itemLine = i + 1;
           const newItem: MarkdownListItem = {
             text: parsed.text,
+            line: itemLine,
             ...(parsed.checked !== undefined ? { checked: parsed.checked } : {}),
           };
 
@@ -277,6 +300,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
             const subBlock: MarkdownBlock = {
               type: parsed.listType,
               items: [newItem],
+              startLine: itemLine,
             };
             if (!parentFrame.currentItem.children) {
               parentFrame.currentItem.children = [];
@@ -290,7 +314,10 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
           } else {
             // Unwind stack to matching indent
             while (stack.length > 1 && parsed.indent < stack[stack.length - 1].indent) {
-              stack.pop();
+              const popped = stack.pop();
+              if (popped) {
+                popped.block.endLine = i;
+              }
             }
 
             const topFrame = stack[stack.length - 1];
@@ -312,6 +339,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
                 const subBlock: MarkdownBlock = {
                   type: parsed.listType,
                   items: [newItem],
+                  startLine: itemLine,
                 };
                 if (!parentFrame.currentItem.children) {
                   parentFrame.currentItem.children = [];
@@ -349,11 +377,18 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         break;
       }
 
+      for (const frame of stack) {
+        if (!frame.block.endLine) {
+          frame.block.endLine = i;
+        }
+      }
+      rootBlock.endLine = i;
       blocks.push(rootBlock);
       continue;
     }
 
     // Standard Paragraph: consume lines until an empty line or another block start
+    const startLine = i + 1;
     const pLines: string[] = [];
     while (i < lines.length) {
       const cur = lines[i].trim();
@@ -377,6 +412,8 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
     blocks.push({
       type: 'paragraph',
       content: pLines.join(' '),
+      startLine,
+      endLine: i,
     });
   }
 

@@ -9,7 +9,7 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#039;');
 }
 
-function getComputedLineHeight(el: HTMLElement): number {
+export function getComputedLineHeight(el: HTMLElement): number {
   const win = el.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null);
   if (win && typeof win.getComputedStyle === 'function') {
     const computed = parseFloat(win.getComputedStyle(el).lineHeight);

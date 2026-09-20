@@ -34,8 +34,16 @@ import {
   getRawWrapper,
   getRawGutter,
   flushPendingEdit,
+  getDocumentViewport,
 } from './editorState';
 import { updateRawLineNumbers } from './rawLineNumbers';
+import {
+  syncBlockLineAttributes,
+  getVisibleLineInFormatted,
+  getVisibleLineInRaw,
+  scrollToLineInFormatted,
+  scrollToLineInRaw,
+} from './scrollSync';
 
 // -------------------------------------------------------------
 // Core View Management
@@ -114,7 +122,10 @@ export function setContentFormatted(markdown: string): boolean {
   state.hasParseError = false;
   hideErrorBanner();
   state.currentMarkdown = markdown;
-  if (canvas) canvas.innerHTML = html;
+  if (canvas) {
+    canvas.innerHTML = html;
+    syncBlockLineAttributes(canvas, markdown);
+  }
   if (textarea) textarea.value = markdown;
   wireTaskCheckboxes();
   if (canvas) wireTableInteractions(canvas, () => emitCanvasEdit());
@@ -130,6 +141,7 @@ export function toggleRawMode(): void {
   const canvas = getEditorCanvas();
   const textarea = getRawTextarea();
   const toggleBtn = getRawToggleBtn();
+  const viewport = getDocumentViewport();
   state.isRawMode = !state.isRawMode;
 
   if (state.isRawMode) {
@@ -140,6 +152,7 @@ export function toggleRawMode(): void {
       if (md !== null) {
         if (textarea) textarea.value = md;
         state.currentMarkdown = md;
+        if (canvas) syncBlockLineAttributes(canvas, md);
       }
       state.isCanvasDirty = false;
     } else {
@@ -147,6 +160,12 @@ export function toggleRawMode(): void {
         textarea.value = state.currentMarkdown;
       }
     }
+
+    // Capture visible line while Formatted canvas is still visible
+    const target = canvas && viewport
+      ? getVisibleLineInFormatted(canvas, viewport)
+      : { line: 1, fraction: 0 };
+
     if (canvas) canvas.style.display = 'none';
     const wrapper = getRawWrapper();
     if (wrapper) wrapper.style.display = 'flex';
@@ -156,14 +175,30 @@ export function toggleRawMode(): void {
       textarea.style.display = 'block';
       autoResizeRawTextarea();
       updateRawLineNumbers();
-      textarea.focus();
+      textarea.focus({ preventScroll: true });
     }
     if (toggleBtn) {
       toggleBtn.classList.add('is-active');
       toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
     }
+
+    // Scroll to target line in Raw mode
+    if (textarea && viewport) {
+      scrollToLineInRaw(target.line, target.fraction, textarea, gutter, viewport, target.isBottom);
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          scrollToLineInRaw(target.line, target.fraction, textarea, gutter, viewport, target.isBottom);
+        });
+      }
+    }
   } else {
     // Switch to Formatted Mode
+    const gutter = getRawGutter();
+    // Capture visible line while Raw view is still visible
+    const target = textarea && viewport
+      ? getVisibleLineInRaw(textarea, gutter, viewport)
+      : { line: 1, fraction: 0 };
+
     const md = textarea ? textarea.value : '';
     const isModifiedInRaw = md !== state.currentMarkdown;
     const success = setContentFormatted(md);
@@ -173,7 +208,6 @@ export function toggleRawMode(): void {
       if (canvas) canvas.style.display = 'none';
       const wrapper = getRawWrapper();
       if (wrapper) wrapper.style.display = 'flex';
-      const gutter = getRawGutter();
       if (gutter) gutter.style.display = 'block';
       if (textarea) {
         textarea.style.display = 'block';
@@ -188,12 +222,11 @@ export function toggleRawMode(): void {
     }
     const wrapper = getRawWrapper();
     if (wrapper) wrapper.style.display = 'none';
-    const gutter = getRawGutter();
     if (gutter) gutter.style.display = 'none';
     if (textarea) textarea.style.display = 'none';
     if (canvas) {
       canvas.style.display = 'block';
-      canvas.focus();
+      canvas.focus({ preventScroll: true });
     }
     if (toggleBtn) {
       toggleBtn.classList.remove('is-active');
@@ -203,6 +236,16 @@ export function toggleRawMode(): void {
       emitEdit(md);
     }
     flushPendingEdit();
+
+    // Scroll to target line in Formatted mode
+    if (canvas && viewport) {
+      scrollToLineInFormatted(target.line, target.fraction, canvas, viewport, target.isBottom);
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          scrollToLineInFormatted(target.line, target.fraction, canvas, viewport, target.isBottom);
+        });
+      }
+    }
   }
 }
 

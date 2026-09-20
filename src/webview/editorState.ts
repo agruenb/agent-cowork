@@ -116,6 +116,11 @@ export function getToolbarToggleBtn(): HTMLButtonElement | null {
   return (toolbarToggleBtn?.isConnected ? toolbarToggleBtn : (typeof document !== 'undefined' ? document.getElementById('btn-toggle-toolbar') : null)) as HTMLButtonElement | null;
 }
 
+export function getDocumentViewport(): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  return document.querySelector('.document-viewport') as HTMLElement | null;
+}
+
 /**
  * Auto-expands the raw textarea height to match its content scrollHeight, ensuring
  * the outer document viewport handles all scrolling naturally without an internal scrollbar.
@@ -126,8 +131,9 @@ export function autoResizeRawTextarea(): void {
 
   const doc = textarea.ownerDocument || (typeof document !== 'undefined' ? document : null);
   const viewport =
-    textarea.closest('.document-viewport') ||
-    (doc ? doc.querySelector('.document-viewport') : null);
+    (textarea.closest('.document-viewport') as HTMLElement | null) ||
+    (doc ? (doc.querySelector('.document-viewport') as HTMLElement | null) : null) ||
+    getDocumentViewport();
   const prevScrollTop = viewport ? viewport.scrollTop : null;
 
   textarea.style.height = 'auto';
