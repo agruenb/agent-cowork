@@ -461,35 +461,122 @@ export function handleCanvasKeyDown(e: KeyboardEvent): void {
   }
 }
 
-/**
- * Places caret at the end of a list item's text when the user clicks
- * in the empty line area to the right of the text.
- */
-export function handleListItemClickOutsideText(e: MouseEvent, canvas: HTMLElement): boolean {
-  if (e.button !== 0 || e.shiftKey || e.metaKey || e.ctrlKey) return false;
+export function getCaretPositionForCoordinates(
+  doc: Document,
+  canvas: HTMLElement,
+  clientX: number,
+  clientY: number
+): { node: Node; offset: number } | null {
+  const canvasRect = canvas.getBoundingClientRect();
+  const clampedX = Math.max(canvasRect.left + 5, Math.min(canvasRect.right - 5, clientX));
+  const clampedY = Math.max(canvasRect.top + 2, Math.min(canvasRect.bottom - 2, clientY));
 
-  const target = e.target as HTMLElement | null;
-  if (!target || !canvas.contains(target)) return false;
-
-  // Don't interfere if clicking interactive elements
-  if (target.closest('input, button, a, .widget-block, table, code, .block-delete-btn')) {
-    return false;
+  // 1. Standard API: caretPositionFromPoint (Chrome 128+)
+  if (typeof (doc as any).caretPositionFromPoint === 'function') {
+    const pos = (doc as any).caretPositionFromPoint(clampedX, clampedY);
+    if (pos && pos.offsetNode && canvas.contains(pos.offsetNode)) {
+      return { node: pos.offsetNode, offset: pos.offset };
+    }
   }
 
-  const li = target.closest('li') as HTMLElement | null;
-  if (!li || !canvas.contains(li)) return false;
+  // 2. WebKit / Blink API: caretRangeFromPoint (All Chrome / Electron versions)
+  if (typeof (doc as any).caretRangeFromPoint === 'function') {
+    const range = (doc as any).caretRangeFromPoint(clampedX, clampedY);
+    if (range && range.startContainer && canvas.contains(range.startContainer)) {
+      return { node: range.startContainer, offset: range.startOffset };
+    }
+  }
+
+  // 3. Fallback for test / headless environments
+  if (typeof doc.elementFromPoint === 'function') {
+    const el = doc.elementFromPoint(clampedX, clampedY);
+    if (el && canvas.contains(el)) {
+      const walker = doc.createTreeWalker(el, 4 /* NodeFilter.SHOW_TEXT */);
+      let lastText: Text | null = null;
+      let curr = walker.nextNode();
+      while (curr) {
+        lastText = curr as Text;
+        curr = walker.nextNode();
+      }
+      if (lastText) {
+        return { node: lastText, offset: lastText.length };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Places caret at the end of a line's text when the user clicks or starts dragging
+ * in the empty line area to the right of the text (in list items, paragraphs, headings, blockquotes, etc.).
+ * When the user drags, handles drag selection smoothly.
+ */
+export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElement): boolean {
+  if (e.button !== 0 || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return false;
+
+  const target = e.target as HTMLElement | null;
+  if (!target) return false;
 
   const doc = canvas.ownerDocument || document;
   const win = doc.defaultView || (typeof window !== 'undefined' ? window : null);
   const sel = win ? win.getSelection() : null;
 
-  // Only adjust when selection is collapsed (user did not drag to highlight a range)
-  if (sel && !sel.isCollapsed) return false;
+  // Don't interfere if clicking interactive elements (checkbox, buttons, tables, code language input, delete buttons)
+  if (
+    target.closest(
+      'input, button, a, table, code, .widget-block:not([data-block-type="blockquote"]), .block-delete-btn, .table-controls'
+    )
+  ) {
+    return false;
+  }
 
+  // Only adjust when selection is collapsed (or on mousedown)
+  if (e.type !== 'mousedown' && sel && !sel.isCollapsed) return false;
+
+  // Find the relevant block element:
+  let blockEl: HTMLElement | null = null;
+  if (canvas.contains(target)) {
+    blockEl =
+      target.closest<HTMLElement>('li, p, h1, h2, h3, h4, h5, h6, blockquote') ||
+      (target.classList.contains('editor-block') ? target : null);
+  } else {
+    // If clicked on document-viewport or document-container outside canvas at clientY
+    const viewport = doc.querySelector('.document-viewport');
+    const container = doc.querySelector('.document-container');
+    if (target === viewport || target === container || viewport?.contains(target)) {
+      const blocks = Array.from(
+        canvas.querySelectorAll<HTMLElement>('li, p.editor-block, h1, h2, h3, h4, h5, h6, blockquote')
+      );
+      let closestBlock: HTMLElement | null = null;
+      let minDistance = Infinity;
+      for (const b of blocks) {
+        const br = b.getBoundingClientRect();
+        if (br.height > 0) {
+          if (e.clientY >= br.top - 2 && e.clientY <= br.bottom + 2) {
+            blockEl = b;
+            break;
+          }
+          const dist = Math.min(Math.abs(e.clientY - br.top), Math.abs(e.clientY - br.bottom));
+          if (dist < minDistance) {
+            minDistance = dist;
+            closestBlock = b;
+          }
+        }
+      }
+      if (!blockEl && minDistance < 30) {
+        blockEl = closestBlock;
+      }
+    }
+  }
+
+  if (!blockEl || !canvas.contains(blockEl)) return false;
+
+  // Content container (e.g. .task-content for task items, to avoid checkbox)
   const isTask =
-    li.classList.contains('task-item') ||
-    li.querySelector(':scope > input[type="checkbox"]') !== null;
-  const contentEl = ((isTask ? li.querySelector('.task-content') : li) as HTMLElement) || li;
+    blockEl.classList.contains('task-item') ||
+    blockEl.querySelector(':scope > input[type="checkbox"]') !== null;
+  const contentEl = ((isTask ? blockEl.querySelector('.task-content') : blockEl) as HTMLElement) || blockEl;
 
   // Find non-sublist, non-input child nodes in contentEl
   const childNodes = Array.from(contentEl.childNodes).filter(
@@ -500,9 +587,22 @@ export function handleListItemClickOutsideText(e: MouseEvent, canvas: HTMLElemen
   const firstNode = childNodes[0];
   const lastNode = childNodes[childNodes.length - 1];
 
-  // If text is empty or only whitespace / <br>, nothing to adjust
+  // If text is empty or only whitespace / <br>, place cursor in block
   const textContent = childNodes.map((n) => n.textContent || '').join('').trim();
-  if (!textContent) return false;
+  if (!textContent) {
+    if (doc.activeElement !== canvas && !canvas.contains(doc.activeElement)) {
+      canvas.focus();
+    }
+    const newRange = doc.createRange();
+    newRange.setStart(blockEl, 0);
+    newRange.collapse(true);
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+    e.preventDefault();
+    return true;
+  }
 
   try {
     const r = doc.createRange();
@@ -512,18 +612,64 @@ export function handleListItemClickOutsideText(e: MouseEvent, canvas: HTMLElemen
     const rects = r.getClientRects();
     const lastRect = rects.length > 0 ? rects[rects.length - 1] : r.getBoundingClientRect();
 
-    // If click was to the right of the text content:
-    if (lastRect && lastRect.right > 0 && e.clientX > lastRect.right - 2) {
+    // Find rect matching e.clientY, or fallback to lastRect
+    let lineRect = lastRect;
+    let lineIndex = rects.length - 1;
+    if (rects.length > 1) {
+      for (let i = 0; i < rects.length; i++) {
+        const rect = rects[i];
+        if (e.clientY >= rect.top - 2 && e.clientY <= rect.bottom + 2) {
+          lineRect = rect;
+          lineIndex = i;
+          break;
+        }
+      }
+    }
+
+    const isClickToRight = lineRect && lineRect.right > 0 && e.clientX > lineRect.right - 2;
+    const isClickToLeft = lineRect && e.clientX < lineRect.left + 2;
+
+    // Handle clicks to the left (start of line) or right (end of line) of text:
+    if (isClickToRight || isClickToLeft) {
       if (doc.activeElement !== canvas && !canvas.contains(doc.activeElement)) {
         canvas.focus();
       }
 
+      let anchorNode: Node = lastNode;
+      let anchorOffset = lastNode.nodeType === 3 ? (lastNode as Text).length : 0;
+
+      if (isClickToLeft) {
+        // Place caret at start of line
+        anchorNode = firstNode;
+        anchorOffset = 0;
+        if (lineIndex > 0 && typeof (doc as any).caretRangeFromPoint === 'function') {
+          const ptRange = (doc as any).caretRangeFromPoint(lineRect.left + 1, lineRect.top + lineRect.height / 2);
+          if (ptRange && ptRange.startContainer && contentEl.contains(ptRange.startContainer)) {
+            anchorNode = ptRange.startContainer;
+            anchorOffset = ptRange.startOffset;
+          }
+        }
+      } else {
+        // Place caret at end of line
+        if (lineRect !== lastRect && typeof (doc as any).caretRangeFromPoint === 'function') {
+          const ptRange = (doc as any).caretRangeFromPoint(lineRect.right - 1, lineRect.top + lineRect.height / 2);
+          if (ptRange && ptRange.startContainer && contentEl.contains(ptRange.startContainer)) {
+            anchorNode = ptRange.startContainer;
+            anchorOffset = ptRange.startOffset;
+          }
+        }
+      }
+
       const newRange = doc.createRange();
-      if (lastNode.nodeType === 3) {
-        newRange.setStart(lastNode, (lastNode as Text).length);
+      if (anchorNode.nodeType === 3) {
+        newRange.setStart(anchorNode, anchorOffset);
         newRange.collapse(true);
       } else {
-        newRange.setStartAfter(lastNode);
+        if (isClickToLeft) {
+          newRange.setStartBefore(anchorNode);
+        } else {
+          newRange.setStartAfter(anchorNode);
+        }
         newRange.collapse(true);
       }
 
@@ -532,14 +678,84 @@ export function handleListItemClickOutsideText(e: MouseEvent, canvas: HTMLElemen
         sel.addRange(newRange);
       }
 
-      // Prevent browser's default mousedown behavior which would misplace caret at (li, 0)
+      // If mousedown: attach drag selection listeners to track dragging
+      if (e.type === 'mousedown') {
+        let isDragging = false;
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+          if (moveEvent.buttons !== 1) {
+            cleanup();
+            return;
+          }
+
+          isDragging = true;
+
+          const focusPos = getCaretPositionForCoordinates(doc, canvas, moveEvent.clientX, moveEvent.clientY);
+          if (!focusPos) return;
+
+          const curSel = win ? win.getSelection() : null;
+          if (!curSel) return;
+
+          if (typeof curSel.setBaseAndExtent === 'function') {
+            try {
+              curSel.setBaseAndExtent(anchorNode, anchorOffset, focusPos.node, focusPos.offset);
+            } catch {
+              // Ignore coordinate mismatch
+            }
+          } else {
+            try {
+              const range = doc.createRange();
+              const comp = anchorNode.compareDocumentPosition(focusPos.node);
+              if (
+                comp & Node.DOCUMENT_POSITION_FOLLOWING ||
+                (anchorNode === focusPos.node && anchorOffset <= focusPos.offset)
+              ) {
+                range.setStart(anchorNode, anchorOffset);
+                range.setEnd(focusPos.node, focusPos.offset);
+              } else {
+                range.setStart(focusPos.node, focusPos.offset);
+                range.setEnd(anchorNode, anchorOffset);
+              }
+              curSel.removeAllRanges();
+              curSel.addRange(range);
+            } catch {
+              // Ignore
+            }
+          }
+        };
+
+        const onMouseUp = () => {
+          cleanup();
+          if (isDragging) {
+            const EventCtor = (win && (win as any).Event) || Event;
+            doc.dispatchEvent(new EventCtor('selectionchange'));
+          }
+        };
+
+        const cleanup = () => {
+          doc.removeEventListener('mousemove', onMouseMove, true);
+          doc.removeEventListener('mouseup', onMouseUp, true);
+        };
+
+        doc.addEventListener('mousemove', onMouseMove, true);
+        doc.addEventListener('mouseup', onMouseUp, true);
+      }
+
       e.preventDefault();
       return true;
     }
   } catch {
     // Ignore measurement or range errors
   }
+
   return false;
+}
+
+/**
+ * Backwards-compatible alias for handleLineClickOrDragOutsideText.
+ */
+export function handleListItemClickOutsideText(e: MouseEvent, canvas: HTMLElement): boolean {
+  return handleLineClickOrDragOutsideText(e, canvas);
 }
 
 export function updateEditorLanguage(lang: WebviewLanguage): void {
@@ -728,17 +944,18 @@ export function initMarkdownEditor(): void {
     emitCanvasEdit();
   });
 
-  // Immediately place caret at the end of the line on mousedown, preventing default start-of-line placement
+  // Immediately place caret at the end of the line on mousedown, preventing default start-of-line placement,
+  // and handle drag-selection starting from empty space behind a line
   canvas.addEventListener('mousedown', (e: MouseEvent) => {
-    handleListItemClickOutsideText(e, canvas);
+    handleLineClickOrDragOutsideText(e, canvas);
   });
 
   canvas.addEventListener('mouseup', (e: MouseEvent) => {
-    handleListItemClickOutsideText(e, canvas);
+    handleLineClickOrDragOutsideText(e, canvas);
   });
 
   canvas.addEventListener('click', (e: MouseEvent) => {
-    handleListItemClickOutsideText(e, canvas);
+    handleLineClickOrDragOutsideText(e, canvas);
     const cell = (e.target as HTMLElement).closest('.table-checkbox-cell') as HTMLElement | null;
     if (cell && canvas.contains(cell)) {
       e.preventDefault();
@@ -802,19 +1019,36 @@ export function initMarkdownEditor(): void {
     }
   });
 
-  // Focus textarea when clicking in empty document viewport space in raw mode
+  // Focus textarea when clicking in empty document viewport space in raw mode,
+  // or handle line click / drag outside text in formatted mode
   const doc = canvas.ownerDocument || (typeof document !== 'undefined' ? document : null);
   const viewport = doc?.querySelector('.document-viewport');
-  viewport?.addEventListener('click', (e: Event) => {
-    if (e.target === viewport) {
+  const container = doc?.querySelector('.document-container');
+  const onViewportMouseDown = (e: Event) => {
+    if (!state.isRawMode && (e.target === viewport || e.target === container)) {
+      handleLineClickOrDragOutsideText(e as MouseEvent, canvas);
+    }
+  };
+  viewport?.addEventListener('mousedown', onViewportMouseDown);
+  container?.addEventListener('mousedown', onViewportMouseDown);
+
+  const onViewportClick = (e: Event) => {
+    if (e.target === viewport || e.target === container) {
       if (state.isRawMode) {
         textarea.focus();
         textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
       } else {
+        // If selection is already placed inside canvas (e.g. by mousedown at start/end of line), do not reset to top
+        const sel = (doc?.defaultView || window).getSelection();
+        if (sel && sel.anchorNode && canvas.contains(sel.anchorNode)) {
+          return;
+        }
         canvas.focus();
       }
     }
-  });
+  };
+  viewport?.addEventListener('click', onViewportClick);
+  container?.addEventListener('click', onViewportClick);
 
   // Initialize toolbar wiring
   wireToolbar({

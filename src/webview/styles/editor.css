@@ -8,6 +8,7 @@
   min-height: 500px;
   outline: none;
   color: var(--text);
+  cursor: text;
 }
 
 .editor-canvas:empty::before {
