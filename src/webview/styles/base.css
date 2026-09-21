@@ -2,7 +2,10 @@
   --primary: #059669;
   --primary-hover: #047857;
   --primary-light: #ecfdf5;
+  --primary-light-trans: #f0fdf450;
   --primary-border: #a7f3d0;
+  --primary-dark: #065f46;
+  --primary-selection: rgba(5, 150, 105, 0.2);
   --bg: var(--vscode-editor-background, #ffffff);
   --card-bg: var(--vscode-sideBar-background, #f8fafc);
   --card-border: var(--vscode-sideBar-border, #e2e8f0);
@@ -12,13 +15,28 @@
   --mono-font: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 }
 
+html.has-file-tint {
+  --primary: hsl(var(--file-tint-hue, 160) 68% 36%);
+  --primary-hover: hsl(var(--file-tint-hue, 160) 74% 28%);
+  --primary-light: hsl(var(--file-tint-hue, 160) 55% 95%);
+  --primary-light-trans: hsla(var(--file-tint-hue, 160), 55%, 95%, 0.35);
+  --primary-border: hsl(var(--file-tint-hue, 160) 50% 80%);
+  --primary-dark: hsl(var(--file-tint-hue, 160) 80% 20%);
+  --primary-selection: hsla(var(--file-tint-hue, 160), 65%, 45%, 0.22);
+}
+
+::selection {
+  background-color: var(--primary-selection);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body {
+html,
+body {
   height: 100%;
   width: 100%;
   overflow: hidden;

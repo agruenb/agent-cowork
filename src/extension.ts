@@ -22,8 +22,10 @@ import {
   applyCoworkView,
   applyCoworkTheme,
   setCoworkManagerContext,
+  extractUriFromTab,
   THEME_NAME,
 } from './coworkViewManager';
+import { getFilePastelColors } from './utils/colorUtils';
 
 /**
  * Enforces the light theme with green accents and custom file icon theme.
@@ -181,7 +183,7 @@ async function enforceSimpleLayout(): Promise<void> {
  * - Ensures close button and tab icons are always visible
  * - Highlights modified tabs clearly
  */
-async function enforceBrowserTabBar(): Promise<void> {
+export async function enforceBrowserTabBar(): Promise<void> {
   const workbenchConfig = vscode.workspace.getConfiguration('workbench');
 
   // Ensure tab height density is default (tallest standard tab height)
@@ -289,11 +291,6 @@ async function enforceBrowserTabBar(): Promise<void> {
       'tab.inactiveBackground': '#e2e8f0',
       'tab.inactiveForeground': '#475569',
       'tab.border': '#00000000',
-      'tab.hoverBackground': '#059669',
-      'tab.hoverForeground': '#ffffff',
-      'tab.hoverBorder': '#00000000',
-      'tab.unfocusedHoverBackground': '#059669cc',
-      'tab.unfocusedHoverForeground': '#ffffff',
       'tab.unfocusedActiveBackground': '#059669cc',
       'tab.unfocusedActiveForeground': '#ffffff',
       'tab.unfocusedActiveBorder': '#059669cc',
@@ -308,6 +305,20 @@ async function enforceBrowserTabBar(): Promise<void> {
       'tab.dragAndDropBorder': '#059669',
       'tab.selectedBackground': '#059669',
       'tab.selectedForeground': '#ffffff',
+      'tab.hoverBackground': '#0f172a',
+      'tab.hoverForeground': '#ffffff',
+      'tab.hoverBorder': '#0f172a',
+      'tab.unfocusedHoverBackground': '#1e293b',
+      'tab.unfocusedHoverForeground': '#ffffff',
+      'tab.unfocusedHoverBorder': '#1e293b',
+      'list.activeSelectionBackground': '#059669',
+      'list.activeSelectionForeground': '#ffffff',
+      'list.activeSelectionIconForeground': '#ffffff',
+      'list.inactiveSelectionBackground': '#059669',
+      'list.inactiveSelectionForeground': '#ffffff',
+      'list.inactiveSelectionIconForeground': '#ffffff',
+      'list.focusBackground': '#059669',
+      'list.focusForeground': '#ffffff',
     };
 
     let hasChanges = false;
@@ -539,6 +550,78 @@ export async function createNewFolder(targetFolderUri?: vscode.Uri): Promise<voi
 }
 
 /**
+ * Resolves the URI of the currently active document or tab.
+ */
+export function getActiveDocumentUri(): vscode.Uri | undefined {
+  const activeTab = vscode.window.tabGroups?.activeTabGroup?.activeTab;
+  if (activeTab) {
+    const tabUri = extractUriFromTab(activeTab);
+    if (tabUri && tabUri.scheme === 'file') {
+      return tabUri;
+    }
+  }
+
+  const activeEditor = vscode.window.activeTextEditor;
+  if (activeEditor?.document?.uri && activeEditor.document.uri.scheme === 'file') {
+    return activeEditor.document.uri;
+  }
+
+  return undefined;
+}
+
+let lastPastelFilename: string | undefined;
+
+export function getLastPastelFilename(): string | undefined {
+  return lastPastelFilename;
+}
+
+export function resetLastPastelFilename(): void {
+  lastPastelFilename = undefined;
+}
+
+/**
+ * Applies the darker shade of the active document's color to the active tab and tree view selection highlight,
+ * keeping unselected tabs on the neutral browser backdrop and hover styling invariant.
+ */
+export async function applyFilePastelHighlight(filename: string): Promise<void> {
+  if (lastPastelFilename === filename) {
+    return;
+  }
+  lastPastelFilename = filename;
+
+  try {
+    const workbenchConfig = vscode.workspace.getConfiguration('workbench');
+    const existingCustomizations = workbenchConfig.get<Record<string, unknown>>('colorCustomizations') || {};
+    const themeKey = `[${THEME_NAME}]`;
+    const currentThemeCustomizations = (existingCustomizations[themeKey] as Record<string, string>) || {};
+
+    const fileColors = getFilePastelColors(filename);
+
+    let hasChanges = false;
+    for (const [key, val] of Object.entries(fileColors)) {
+      if (currentThemeCustomizations[key] !== val) {
+        hasChanges = true;
+        break;
+      }
+    }
+
+    if (hasChanges) {
+      const updatedThemeCustomizations = {
+        ...currentThemeCustomizations,
+        ...fileColors,
+      };
+      const updatedCustomizations = {
+        ...existingCustomizations,
+        [themeKey]: updatedThemeCustomizations,
+      };
+      await workbenchConfig.update('colorCustomizations', updatedCustomizations, vscode.ConfigurationTarget.Global);
+    }
+  } catch (err) {
+    console.warn('Unable to update workbench.colorCustomizations for pastel file highlight:', err);
+  }
+}
+
+/**
  * Called when the extension is activated.
  * The extension is activated the very first time the command is executed or on startup.
  */
@@ -599,10 +682,88 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   folderTreeView.onDidCollapseElement((e) => folderTreeProvider.onDidCollapseElement(e.element));
   context.subscriptions.push(folderTreeView);
 
+  let lastRevealedPath: string | undefined;
+  let revealTimer: NodeJS.Timeout | undefined;
+
+  async function autoRevealActiveFile(uri?: vscode.Uri, force: boolean = false): Promise<void> {
+    const targetUri = uri || getActiveDocumentUri();
+    if (!targetUri || targetUri.scheme !== 'file') {
+      return;
+    }
+
+    // Apply darker shade of the active document's color to active tab & tree view highlight
+    const filename = path.basename(targetUri.fsPath);
+    await applyFilePastelHighlight(filename);
+
+    const normPath = path.normalize(targetUri.fsPath);
+    if (!force && lastRevealedPath === normPath) {
+      return;
+    }
+    lastRevealedPath = normPath;
+
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(targetUri);
+    if (!workspaceFolder) {
+      return;
+    }
+
+    try {
+      folderTreeProvider.expandAncestors(targetUri);
+      const item = folderTreeProvider.getFolderItem(targetUri, false);
+      await folderTreeView.reveal(item, {
+        select: true,
+        focus: false,
+        expand: true,
+      });
+    } catch {
+      // Silently ignore if tree view is not visible or cannot be revealed
+    }
+  }
+
+  function queueAutoReveal(uri?: vscode.Uri, delayMs: number = 80, force: boolean = false): void {
+    if (revealTimer) {
+      clearTimeout(revealTimer);
+    }
+    revealTimer = setTimeout(() => {
+      autoRevealActiveFile(uri, force);
+    }, delayMs);
+  }
+
+  // Auto-expand tree and highlight active file on any editor or tab switch
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (editor?.document?.uri) {
+        queueAutoReveal(editor.document.uri);
+      }
+    }),
+    vscode.window.tabGroups.onDidChangeTabs(() => {
+      queueAutoReveal();
+    }),
+    vscode.window.tabGroups.onDidChangeTabGroups(() => {
+      queueAutoReveal();
+    }),
+    MarkdownEditorProvider.onDidActiveDocumentChange((uri) => {
+      queueAutoReveal(uri);
+    }),
+    folderTreeView.onDidChangeVisibility((e) => {
+      if (e.visible) {
+        queueAutoReveal(undefined, 50, true);
+      }
+    })
+  );
+
+  // Initial reveal for currently open file on startup
+  queueAutoReveal(undefined, 200);
+
   // Refresh tree when files change on disk
   const fileWatcher = vscode.workspace.createFileSystemWatcher('**/*', false, true, false);
-  fileWatcher.onDidCreate(() => folderTreeProvider.refresh());
-  fileWatcher.onDidDelete(() => folderTreeProvider.refresh());
+  fileWatcher.onDidCreate(() => {
+    folderTreeProvider.refresh();
+    queueAutoReveal(undefined, 100, true);
+  });
+  fileWatcher.onDidDelete(() => {
+    folderTreeProvider.refresh();
+    queueAutoReveal(undefined, 100, true);
+  });
   context.subscriptions.push(fileWatcher);
 
   // Register Welcome panel command
@@ -639,6 +800,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Register refreshFolderView command
   const refreshFolderViewCmd = vscode.commands.registerCommand('agent-cowork.refreshFolderView', () => {
     folderTreeProvider.refresh();
+    queueAutoReveal(undefined, 100, true);
   });
 
   // Register newFile command (creates at root or prompts)

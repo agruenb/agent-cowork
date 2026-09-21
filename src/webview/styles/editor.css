@@ -75,7 +75,7 @@ blockquote.editor-block {
   background-color: var(--primary-light);
   padding: 12px 18px;
   border-radius: 0 8px 8px 0;
-  color: #065f46;
+  color: var(--primary-dark, #065f46);
   font-style: italic;
   margin-bottom: 0;
   outline: none !important;

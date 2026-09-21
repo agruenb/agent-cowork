@@ -8,6 +8,8 @@ import { t, getEffectiveLanguage } from './i18n';
 export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   public static readonly viewType = 'agentCowork.markdownEditor';
   private static readonly activePanels = new Set<vscode.WebviewPanel>();
+  private static readonly _onDidActiveDocumentChange = new vscode.EventEmitter<vscode.Uri>();
+  public static readonly onDidActiveDocumentChange = MarkdownEditorProvider._onDidActiveDocumentChange.event;
 
   public static register(context: vscode.ExtensionContext): vscode.Disposable {
     const provider = new MarkdownEditorProvider(context);
@@ -40,6 +42,15 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
+    // Notify that a custom editor document is active
+    MarkdownEditorProvider._onDidActiveDocumentChange.fire(document.uri);
+
+    webviewPanel.onDidChangeViewState((e) => {
+      if (e.webviewPanel.active) {
+        MarkdownEditorProvider._onDidActiveDocumentChange.fire(document.uri);
+      }
+    });
+
     // Setup webview options
     webviewPanel.webview.options = {
       enableScripts: true,
@@ -59,10 +70,12 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     // Send initial text and effective language to the editor webview once ready
     const sendInitialContent = () => {
+      const filename = document.uri.path.split('/').pop() || '';
       webviewPanel.webview.postMessage({
         type: 'init',
         text: document.getText(),
         language: getEffectiveLanguage(),
+        filename,
       });
     };
 

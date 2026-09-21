@@ -58,6 +58,11 @@ export class FolderItem extends vscode.TreeItem {
 
   public setExpanded(expanded: boolean): void {
     this._isExpanded = expanded;
+    if (this.isDirectory) {
+      this.collapsibleState = expanded
+        ? vscode.TreeItemCollapsibleState.Expanded
+        : vscode.TreeItemCollapsibleState.Collapsed;
+    }
     this._updateIcon();
   }
 
@@ -124,9 +129,11 @@ export class FolderTreeProvider
   }
 
   private _expandedPaths = new Set<string>();
+  private _itemMap = new Map<string, FolderItem>();
 
   /** Trigger a full tree refresh */
   refresh(): void {
+    this._itemMap.clear();
     this._onDidChangeTreeData.fire(undefined);
   }
 
@@ -136,19 +143,132 @@ export class FolderTreeProvider
   }
 
   onDidExpandElement(element: FolderItem): void {
-    this._expandedPaths.add(element.uri.fsPath);
+    const normPath = path.normalize(element.uri.fsPath);
+    this._expandedPaths.add(normPath);
     element.setExpanded(true);
     this.refreshItem(element);
   }
 
   onDidCollapseElement(element: FolderItem): void {
-    this._expandedPaths.delete(element.uri.fsPath);
+    const normPath = path.normalize(element.uri.fsPath);
+    this._expandedPaths.delete(normPath);
     element.setExpanded(false);
     this.refreshItem(element);
   }
 
   getTreeItem(element: FolderItem): vscode.TreeItem {
     return element;
+  }
+
+  getParent(element: FolderItem): vscode.ProviderResult<FolderItem> {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders || folders.length === 0) {
+      return undefined;
+    }
+
+    const itemPath = path.normalize(element.uri.fsPath);
+
+    // Single-root workspace: Root folder itself is not in the tree; its children are root elements.
+    if (folders.length === 1) {
+      const rootPath = path.normalize(folders[0].uri.fsPath);
+      const parentDir = path.dirname(itemPath);
+
+      if (itemPath === rootPath || !isSameOrDescendant(rootPath, itemPath)) {
+        return undefined;
+      }
+
+      if (parentDir === rootPath) {
+        return undefined;
+      }
+
+      return this.getFolderItem(vscode.Uri.file(parentDir), true);
+    }
+
+    // Multi-root workspace: Root folders themselves are top-level tree items.
+    for (const folder of folders) {
+      const rootPath = path.normalize(folder.uri.fsPath);
+      if (itemPath === rootPath) {
+        return undefined;
+      }
+      if (isSameOrDescendant(rootPath, itemPath)) {
+        const parentDir = path.dirname(itemPath);
+        if (parentDir === rootPath) {
+          return this.getFolderItem(folder.uri, true);
+        }
+        return this.getFolderItem(vscode.Uri.file(parentDir), true);
+      }
+    }
+
+    return undefined;
+  }
+
+  getFolderItem(uri: vscode.Uri, isDirectory?: boolean): FolderItem {
+    const fsPath = path.normalize(uri.fsPath);
+    let item = this._itemMap.get(fsPath);
+    if (item) {
+      return item;
+    }
+
+    let isDir = isDirectory;
+    if (isDir === undefined) {
+      try {
+        const stat = fs.statSync(fsPath);
+        isDir = stat.isDirectory();
+      } catch {
+        isDir = false;
+      }
+    }
+
+    item = new FolderItem(
+      uri,
+      isDir,
+      this.extensionUri,
+      isDir ? this._expandedPaths.has(fsPath) : false
+    );
+    this._itemMap.set(fsPath, item);
+    return item;
+  }
+
+  expandAncestors(uri: vscode.Uri): void {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders || folders.length === 0) {
+      return;
+    }
+    const itemPath = path.normalize(uri.fsPath);
+    let current = path.dirname(itemPath);
+
+    while (current && current !== path.dirname(current)) {
+      let isInside = false;
+      for (const folder of folders) {
+        const rootPath = path.normalize(folder.uri.fsPath);
+        if (folders.length === 1) {
+          if (current !== rootPath && isSameOrDescendant(rootPath, current)) {
+            isInside = true;
+            break;
+          }
+        } else {
+          if (isSameOrDescendant(rootPath, current)) {
+            isInside = true;
+            break;
+          }
+        }
+      }
+
+      if (!isInside) {
+        break;
+      }
+
+      this._expandedPaths.add(current);
+      const item = this._itemMap.get(current);
+      if (item) {
+        item.setExpanded(true);
+      }
+      current = path.dirname(current);
+    }
+  }
+
+  isPathExpanded(fsPath: string): boolean {
+    return this._expandedPaths.has(path.normalize(fsPath));
   }
 
   getChildren(element?: FolderItem): vscode.ProviderResult<FolderItem[]> {
@@ -165,9 +285,17 @@ export class FolderTreeProvider
       }
 
       // Multiple root folders — show each as a top-level node
-      return folders.map(
-        (f) => new FolderItem(f.uri, true, this.extensionUri, this._expandedPaths.has(f.uri.fsPath)),
-      );
+      return folders.map((f) => {
+        const fullPath = path.normalize(f.uri.fsPath);
+        const item = new FolderItem(
+          f.uri,
+          true,
+          this.extensionUri,
+          this._expandedPaths.has(fullPath)
+        );
+        this._itemMap.set(fullPath, item);
+        return item;
+      });
     }
 
     // Children of a directory node
@@ -444,14 +572,16 @@ export class FolderTreeProvider
       files.sort((a, b) => a.name.localeCompare(b.name));
 
       return [...dirs, ...files].map((entry) => {
-        const fullPath = path.join(dirPath, entry.name);
+        const fullPath = path.normalize(path.join(dirPath, entry.name));
         const isDir = entry.isDirectory();
-        return new FolderItem(
+        const item = new FolderItem(
           vscode.Uri.file(fullPath),
           isDir,
           this.extensionUri,
           isDir ? this._expandedPaths.has(fullPath) : false,
         );
+        this._itemMap.set(fullPath, item);
+        return item;
       });
     } catch {
       return [];

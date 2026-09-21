@@ -10,6 +10,8 @@ export interface VscodeMockState {
   tabGroups: any[];
   executedCommands: { command: string; args: any[] }[];
   contexts: Record<string, any>;
+  workspaceFolders: any[];
+  activeTextEditor?: any;
 }
 
 export const vscodeMockState: VscodeMockState = {
@@ -21,6 +23,8 @@ export const vscodeMockState: VscodeMockState = {
   tabGroups: [],
   executedCommands: [],
   contexts: {},
+  workspaceFolders: [],
+  activeTextEditor: undefined,
 };
 
 export function resetVscodeMock(): void {
@@ -32,6 +36,8 @@ export function resetVscodeMock(): void {
   vscodeMockState.tabGroups = [];
   vscodeMockState.executedCommands = [];
   vscodeMockState.contexts = {};
+  vscodeMockState.workspaceFolders = [];
+  vscodeMockState.activeTextEditor = undefined;
 }
 
 // Hook Module._resolveFilename and Module._load once
@@ -51,6 +57,12 @@ if (!(globalThis as any).__vscodeMockInstalled) {
     static file(filePath: string) {
       return new MockUri(filePath);
     }
+    static joinPath(base: MockUri, ...segments: string[]) {
+      return new MockUri([base.fsPath, ...segments].join('/'));
+    }
+    get scheme() {
+      return 'file';
+    }
     toString() {
       return `file://${this.fsPath}`;
     }
@@ -67,7 +79,43 @@ if (!(globalThis as any).__vscodeMockInstalled) {
         TabInputCustom: class {
           constructor(public readonly uri: any, public readonly viewType: string) {}
         },
+        TreeItemCollapsibleState: {
+          None: 0,
+          Collapsed: 1,
+          Expanded: 2,
+        },
+        TreeItem: class {
+          id?: string;
+          resourceUri?: any;
+          tooltip?: string;
+          command?: any;
+          contextValue?: string;
+          iconPath?: any;
+          constructor(public label: string, public collapsibleState: number = 0) {}
+        },
+        ThemeIcon: class {
+          constructor(public readonly id: string, public readonly color?: any) {}
+          static File = new (class {})();
+        },
+        ThemeColor: class {
+          constructor(public readonly id: string) {}
+        },
+        EventEmitter: class {
+          public event = (listener: any) => listener;
+          public fire(data?: any) {}
+        },
         workspace: {
+          get workspaceFolders() {
+            return vscodeMockState.workspaceFolders;
+          },
+          getWorkspaceFolder: (uri: any) => {
+            return vscodeMockState.workspaceFolders.find((f: any) => {
+              const root = f.uri.fsPath.replace(/\\/g, '/');
+              const target = (uri?.fsPath || '').replace(/\\/g, '/');
+              return target === root || target.startsWith(root + '/');
+            });
+          },
+          onDidChangeWorkspaceFolders: () => ({ dispose: () => {} }),
           getConfiguration: (section: string) => {
             if (section === 'agentCowork') {
               return {
@@ -108,8 +156,17 @@ if (!(globalThis as any).__vscodeMockInstalled) {
                       def
                     );
                   }
+                  if (key === 'colorCustomizations') {
+                    return (
+                      vscodeMockState.configUpdates['workbench.colorCustomizations'] ||
+                      vscodeMockState.configUpdates['colorCustomizations'] ||
+                      def ||
+                      {}
+                    );
+                  }
                   return def;
                 },
+                inspect: (key: string) => ({ key, defaultValue: undefined, globalValue: undefined }),
                 update: async (key: string, val: any) => {
                   vscodeMockState.configUpdates[`workbench.${key}`] = val;
                   vscodeMockState.configUpdates[key] = val;
@@ -118,6 +175,7 @@ if (!(globalThis as any).__vscodeMockInstalled) {
             }
             return {
               get: (_k: string, def?: any) => def,
+              inspect: (key: string) => ({ key, defaultValue: undefined, globalValue: undefined }),
               update: async (key: string, val: any) => {
                 vscodeMockState.configUpdates[`${section}.${key}`] = val;
               },
@@ -143,6 +201,9 @@ if (!(globalThis as any).__vscodeMockInstalled) {
             dispose: () => {},
           }),
           showInformationMessage: async () => {},
+          get activeTextEditor() {
+            return vscodeMockState.activeTextEditor;
+          },
           get tabGroups() {
             return {
               get all() {

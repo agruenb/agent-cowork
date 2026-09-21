@@ -1,4 +1,5 @@
 import { safeMarkdownToHtml } from '../markdown/parser';
+import { getFilenameHue, getDarkShade, hslToHex } from '../utils/colorUtils';
 import {
   indentListItem,
   outdentListItem,
@@ -867,6 +868,44 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
   }
 }
 
+// -------------------------------------------------------------
+// Filename-based Pastel Background Tint
+// -------------------------------------------------------------
+
+/**
+ * Applies document accents and toolbar background tint based on the filename.
+ * Derives a deterministic hue so each file gets its unique coordinated color palette,
+ * automatically adapting links, blockquotes, checkboxes, table focus, and selections.
+ */
+export function applyFilenameTint(filename: string): void {
+  const hue = getFilenameHue(filename);
+  const darkShade = getDarkShade(hue);
+
+  let hoverL = 26;
+  let hoverS = 75;
+  if (40 <= hue && hue <= 80) {
+    hoverL = 22;
+  } else if (200 <= hue && hue <= 280) {
+    hoverL = 32;
+  }
+  const hoverShade = hslToHex(hue, hoverS, hoverL);
+  const lightShade = hslToHex(hue, 55, 95);
+  const lightTransShade = `hsla(${hue}, 55%, 95%, 0.35)`;
+  const borderShade = hslToHex(hue, 50, 80);
+  const deepDarkShade = hslToHex(hue, 80, 18);
+  const selectionShade = `hsla(${hue}, 65%, 45%, 0.22)`;
+
+  document.documentElement.style.setProperty('--file-tint-hue', String(hue));
+  document.documentElement.style.setProperty('--primary', darkShade);
+  document.documentElement.style.setProperty('--primary-hover', hoverShade);
+  document.documentElement.style.setProperty('--primary-light', lightShade);
+  document.documentElement.style.setProperty('--primary-light-trans', lightTransShade);
+  document.documentElement.style.setProperty('--primary-border', borderShade);
+  document.documentElement.style.setProperty('--primary-dark', deepDarkShade);
+  document.documentElement.style.setProperty('--primary-selection', selectionShade);
+  document.documentElement.classList.add('has-file-tint');
+}
+
 export function handleWindowMessage(event: MessageEvent): void {
   const message = event.data;
   const textarea = getRawTextarea();
@@ -874,6 +913,9 @@ export function handleWindowMessage(event: MessageEvent): void {
     case 'init': {
       if (message.language) {
         setWebviewLanguage(message.language);
+      }
+      if (message.filename) {
+        applyFilenameTint(message.filename);
       }
       setContentFormatted(message.text || '');
       if (state.isRawMode) {
