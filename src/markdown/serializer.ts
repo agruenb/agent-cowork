@@ -29,7 +29,12 @@ export function serializeInlineNodes(container: Node): string {
         el.classList.contains('table-controls') ||
         el.classList.contains('table-confirm-popup') ||
         el.classList.contains('code-lang-input') ||
-        el.classList.contains('code-block-header')
+        el.classList.contains('code-block-header') ||
+        el.classList.contains('task-list-controls') ||
+        el.classList.contains('task-item-drag-btn') ||
+        el.classList.contains('task-item-del-btn') ||
+        el.classList.contains('task-item-top-btn') ||
+        el.classList.contains('task-drop-indicator')
       ) {
         continue;
       }
@@ -117,6 +122,12 @@ export function serializeListBlock(listEl: HTMLElement, indentLevel = 0): string
     const child = listEl.children[i] as HTMLElement;
     const childTag = child.tagName.toLowerCase();
 
+    // Skip task list control overlays (UI-only elements)
+    if (child.classList.contains('task-list-controls') ||
+        child.classList.contains('task-drop-indicator')) {
+      continue;
+    }
+
     // Handle browser-quirk where a sublist is placed directly inside parent list instead of inside li
     if (childTag === 'ul' || childTag === 'ol') {
       const subLines = serializeListBlock(child, indentLevel + 1);
@@ -175,7 +186,12 @@ export function serializeBlockElement(blockEl: HTMLElement): string[] {
         child.classList.contains('block-delete-btn') ||
         child.classList.contains('block-confirm-popup') ||
         child.classList.contains('table-controls') ||
-        child.classList.contains('table-confirm-popup')
+        child.classList.contains('table-confirm-popup') ||
+        child.classList.contains('task-list-controls') ||
+        child.classList.contains('task-item-drag-btn') ||
+        child.classList.contains('task-item-del-btn') ||
+        child.classList.contains('task-item-top-btn') ||
+        child.classList.contains('task-drop-indicator')
       ) {
         continue;
       }

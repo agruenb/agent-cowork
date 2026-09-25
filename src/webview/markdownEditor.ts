@@ -11,6 +11,7 @@ import { wireToolbar, executeCommand } from './toolbarWiring';
 import { wireBlockFocus } from './blockFocus';
 import { wireBlockDelete } from './blockDelete';
 import { handleBlockKeyboardGuards, handleTaskCheckboxBackspace } from './keyboardGuards';
+import { wireAllTaskListControls } from './taskListInteractions';
 import { getWebviewLanguage, setWebviewLanguage, tWebview, WebviewLanguage } from './i18n';
 import {
   wireSelectionCowork,
@@ -69,9 +70,13 @@ export function wireTaskCheckboxes(): void {
           li.setAttribute('data-checked', 'false');
         }
         emitCanvasEdit();
+        // Re-wire task list controls to update delete/send-to-top button visibility
+        if (canvas) wireAllTaskListControls(canvas, () => emitCanvasEdit(), wireTaskCheckboxes);
       }
     };
   });
+  // Wire task list controls (drag handles, delete, send-to-top)
+  if (canvas) wireAllTaskListControls(canvas, () => emitCanvasEdit(), wireTaskCheckboxes);
 }
 
 /**
@@ -586,10 +591,10 @@ export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElem
   const win = doc.defaultView || (typeof window !== 'undefined' ? window : null);
   const sel = win ? win.getSelection() : null;
 
-  // Don't interfere if clicking interactive elements (checkbox, buttons, tables, code language input, delete buttons)
+  // Don't interfere if clicking interactive elements (checkbox, buttons, tables, code language input, delete buttons, task list controls)
   if (
     target.closest(
-      'input, button, a, table, code, .widget-block:not([data-block-type="blockquote"]), .block-delete-btn, .table-controls'
+      'input, button, a, table, code, .widget-block:not([data-block-type="blockquote"]), .block-delete-btn, .table-controls, .task-list-controls, .task-item-drag-btn, .task-item-del-btn, .task-item-top-btn'
     )
   ) {
     return false;

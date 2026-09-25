@@ -308,6 +308,18 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
       colDelBtn.style.left = `${colCenterX - 9}px`;
       colDelBtn.style.display = 'none';
 
+      colDelBtn.addEventListener('mouseenter', () => {
+        const allCells = table.querySelectorAll(`tr > *:nth-child(${colIdx + 1})`);
+        allCells.forEach((c) => c.classList.add('is-delete-target'));
+      });
+
+      colDelBtn.addEventListener('mouseleave', () => {
+        if (!colDelBtn?.classList.contains('is-active')) {
+          const allCells = table.querySelectorAll(`tr > *:nth-child(${colIdx + 1})`);
+          allCells.forEach((c) => c.classList.remove('is-delete-target'));
+        }
+      });
+
       colDelBtn.addEventListener('mousedown', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -319,11 +331,15 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
         const needsConfirm = columnHasContent(table, colIdx);
         if (needsConfirm) {
           colDelBtn?.classList.add('is-active');
+          const allCells = table.querySelectorAll(`tr > *:nth-child(${colIdx + 1})`);
+          allCells.forEach((c) => c.classList.add('is-delete-target'));
           showDeleteConfirmPopup(colDelBtn!, wrapper, {
             title: tWebview('Spalte löschen?'),
             description: tWebview('Inhalte in dieser Spalte gehen verloren.'),
             onConfirm: () => {
               colDelBtn?.classList.remove('is-active');
+              const cells = table.querySelectorAll('.is-delete-target');
+              cells.forEach((c) => c.classList.remove('is-delete-target'));
               if (removeTableColumn(table, colIdx, true)) {
                 activeColIdx = null;
                 emitEdit();
@@ -332,12 +348,16 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
             },
             onCancel: () => {
               colDelBtn?.classList.remove('is-active');
+              const cells = table.querySelectorAll('.is-delete-target');
+              cells.forEach((c) => c.classList.remove('is-delete-target'));
             },
           });
           return;
         }
 
         // Direct delete if empty
+        const cells = table.querySelectorAll('.is-delete-target');
+        cells.forEach((c) => c.classList.remove('is-delete-target'));
         if (removeTableColumn(table, colIdx, true)) {
           activeColIdx = null;
           emitEdit();
@@ -492,6 +512,16 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
     rowDelBtn.style.left = '-52px';
     rowDelBtn.style.display = 'none';
 
+    rowDelBtn.addEventListener('mouseenter', () => {
+      tr.classList.add('is-delete-target');
+    });
+
+    rowDelBtn.addEventListener('mouseleave', () => {
+      if (!rowDelBtn.classList.contains('is-active')) {
+        tr.classList.remove('is-delete-target');
+      }
+    });
+
     rowDelBtn.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -503,11 +533,13 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
       const needsConfirm = rowHasContent(tr);
       if (needsConfirm) {
         rowDelBtn.classList.add('is-active');
+        tr.classList.add('is-delete-target');
         showDeleteConfirmPopup(rowDelBtn, wrapper, {
           title: tWebview('Zeile löschen?'),
           description: tWebview('Inhalte in dieser Zeile gehen verloren.'),
           onConfirm: () => {
             rowDelBtn.classList.remove('is-active');
+            tr.classList.remove('is-delete-target');
             if (removeTableRow(table, rowIdx, true)) {
               activeRowIdx = null;
               emitEdit();
@@ -516,12 +548,14 @@ export function updateTableControls(wrapper: HTMLElement, emitEdit: () => void):
           },
           onCancel: () => {
             rowDelBtn.classList.remove('is-active');
+            tr.classList.remove('is-delete-target');
           },
         });
         return;
       }
 
       // Direct delete if empty
+      tr.classList.remove('is-delete-target');
       if (removeTableRow(table, rowIdx, true)) {
         activeRowIdx = null;
         emitEdit();

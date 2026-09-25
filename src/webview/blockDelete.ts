@@ -95,6 +95,7 @@ export function showBlockDeleteConfirm(
   const labels = getBlockTypeLabels(blockType);
 
   deleteBtn.classList.add('is-active');
+  container.classList.add('is-delete-target');
 
   const popup = doc.createElement('div');
   popup.className = 'block-confirm-popup';
@@ -138,6 +139,7 @@ export function showBlockDeleteConfirm(
 
   const cleanup = () => {
     deleteBtn.classList.remove('is-active');
+    container.classList.remove('is-delete-target');
     if (popup.parentElement) {
       popup.remove();
     }
@@ -224,10 +226,34 @@ export function wireBlockDelete(editorCanvas: HTMLElement, emitEdit: () => void)
     handleBlockDeleteClick(e, editorCanvas, emitEdit);
   };
 
+  const onMouseOver = (e: MouseEvent) => {
+    const target = e.target as HTMLElement | null;
+    const deleteBtn = target?.closest('.block-delete-btn') as HTMLElement | null;
+    if (deleteBtn && editorCanvas.contains(deleteBtn)) {
+      const container = deleteBtn.closest('.editor-block-container') as HTMLElement | null;
+      container?.classList.add('is-delete-target');
+    }
+  };
+
+  const onMouseOut = (e: MouseEvent) => {
+    const target = e.target as HTMLElement | null;
+    const deleteBtn = target?.closest('.block-delete-btn') as HTMLElement | null;
+    if (deleteBtn && editorCanvas.contains(deleteBtn)) {
+      const container = deleteBtn.closest('.editor-block-container') as HTMLElement | null;
+      if (!deleteBtn.classList.contains('is-active')) {
+        container?.classList.remove('is-delete-target');
+      }
+    }
+  };
+
   editorCanvas.addEventListener('click', onClick);
+  editorCanvas.addEventListener('mouseover', onMouseOver);
+  editorCanvas.addEventListener('mouseout', onMouseOut);
 
   return () => {
     editorCanvas.removeEventListener('click', onClick);
+    editorCanvas.removeEventListener('mouseover', onMouseOver);
+    editorCanvas.removeEventListener('mouseout', onMouseOut);
     closeActiveBlockConfirm();
   };
 }

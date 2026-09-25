@@ -152,6 +152,19 @@
   box-shadow: 0 2px 6px rgba(220, 38, 38, 0.35);
 }
 
+/* Delete target highlight when hovering table row/col delete button */
+tr.is-delete-target td,
+tr.is-delete-target th {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  color: #dc2626 !important;
+}
+
+td.is-delete-target,
+th.is-delete-target {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  color: #dc2626 !important;
+}
+
 .table-grip {
   cursor: grab;
   display: inline-flex;

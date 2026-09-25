@@ -27,6 +27,24 @@
   outline: none !important;
 }
 
+/* Delete target highlight when hovering delete button */
+.editor-block-container.widget-block:has(.block-delete-btn:hover),
+.editor-block-container.widget-block:has(.block-delete-btn.is-active),
+.editor-block-container.widget-block.is-delete-target {
+  background-color: rgba(239, 68, 68, 0.06) !important;
+  outline: 1.5px solid rgba(239, 68, 68, 0.45) !important;
+  outline-offset: 3px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease, outline 0.15s ease;
+}
+
+.editor-block-container.widget-block:has(.block-delete-btn:hover) blockquote.editor-block,
+.editor-block-container.widget-block:has(.block-delete-btn.is-active) blockquote.editor-block,
+.editor-block-container.widget-block.is-delete-target blockquote.editor-block {
+  border-left-color: #dc2626 !important;
+  color: #dc2626 !important;
+}
+
 .editor-block-container.widget-block[data-block-type="blockquote"] {
   padding: 0;
   border: none;

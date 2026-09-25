@@ -3,7 +3,7 @@ import { JSDOM } from 'jsdom';
 import { markdownToHtml, BLOCK_DELETE_BTN_HTML } from '../src/markdown/parser';
 import { domToMarkdown } from '../src/markdown/serializer';
 import { setActiveBlock, getActiveBlock, setFocusedCell, getFocusedCell, updateActiveBlock } from '../src/webview/blockFocus';
-import { handleBlockDeleteClick } from '../src/webview/blockDelete';
+import { handleBlockDeleteClick, wireBlockDelete } from '../src/webview/blockDelete';
 import { toggleInlineCode, handleCodeButtonClick } from '../src/webview/inlineCode';
 import { isAtStartOfBlock, isAtEndOfBlock, handleBlockKeyboardGuards } from '../src/webview/keyboardGuards';
 
@@ -134,6 +134,7 @@ describe('Block Editor Architecture & Interactions', () => {
       const popup = editor.querySelector('.block-confirm-popup') as HTMLElement;
       assert.ok(popup, 'Confirmation popup should appear');
       assert.strictEqual(document.getElementById('code-block') !== null, true);
+      assert.strictEqual(document.getElementById('code-block')?.classList.contains('is-delete-target'), true);
       assert.strictEqual(editEmitted, false);
 
       // Confirm deletion
@@ -168,13 +169,38 @@ describe('Block Editor Architecture & Interactions', () => {
 
       const popup = editor.querySelector('.block-confirm-popup') as HTMLElement;
       assert.ok(popup);
+      assert.strictEqual(document.getElementById('code-block')?.classList.contains('is-delete-target'), true);
       const cancelBtn = popup.querySelector('.block-confirm-cancel') as HTMLElement;
       assert.ok(cancelBtn);
       cancelBtn.click();
 
       assert.strictEqual(editEmitted, false);
       assert.ok(document.getElementById('code-block'));
+      assert.strictEqual(document.getElementById('code-block')?.classList.contains('is-delete-target'), false);
       assert.strictEqual(editor.querySelector('.block-confirm-popup'), null);
+    });
+
+    it('highlights block container with is-delete-target when hovering block delete button', () => {
+      editor.innerHTML = `
+        <div id="quote-block" class="editor-block-container widget-block" data-block-type="blockquote" contenteditable="false">
+          ${BLOCK_DELETE_BTN_HTML}
+          <blockquote class="editor-block"><p>Test quote</p></blockquote>
+        </div>
+      `;
+
+      const unregister = wireBlockDelete(editor, () => {});
+      const container = document.getElementById('quote-block')!;
+      const deleteBtn = container.querySelector('.block-delete-btn')!;
+
+      // Hover over delete button
+      deleteBtn.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true }));
+      assert.strictEqual(container.classList.contains('is-delete-target'), true, 'Container should have is-delete-target on hover');
+
+      // Mouse leaves delete button
+      deleteBtn.dispatchEvent(new dom.window.MouseEvent('mouseout', { bubbles: true }));
+      assert.strictEqual(container.classList.contains('is-delete-target'), false, 'is-delete-target should be removed on mouseout');
+
+      unregister();
     });
 
     it('inserts an empty paragraph when the last remaining block is deleted', () => {
