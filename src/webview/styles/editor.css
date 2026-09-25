@@ -9,6 +9,7 @@
   outline: none;
   color: var(--text);
   cursor: text;
+  padding-bottom: 60px;
 }
 
 .editor-canvas:empty::before {
