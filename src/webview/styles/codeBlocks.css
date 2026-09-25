@@ -45,9 +45,9 @@
 
 .code-lang-input:focus {
   background-color: #ffffff;
-  border-color: var(--primary, #059669);
+  border-color: var(--primary, #0f172a);
   color: #0f172a;
-  box-shadow: 0 0 0 2px var(--primary-selection, rgba(5, 150, 105, 0.15));
+  box-shadow: 0 0 0 2px var(--primary-selection, rgba(15, 23, 42, 0.15));
 }
 
 .code-lang-input::placeholder {

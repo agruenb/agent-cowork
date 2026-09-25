@@ -150,9 +150,13 @@ describe('Cowork View Manager', () => {
       assert.strictEqual(item.text, '$(folder-library) Cowork: On');
       assert(item.tooltip.includes('Enabled'));
 
+      updateCoworkStatusBarItem(item, true, '#3b82f6');
+      assert.strictEqual(item.color, '#3b82f6');
+
       updateCoworkStatusBarItem(item, false);
       assert.strictEqual(item.text, '$(folder-library) Cowork: Off');
       assert(item.tooltip.includes('Disabled'));
+      assert.strictEqual(item.color, undefined);
     });
   });
 

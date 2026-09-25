@@ -47,7 +47,7 @@
 }
 
 .raw-gutter-line:hover {
-  color: var(--primary, #059669);
+  color: var(--primary, #0f172a);
 }
 
 .raw-textarea {
@@ -91,7 +91,7 @@
 }
 
 .raw-textarea::selection {
-  background-color: var(--primary-selection, rgba(5, 150, 105, 0.2));
+  background-color: var(--primary-selection, rgba(15, 23, 42, 0.15));
   color: inherit;
 }
 

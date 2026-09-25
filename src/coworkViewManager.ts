@@ -101,11 +101,20 @@ export function getCoworkStatusBarTooltip(enabled: boolean): string {
 }
 
 /**
- * Updates an existing status bar item's text and tooltip based on enabled state.
+ * Updates an existing status bar item's text, tooltip, and optional accent color based on enabled state.
  */
-export function updateCoworkStatusBarItem(statusBarItem: vscode.StatusBarItem, enabled: boolean): void {
+export function updateCoworkStatusBarItem(
+  statusBarItem: vscode.StatusBarItem,
+  enabled: boolean,
+  accentColor?: string
+): void {
   statusBarItem.text = getCoworkStatusBarText(enabled);
   statusBarItem.tooltip = getCoworkStatusBarTooltip(enabled);
+  if (enabled && accentColor) {
+    statusBarItem.color = accentColor;
+  } else if (!enabled) {
+    statusBarItem.color = undefined;
+  }
 }
 
 /**

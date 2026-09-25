@@ -105,10 +105,10 @@
 .table-col-drag-btn.is-dragging,
 .table-row-drag-btn.is-dragging {
   cursor: grabbing !important;
-  background-color: var(--primary-light, #ecfdf5) !important;
+  background-color: var(--primary-light, #f1f5f9) !important;
   border-color: var(--primary) !important;
   color: var(--primary) !important;
-  box-shadow: 0 4px 12px var(--primary-selection, rgba(5, 150, 105, 0.3)) !important;
+  box-shadow: 0 4px 12px var(--primary-selection, rgba(15, 23, 42, 0.2)) !important;
   z-index: 35 !important;
   transition: none !important;
   transform: scale(1.15) !important;
@@ -274,7 +274,7 @@
   border-color: var(--primary);
   color: #ffffff;
   transform: scale(1.15) !important;
-  box-shadow: 0 2px 6px var(--primary-selection, rgba(5, 150, 105, 0.35));
+  box-shadow: 0 2px 6px var(--primary-selection, rgba(15, 23, 42, 0.25));
 }
 
 /* Drop Indicators during Row/Column Reordering */
@@ -347,26 +347,26 @@
   pointer-events: none;
 }
 
-/* Focussed Table Cell - Soft Green Outline */
+/* Focussed Table Cell - Dynamic Accent Outline */
 .editor-table th:focus,
 .editor-table td:focus,
 .editor-table th.is-focused-cell,
 .editor-table td.is-focused-cell {
-  outline: 2px solid var(--primary, #10b981) !important;
+  outline: 2px solid var(--primary, #0f172a) !important;
   outline-offset: -1px;
   position: relative;
   z-index: 2;
-  background-color: var(--primary-light, rgba(236, 253, 245, 0.7));
+  background-color: var(--primary-light, rgba(241, 245, 249, 0.7));
 }
 
 .editor-table th {
   background-color: #f8fafc;
-  color: var(--primary-dark, #065f46);
+  color: var(--primary-dark, #0f172a);
   font-weight: 600;
 }
 
 .editor-table tr:hover td:not(.is-focused-cell) {
-  background-color: var(--primary-light-trans, #f0fdf450);
+  background-color: var(--primary-light-trans, #f1f5f950);
 }
 
 /* Checkbox Cells (when table cell contains only a single checkbox) */
@@ -389,7 +389,7 @@
 }
 
 .editor-table td.table-checkbox-cell.is-checked {
-  background-color: var(--primary-light, #f0fdf4);
+  background-color: var(--primary-light, #f1f5f9);
 }
 
 .editor-table .table-cell-checkbox {

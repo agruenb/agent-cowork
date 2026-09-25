@@ -75,7 +75,7 @@ blockquote.editor-block {
   background-color: var(--primary-light);
   padding: 12px 18px;
   border-radius: 0 8px 8px 0;
-  color: var(--primary-dark, #065f46);
+  color: var(--primary-dark, #0f172a);
   font-style: italic;
   margin-bottom: 0;
   outline: none !important;
@@ -99,7 +99,7 @@ blockquote.editor-block p:last-child {
 /* Inline Code */
 code.inline-code {
   background-color: #f1f5f9;
-  color: #0f766e;
+  color: #0f172a;
   font-family: var(--mono-font);
   font-size: 0.9em;
   padding: 2px 6px;

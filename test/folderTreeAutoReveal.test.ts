@@ -33,21 +33,23 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
   });
 
   describe('Theme Highlighting Colors', () => {
-    it('theme JSON defines list selection in the same green as the tab (#059669)', () => {
+    it('theme JSON defines list selection in the same obsidian black as the tab (#0f172a)', () => {
       const themePath = path.join(__dirname, '..', 'themes', 'agent-cowork-light.json');
       const themeContent = JSON.parse(fs.readFileSync(themePath, 'utf8'));
 
-      assert.strictEqual(themeContent.colors['tab.activeBackground'], '#059669');
+      assert.strictEqual(themeContent.colors['tab.activeBackground'], '#0f172a');
       assert.strictEqual(themeContent.colors['tab.hoverBackground'], '#0f172a');
       assert.strictEqual(themeContent.colors['tab.hoverForeground'], '#ffffff');
       assert.strictEqual(themeContent.colors['tab.hoverBorder'], '#0f172a');
       assert.strictEqual(themeContent.colors['tab.unfocusedHoverBackground'], '#1e293b');
       assert.strictEqual(themeContent.colors['tab.unfocusedHoverForeground'], '#ffffff');
       assert.strictEqual(themeContent.colors['tab.unfocusedHoverBorder'], '#1e293b');
-      assert.strictEqual(themeContent.colors['list.activeSelectionBackground'], '#059669');
-      assert.strictEqual(themeContent.colors['list.inactiveSelectionBackground'], '#059669');
+      assert.strictEqual(themeContent.colors['list.activeSelectionBackground'], '#0f172a');
+      assert.strictEqual(themeContent.colors['list.inactiveSelectionBackground'], '#0f172a');
       assert.strictEqual(themeContent.colors['list.activeSelectionForeground'], '#ffffff');
       assert.strictEqual(themeContent.colors['list.inactiveSelectionForeground'], '#ffffff');
+      assert.strictEqual(themeContent.colors['statusBar.background'], '#ffffff');
+      assert.strictEqual(themeContent.colors['statusBar.border'], '#e2e8f0');
     });
   });
 

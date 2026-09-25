@@ -116,10 +116,10 @@ export class WelcomePanel {
   <title>${title}</title>
   <style>
     :root {
-      --primary: #059669;
-      --primary-hover: #047857;
-      --primary-light: #ecfdf5;
-      --primary-border: #a7f3d0;
+      --primary: #0f172a;
+      --primary-hover: #1e293b;
+      --primary-light: #f8fafc;
+      --primary-border: #e2e8f0;
       --bg: var(--vscode-editor-background, #ffffff);
       --card-bg: var(--vscode-sideBar-background, #f8fafc);
       --card-border: var(--vscode-sideBar-border, #e2e8f0);
@@ -166,8 +166,8 @@ export class WelcomePanel {
       font-weight: 600;
       letter-spacing: 0.5px;
       text-transform: uppercase;
-      background-color: #d1fae5;
-      color: #065f46;
+      background-color: #f1f5f9;
+      color: #0f172a;
       padding: 4px 12px;
       border-radius: 9999px;
       margin-bottom: 14px;
@@ -176,7 +176,7 @@ export class WelcomePanel {
     .hero h1 {
       font-size: 32px;
       font-weight: 700;
-      color: #065f46;
+      color: #0f172a;
       margin-bottom: 8px;
     }
 
@@ -216,7 +216,7 @@ export class WelcomePanel {
 
     .card:hover {
       border-color: var(--primary);
-      box-shadow: 0 6px 18px rgba(5, 150, 105, 0.15);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
       transform: translateY(-2px);
     }
 
@@ -230,7 +230,7 @@ export class WelcomePanel {
     .card-icon {
       width: 48px;
       height: 48px;
-      background-color: #d1fae5;
+      background-color: #f1f5f9;
       color: var(--primary);
       border-radius: 10px;
       display: flex;
@@ -268,11 +268,13 @@ export class WelcomePanel {
       border-radius: 8px;
       border: none;
       cursor: pointer;
-      transition: background-color 0.2s ease;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
     }
 
     .card:hover .card-action-btn {
       background-color: var(--primary-hover);
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
     }
 
     .tips-box {
@@ -286,7 +288,7 @@ export class WelcomePanel {
     .tips-box h4 {
       font-size: 14px;
       font-weight: 600;
-      color: #047857;
+      color: #0f172a;
       margin-bottom: 10px;
     }
 

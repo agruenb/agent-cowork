@@ -1,11 +1,11 @@
 :root {
-  --primary: #059669;
-  --primary-hover: #047857;
-  --primary-light: #ecfdf5;
-  --primary-light-trans: #f0fdf450;
-  --primary-border: #a7f3d0;
-  --primary-dark: #065f46;
-  --primary-selection: rgba(5, 150, 105, 0.2);
+  --primary: #0f172a;
+  --primary-hover: #1e293b;
+  --primary-light: #f1f5f9;
+  --primary-light-trans: #f1f5f950;
+  --primary-border: #cbd5e1;
+  --primary-dark: #020617;
+  --primary-selection: rgba(15, 23, 42, 0.15);
   --bg: var(--vscode-editor-background, #ffffff);
   --card-bg: var(--vscode-sideBar-background, #f8fafc);
   --card-border: var(--vscode-sideBar-border, #e2e8f0);

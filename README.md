@@ -11,8 +11,8 @@ It strips away intimidating developer clutter (complex git panels, crowded tab b
 
 ## ✨ Key Features
 
-### 🌿 Agent Cowork Light Theme
-A modern, soothing light theme featuring emerald accents (`#059669`), clear high-contrast text, and a calming workspace canvas that reduces eye strain during long sessions.
+### 🎨 Agent Cowork Light Theme
+A clean, modern light theme featuring crisp obsidian black accents (`#0f172a`), dynamic document color coding, clear high-contrast text, and a calming workspace canvas that reduces eye strain during long sessions.
 
 ### 🌐 Browser-Style Tabs
 Tabs that behave like your favorite web browser:

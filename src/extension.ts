@@ -25,7 +25,7 @@ import {
   extractUriFromTab,
   THEME_NAME,
 } from './coworkViewManager';
-import { getFilePastelColors } from './utils/colorUtils';
+import { getFilePastelColors, getFilenameHue, getDarkShade } from './utils/colorUtils';
 
 /**
  * Enforces the light theme with green accents and custom file icon theme.
@@ -283,17 +283,17 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'editorGroupHeader.tabsBorder': '#00000000',
       'editorGroupHeader.border': '#00000000',
       'editorGroup.border': '#e2e8f0',
-      'tab.activeBackground': '#059669',
+      'tab.activeBackground': '#0f172a',
       'tab.activeForeground': '#ffffff',
-      'tab.activeBorder': '#059669',
+      'tab.activeBorder': '#0f172a',
       'tab.activeBorderTop': '#00000000',
       'tab.selectedBorderTop': '#00000000',
       'tab.inactiveBackground': '#e2e8f0',
       'tab.inactiveForeground': '#475569',
       'tab.border': '#00000000',
-      'tab.unfocusedActiveBackground': '#059669cc',
+      'tab.unfocusedActiveBackground': '#0f172acc',
       'tab.unfocusedActiveForeground': '#ffffff',
-      'tab.unfocusedActiveBorder': '#059669cc',
+      'tab.unfocusedActiveBorder': '#0f172acc',
       'tab.unfocusedActiveBorderTop': '#00000000',
       'tab.unfocusedInactiveBackground': '#e2e8f0',
       'tab.unfocusedInactiveForeground': '#64748b',
@@ -302,8 +302,8 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'tab.inactiveModifiedBorder': '#00000000',
       'tab.unfocusedActiveModifiedBorder': '#00000000',
       'tab.unfocusedInactiveModifiedBorder': '#00000000',
-      'tab.dragAndDropBorder': '#059669',
-      'tab.selectedBackground': '#059669',
+      'tab.dragAndDropBorder': '#0f172a',
+      'tab.selectedBackground': '#0f172a',
       'tab.selectedForeground': '#ffffff',
       'tab.hoverBackground': '#0f172a',
       'tab.hoverForeground': '#ffffff',
@@ -311,14 +311,28 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'tab.unfocusedHoverBackground': '#1e293b',
       'tab.unfocusedHoverForeground': '#ffffff',
       'tab.unfocusedHoverBorder': '#1e293b',
-      'list.activeSelectionBackground': '#059669',
+      'list.activeSelectionBackground': '#0f172a',
       'list.activeSelectionForeground': '#ffffff',
       'list.activeSelectionIconForeground': '#ffffff',
-      'list.inactiveSelectionBackground': '#059669',
+      'list.inactiveSelectionBackground': '#0f172a',
       'list.inactiveSelectionForeground': '#ffffff',
       'list.inactiveSelectionIconForeground': '#ffffff',
-      'list.focusBackground': '#059669',
+      'list.focusBackground': '#0f172a',
       'list.focusForeground': '#ffffff',
+      'statusBar.background': '#ffffff',
+      'statusBar.foreground': '#475569',
+      'statusBar.border': '#e2e8f0',
+      'statusBar.debuggingBackground': '#ffffff',
+      'statusBar.debuggingForeground': '#475569',
+      'statusBar.debuggingBorder': '#e2e8f0',
+      'statusBar.noFolderBackground': '#ffffff',
+      'statusBar.noFolderForeground': '#475569',
+      'statusBar.noFolderBorder': '#e2e8f0',
+      'statusBarItem.hoverBackground': '#f1f5f9',
+      'statusBarItem.hoverForeground': '#0f172a',
+      'statusBarItem.activeBackground': '#e2e8f0',
+      'statusBarItem.remoteBackground': '#f1f5f9',
+      'statusBarItem.remoteForeground': '#0f172a',
     };
 
     let hasChanges = false;
@@ -695,6 +709,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const filename = path.basename(targetUri.fsPath);
     await applyFilePastelHighlight(filename);
 
+    const activeHue = getFilenameHue(filename);
+    const darkHex = getDarkShade(activeHue);
+    updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled(), darkHex);
+
     const normPath = path.normalize(targetUri.fsPath);
     if (!force && lastRevealedPath === normPath) {
       return;
@@ -913,6 +931,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     'agent-cowork.toggleCoworkView',
     async () => {
       await toggleCoworkView(coworkStatusBarItem);
+      const activeUri = getActiveDocumentUri();
+      const accent = activeUri ? getDarkShade(getFilenameHue(path.basename(activeUri.fsPath))) : undefined;
+      updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled(), accent);
     }
   );
 
