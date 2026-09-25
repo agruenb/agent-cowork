@@ -28,7 +28,7 @@ export interface ToolbarHooks {
 
 function focusCanvas(canvas: HTMLElement | null): void {
   if (canvas && typeof document !== 'undefined' && document.activeElement !== canvas && !canvas.contains(document.activeElement)) {
-    canvas.focus();
+    canvas.focus({ preventScroll: true });
   }
 }
 

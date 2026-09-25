@@ -87,7 +87,7 @@ export function updateRawLineNumbers(): void {
         offset += currentLines[l].length + 1; // +1 for \n
       }
 
-      textarea.focus();
+      textarea.focus({ preventScroll: true });
       textarea.setSelectionRange(offset, offset);
     });
   }

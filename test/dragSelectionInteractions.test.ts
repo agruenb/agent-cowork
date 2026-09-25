@@ -445,4 +445,412 @@ describe('User Interactions - Drag Selection Behind Text Lines', () => {
 
     document.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true }));
   });
+
+  it('clicking on text after a formatted element does not place cursor behind first formatted part', () => {
+    setContentFormatted('**Formatted** normal text here');
+    const p = editor.querySelector('p.editor-block')!;
+    assert.ok(p);
+
+    // Mock two client rects on the same line:
+    // Rect 1: "**Formatted**" from left: 10 to right: 80
+    // Rect 2: " normal text here" from left: 80 to right: 200
+    const origCreateRange = document.createRange.bind(document);
+    document.createRange = () => {
+      const range = origCreateRange();
+      range.getClientRects = () => [
+        {
+          left: 10,
+          right: 80,
+          top: 10,
+          bottom: 30,
+          width: 70,
+          height: 20,
+        } as DOMRect,
+        {
+          left: 80,
+          right: 200,
+          top: 10,
+          bottom: 30,
+          width: 120,
+          height: 20,
+        } as DOMRect,
+      ];
+      return range;
+    };
+
+    let defaultPrevented = false;
+    // Click on "normal text here" at clientX = 130 (between 80 and 200)
+    const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 130,
+      clientY: 20,
+      button: 0,
+    });
+    mousedownEvent.preventDefault = () => {
+      defaultPrevented = true;
+    };
+    Object.defineProperty(mousedownEvent, 'target', { value: p });
+
+    const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+    // Must return false and NOT prevent default so the browser sets the cursor where clicked
+    assert.strictEqual(handled, false);
+    assert.strictEqual(defaultPrevented, false);
+  });
+
+  it('clicking in empty space at end of line with formatted elements places cursor at the end of the line', () => {
+    setContentFormatted('**Formatted** normal text here');
+    const p = editor.querySelector('p.editor-block')!;
+    assert.ok(p);
+
+    const origCreateRange = document.createRange.bind(document);
+    document.createRange = () => {
+      const range = origCreateRange();
+      range.getClientRects = () => [
+        {
+          left: 10,
+          right: 80,
+          top: 10,
+          bottom: 30,
+          width: 70,
+          height: 20,
+        } as DOMRect,
+        {
+          left: 80,
+          right: 200,
+          top: 10,
+          bottom: 30,
+          width: 120,
+          height: 20,
+        } as DOMRect,
+      ];
+      return range;
+    };
+
+    const sel = window.getSelection()!;
+
+    let defaultPrevented = false;
+    // Click in empty space on the row at clientX = 400 (past right: 200)
+    const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 400,
+      clientY: 20,
+      button: 0,
+    });
+    mousedownEvent.preventDefault = () => {
+      defaultPrevented = true;
+    };
+    Object.defineProperty(mousedownEvent, 'target', { value: p });
+
+    const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+    assert.strictEqual(handled, true);
+    assert.strictEqual(defaultPrevented, true);
+
+    // Cursor must be placed at the END of " normal text here", NOT behind "**Formatted**"
+    const textNode = p.childNodes[1]; // Text node after <strong>
+    assert.strictEqual(sel.anchorNode, textNode);
+    assert.strictEqual(sel.anchorOffset, (textNode as Text).length);
+  });
+
+  it('clicking in empty space at end of line with formatting at end places cursor at the end of formatted element', () => {
+    setContentFormatted('Normal text **bold end**');
+    const p = editor.querySelector('p.editor-block')!;
+    assert.ok(p);
+
+    const origCreateRange = document.createRange.bind(document);
+    document.createRange = () => {
+      const range = origCreateRange();
+      range.getClientRects = () => [
+        {
+          left: 10,
+          right: 100,
+          top: 10,
+          bottom: 30,
+          width: 90,
+          height: 20,
+        } as DOMRect,
+        {
+          left: 100,
+          right: 180,
+          top: 10,
+          bottom: 30,
+          width: 80,
+          height: 20,
+        } as DOMRect,
+      ];
+      return range;
+    };
+
+    const sel = window.getSelection()!;
+
+    const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 400,
+      clientY: 20,
+      button: 0,
+    });
+    Object.defineProperty(mousedownEvent, 'target', { value: p });
+
+    const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+    assert.strictEqual(handled, true);
+
+    const strongEl = p.querySelector('strong')!;
+    assert.ok(strongEl);
+    assert.strictEqual(sel.anchorNode, strongEl.firstChild);
+    assert.strictEqual(sel.anchorOffset, 8); // "bold end".length
+  });
+
+  it('clicking on an empty block places cursor at the beginning of the block', () => {
+    setContentFormatted('');
+    const p = editor.querySelector('p.editor-block')!;
+    assert.ok(p);
+
+    const sel = window.getSelection()!;
+
+    const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 200,
+      clientY: 20,
+      button: 0,
+    });
+    Object.defineProperty(mousedownEvent, 'target', { value: p });
+
+    const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+    assert.strictEqual(handled, true);
+    assert.strictEqual(sel.anchorNode, p);
+    assert.strictEqual(sel.anchorOffset, 0);
+  });
+
+  describe('Scroll preservation when no cursor present', () => {
+    it('clicking below all blocks when scrolled preserves scrollTop and places cursor at end of last block', () => {
+      setContentFormatted('First paragraph\n\nSecond paragraph');
+      const paragraphs = editor.querySelectorAll('p.editor-block');
+      assert.strictEqual(paragraphs.length, 2);
+      const p1 = paragraphs[0];
+      const p2 = paragraphs[1];
+
+      p1.getBoundingClientRect = () =>
+        ({ top: -200, bottom: -180, left: 50, right: 300, width: 250, height: 20 } as DOMRect);
+      p2.getBoundingClientRect = () =>
+        ({ top: 100, bottom: 120, left: 50, right: 300, width: 250, height: 20 } as DOMRect);
+
+      const viewport = document.querySelector('.document-viewport') as HTMLElement;
+      assert.ok(viewport);
+      viewport.scrollTop = 450;
+
+      // Clear any selection so no cursor is present in document
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+
+      // Click in empty viewport space 200px below the last block (clientY = 320)
+      const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 500,
+        clientY: 320,
+        button: 0,
+      });
+      Object.defineProperty(mousedownEvent, 'target', { value: viewport });
+
+      const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+      assert.strictEqual(handled, true);
+      // Scroll position must be preserved at 450 (not jumped to 0)
+      assert.strictEqual(viewport.scrollTop, 450);
+      // Caret placed at end of second paragraph
+      assert.strictEqual(sel.anchorNode, p2.firstChild);
+      assert.strictEqual(sel.anchorOffset, 16); // "Second paragraph".length
+    });
+
+    it('clicking to the right of a line when scrolled preserves scrollTop', () => {
+      setContentFormatted('Line one\n\nLine two');
+      const p2 = editor.querySelectorAll('p.editor-block')[1];
+      assert.ok(p2);
+
+      p2.getBoundingClientRect = () =>
+        ({ top: 100, bottom: 120, left: 50, right: 300, width: 250, height: 20 } as DOMRect);
+
+      const origCreateRange = document.createRange.bind(document);
+      document.createRange = () => {
+        const range = origCreateRange();
+        range.getClientRects = () => [
+          { left: 50, right: 120, top: 100, bottom: 120, width: 70, height: 20 } as DOMRect,
+        ];
+        return range;
+      };
+
+      const viewport = document.querySelector('.document-viewport') as HTMLElement;
+      viewport.scrollTop = 300;
+
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+
+      // Click to the right of line two (clientX = 500, clientY = 110)
+      const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 500,
+        clientY: 110,
+        button: 0,
+      });
+      Object.defineProperty(mousedownEvent, 'target', { value: p2 });
+
+      const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+      assert.strictEqual(handled, true);
+      assert.strictEqual(viewport.scrollTop, 300);
+      assert.strictEqual(sel.anchorNode, p2.firstChild);
+      assert.strictEqual(sel.anchorOffset, 8); // "Line two".length
+    });
+
+    it('clicking on text when no cursor present sets caret and preserves scrollTop', () => {
+      setContentFormatted('Paragraph text line');
+      const p = editor.querySelector('p.editor-block')!;
+      assert.ok(p);
+
+      p.getBoundingClientRect = () =>
+        ({ top: 50, bottom: 70, left: 50, right: 300, width: 250, height: 20 } as DOMRect);
+
+      const origCreateRange = document.createRange.bind(document);
+      document.createRange = () => {
+        const range = origCreateRange();
+        range.getClientRects = () => [
+          { left: 50, right: 200, top: 50, bottom: 70, width: 150, height: 20 } as DOMRect,
+        ];
+        return range;
+      };
+
+      // Mock caretPositionFromPoint to return offset 5
+      (document as any).caretPositionFromPoint = (_x: number, _y: number) => {
+        return { offsetNode: p.firstChild, offset: 5 };
+      };
+
+      const viewport = document.querySelector('.document-viewport') as HTMLElement;
+      viewport.scrollTop = 250;
+
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+
+      // Click directly on text (clientX = 80 inside [50, 200], clientY = 60)
+      let defaultPrevented = false;
+      const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 80,
+        clientY: 60,
+        button: 0,
+      });
+      mousedownEvent.preventDefault = () => {
+        defaultPrevented = true;
+      };
+      Object.defineProperty(mousedownEvent, 'target', { value: p });
+
+      const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+      // Handled is false to allow native text selection/double click, but caret and focus are set
+      assert.strictEqual(handled, false);
+      assert.strictEqual(defaultPrevented, false);
+      assert.strictEqual(viewport.scrollTop, 250);
+      assert.strictEqual(sel.anchorNode, p.firstChild);
+      assert.strictEqual(sel.anchorOffset, 5);
+    });
+
+    it('clicking to the left of a line in the viewport margin when scrolled preserves scrollTop and sets caret at start', () => {
+      setContentFormatted('# Document Title\n\nParagraph text');
+      const h1 = editor.querySelector('h1.editor-block')!;
+      assert.ok(h1);
+
+      h1.getBoundingClientRect = () =>
+        ({ top: 40, bottom: 80, left: 100, right: 400, width: 300, height: 40 } as DOMRect);
+
+      const origCreateRange = document.createRange.bind(document);
+      document.createRange = () => {
+        const range = origCreateRange();
+        range.getClientRects = () => [
+          { left: 100, right: 350, top: 40, bottom: 80, width: 250, height: 40 } as DOMRect,
+        ];
+        return range;
+      };
+
+      const viewport = document.querySelector('.document-viewport') as HTMLElement;
+      viewport.scrollTop = 180;
+
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+
+      // Click to the left of document flow at clientX = 20 (< 100), aligned vertically at clientY = 60
+      const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 20,
+        clientY: 60,
+        button: 0,
+      });
+      Object.defineProperty(mousedownEvent, 'target', { value: viewport });
+
+      const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+      assert.strictEqual(handled, true);
+      assert.strictEqual(viewport.scrollTop, 180);
+      assert.strictEqual(sel.anchorNode, h1.firstChild);
+      assert.strictEqual(sel.anchorOffset, 0);
+    });
+
+    it('clicking an empty block when scrolled preserves scrollTop', () => {
+      setContentFormatted('');
+      const p = editor.querySelector('p.editor-block')!;
+      assert.ok(p);
+
+      p.getBoundingClientRect = () =>
+        ({ top: 120, bottom: 144, left: 50, right: 300, width: 250, height: 24 } as DOMRect);
+
+      const viewport = document.querySelector('.document-viewport') as HTMLElement;
+      viewport.scrollTop = 350;
+
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+
+      const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 200,
+        clientY: 130,
+        button: 0,
+      });
+      Object.defineProperty(mousedownEvent, 'target', { value: p });
+
+      const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+      assert.strictEqual(handled, true);
+      assert.strictEqual(viewport.scrollTop, 350);
+      assert.strictEqual(sel.anchorNode, p);
+      assert.strictEqual(sel.anchorOffset, 0);
+    });
+
+    it('clicking on the viewport scrollbar is ignored so scrolling works', () => {
+      setContentFormatted('Content text');
+      const viewport = document.querySelector('.document-viewport') as HTMLElement;
+      viewport.scrollTop = 200;
+
+      // Mock scrollbar presence
+      Object.defineProperty(viewport, 'offsetWidth', { value: 800, configurable: true });
+      Object.defineProperty(viewport, 'clientWidth', { value: 785, configurable: true });
+      viewport.getBoundingClientRect = () =>
+        ({ left: 0, right: 800, top: 0, bottom: 600, width: 800, height: 600 } as DOMRect);
+
+      // Click at clientX = 790 (inside the 15px scrollbar area >= 0 + 785)
+      const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 790,
+        clientY: 300,
+        button: 0,
+      });
+      Object.defineProperty(mousedownEvent, 'target', { value: viewport });
+
+      const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+      assert.strictEqual(handled, false);
+      assert.strictEqual(viewport.scrollTop, 200);
+    });
+  });
 });
+
+

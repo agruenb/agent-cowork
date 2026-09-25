@@ -469,8 +469,12 @@ export function getCaretPositionForCoordinates(
   clientY: number
 ): { node: Node; offset: number } | null {
   const canvasRect = canvas.getBoundingClientRect();
-  const clampedX = Math.max(canvasRect.left + 5, Math.min(canvasRect.right - 5, clientX));
-  const clampedY = Math.max(canvasRect.top + 2, Math.min(canvasRect.bottom - 2, clientY));
+  let clampedX = clientX;
+  let clampedY = clientY;
+  if (canvasRect.width > 0 && canvasRect.height > 0) {
+    clampedX = Math.max(canvasRect.left + 5, Math.min(canvasRect.right - 5, clientX));
+    clampedY = Math.max(canvasRect.top + 2, Math.min(canvasRect.bottom - 2, clientY));
+  }
 
   // 1. Standard API: caretPositionFromPoint (Chrome 128+)
   if (typeof (doc as any).caretPositionFromPoint === 'function') {
@@ -508,6 +512,65 @@ export function getCaretPositionForCoordinates(
   return null;
 }
 
+export function getFirstCaretPosition(node: Node): { node: Node; offset: number } {
+  let curr: Node = node;
+  while (curr.firstChild) {
+    curr = curr.firstChild;
+  }
+  if (curr.nodeType === 3) {
+    return { node: curr, offset: 0 };
+  }
+  if (curr.parentNode) {
+    const idx = Array.prototype.indexOf.call(curr.parentNode.childNodes, curr);
+    return { node: curr.parentNode, offset: idx >= 0 ? idx : 0 };
+  }
+  return { node: curr, offset: 0 };
+}
+
+export function getLastCaretPosition(node: Node): { node: Node; offset: number } {
+  let curr: Node = node;
+  while (curr.lastChild) {
+    curr = curr.lastChild;
+  }
+  if (curr.nodeName === 'BR') {
+    if (curr.previousSibling && curr.previousSibling.nodeType === 3) {
+      return { node: curr.previousSibling, offset: (curr.previousSibling as Text).length };
+    }
+    if (curr.parentNode) {
+      const idx = Array.prototype.indexOf.call(curr.parentNode.childNodes, curr);
+      return { node: curr.parentNode, offset: idx >= 0 ? idx : 0 };
+    }
+  }
+  if (curr.nodeType === 3) {
+    return { node: curr, offset: (curr as Text).length };
+  }
+  if (curr.parentNode) {
+    return { node: curr.parentNode, offset: curr.parentNode.childNodes.length };
+  }
+  return { node: curr, offset: 0 };
+}
+
+export function getCaretAtPoint(
+  doc: Document,
+  x: number,
+  y: number,
+  container: HTMLElement
+): { node: Node; offset: number } | null {
+  if (typeof (doc as any).caretPositionFromPoint === 'function') {
+    const pos = (doc as any).caretPositionFromPoint(x, y);
+    if (pos && pos.offsetNode && container.contains(pos.offsetNode)) {
+      return { node: pos.offsetNode, offset: pos.offset };
+    }
+  }
+  if (typeof (doc as any).caretRangeFromPoint === 'function') {
+    const range = (doc as any).caretRangeFromPoint(x, y);
+    if (range && range.startContainer && container.contains(range.startContainer)) {
+      return { node: range.startContainer, offset: range.startOffset };
+    }
+  }
+  return null;
+}
+
 /**
  * Places caret at the end of a line's text when the user clicks or starts dragging
  * in the empty line area to the right of the text (in list items, paragraphs, headings, blockquotes, etc.).
@@ -535,43 +598,82 @@ export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElem
   // Only adjust when selection is collapsed (or on mousedown)
   if (e.type !== 'mousedown' && sel && !sel.isCollapsed) return false;
 
-  // Find the relevant block element:
-  let blockEl: HTMLElement | null = null;
-  if (canvas.contains(target)) {
-    blockEl =
-      target.closest<HTMLElement>('li, p, h1, h2, h3, h4, h5, h6, blockquote') ||
-      (target.classList.contains('editor-block') ? target : null);
-  } else {
-    // If clicked on document-viewport or document-container outside canvas at clientY
-    const viewport = doc.querySelector('.document-viewport');
-    const container = doc.querySelector('.document-container');
-    if (target === viewport || target === container || viewport?.contains(target)) {
-      const blocks = Array.from(
-        canvas.querySelectorAll<HTMLElement>('li, p.editor-block, h1, h2, h3, h4, h5, h6, blockquote')
-      );
-      let closestBlock: HTMLElement | null = null;
-      let minDistance = Infinity;
-      for (const b of blocks) {
-        const br = b.getBoundingClientRect();
-        if (br.height > 0) {
-          if (e.clientY >= br.top - 2 && e.clientY <= br.bottom + 2) {
-            blockEl = b;
-            break;
-          }
-          const dist = Math.min(Math.abs(e.clientY - br.top), Math.abs(e.clientY - br.bottom));
-          if (dist < minDistance) {
-            minDistance = dist;
-            closestBlock = b;
-          }
-        }
-      }
-      if (!blockEl && minDistance < 30) {
-        blockEl = closestBlock;
+  const viewport = (doc.querySelector('.document-viewport') as HTMLElement | null) || null;
+  const container = (doc.querySelector('.document-container') as HTMLElement | null) || null;
+
+  // Don't interfere if user clicked the scrollbar in the viewport
+  if (viewport && target === viewport) {
+    const hasScrollbar = viewport.offsetWidth > viewport.clientWidth && viewport.clientWidth > 0;
+    if (hasScrollbar) {
+      const vRect = viewport.getBoundingClientRect();
+      if (e.clientX >= vRect.left + viewport.clientWidth) {
+        return false;
       }
     }
   }
 
-  if (!blockEl || !canvas.contains(blockEl)) return false;
+  const prevScrollTop = viewport ? viewport.scrollTop : null;
+
+  // Only adjust when selection is collapsed (or on mousedown)
+  if (e.type !== 'mousedown' && sel && !sel.isCollapsed) return false;
+
+  // Find the relevant block element:
+  let blockEl: HTMLElement | null = null;
+  let isBelowAllBlocks = false;
+  let isAboveAllBlocks = false;
+
+  if (canvas.contains(target) && target !== canvas) {
+    blockEl =
+      target.closest<HTMLElement>('li, p, h1, h2, h3, h4, h5, h6, blockquote') ||
+      (target.classList.contains('editor-block') ? target : null);
+  }
+
+  if (!blockEl) {
+    // If clicked on canvas background, document-viewport or document-container outside canvas at clientY
+    if (target === canvas || target === viewport || target === container || viewport?.contains(target)) {
+      const blocks = Array.from(
+        canvas.querySelectorAll<HTMLElement>('li, p.editor-block, h1, h2, h3, h4, h5, h6, blockquote')
+      );
+      if (blocks.length > 0) {
+        let closestBlock: HTMLElement | null = null;
+        let minDistance = Infinity;
+        for (const b of blocks) {
+          const br = b.getBoundingClientRect();
+          if (br.height > 0) {
+            if (e.clientY >= br.top - 2 && e.clientY <= br.bottom + 2) {
+              blockEl = b;
+              break;
+            }
+            const dist = Math.min(Math.abs(e.clientY - br.top), Math.abs(e.clientY - br.bottom));
+            if (dist < minDistance) {
+              minDistance = dist;
+              closestBlock = b;
+            }
+          }
+        }
+        if (!blockEl) {
+          blockEl = closestBlock || blocks[blocks.length - 1];
+          const lastRect = blocks[blocks.length - 1].getBoundingClientRect();
+          const firstRect = blocks[0].getBoundingClientRect();
+          if (e.clientY > lastRect.bottom) {
+            isBelowAllBlocks = true;
+          } else if (e.clientY < firstRect.top) {
+            isAboveAllBlocks = true;
+          }
+        }
+      }
+    }
+  }
+
+  if (!blockEl || !canvas.contains(blockEl)) {
+    if (doc.activeElement !== canvas && !canvas.contains(doc.activeElement)) {
+      canvas.focus({ preventScroll: true });
+    }
+    if (viewport && prevScrollTop !== null && viewport.scrollTop !== prevScrollTop) {
+      viewport.scrollTop = prevScrollTop;
+    }
+    return false;
+  }
 
   // Content container (e.g. .task-content for task items, to avoid checkbox)
   const isTask =
@@ -583,16 +685,12 @@ export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElem
   const childNodes = Array.from(contentEl.childNodes).filter(
     (n) => n.nodeName !== 'UL' && n.nodeName !== 'OL' && n.nodeName !== 'INPUT'
   );
-  if (childNodes.length === 0) return false;
 
-  const firstNode = childNodes[0];
-  const lastNode = childNodes[childNodes.length - 1];
-
-  // If text is empty or only whitespace / <br>, place cursor in block
+  // If block is completely empty or text is empty/whitespace/<br>, place cursor in block
   const textContent = childNodes.map((n) => n.textContent || '').join('').trim();
-  if (!textContent) {
+  if (childNodes.length === 0 || !textContent) {
     if (doc.activeElement !== canvas && !canvas.contains(doc.activeElement)) {
-      canvas.focus();
+      canvas.focus({ preventScroll: true });
     }
     const newRange = doc.createRange();
     newRange.setStart(blockEl, 0);
@@ -601,71 +699,164 @@ export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElem
       sel.removeAllRanges();
       sel.addRange(newRange);
     }
+    if (viewport && prevScrollTop !== null && viewport.scrollTop !== prevScrollTop) {
+      viewport.scrollTop = prevScrollTop;
+    }
     e.preventDefault();
     return true;
   }
+
+  const firstNode = childNodes[0];
+  const lastNode = childNodes[childNodes.length - 1];
 
   try {
     const r = doc.createRange();
     r.setStartBefore(firstNode);
     r.setEndAfter(lastNode);
 
-    const rects = r.getClientRects();
-    const lastRect = rects.length > 0 ? rects[rects.length - 1] : r.getBoundingClientRect();
-
-    // Find rect matching e.clientY, or fallback to lastRect
-    let lineRect = lastRect;
-    let lineIndex = rects.length - 1;
-    if (rects.length > 1) {
-      for (let i = 0; i < rects.length; i++) {
-        const rect = rects[i];
-        if (e.clientY >= rect.top - 2 && e.clientY <= rect.bottom + 2) {
-          lineRect = rect;
-          lineIndex = i;
-          break;
-        }
+    const validRects = Array.from(
+      typeof r.getClientRects === 'function' ? r.getClientRects() : []
+    ).filter((rect) => rect.width > 0 || rect.height > 0);
+    if (validRects.length === 0) {
+      const br = typeof r.getBoundingClientRect === 'function' ? r.getBoundingClientRect() : null;
+      if (br && (br.width > 0 || br.height > 0)) {
+        validRects.push(br);
+      } else {
+        validRects.push(contentEl.getBoundingClientRect());
       }
     }
 
-    const isClickToRight = lineRect && lineRect.right > 0 && e.clientX > lineRect.right - 2;
-    const isClickToLeft = lineRect && e.clientX < lineRect.left + 2;
+    interface VisualLine {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+      rects: DOMRect[];
+    }
+
+    const sortedRects = [...validRects].sort((a, b) => a.top - b.top || a.left - b.left);
+    const lines: VisualLine[] = [];
+
+    for (const rect of sortedRects) {
+      let matchedLine: VisualLine | null = null;
+      for (const line of lines) {
+        const overlap = Math.min(line.bottom, rect.bottom) - Math.max(line.top, rect.top);
+        const minHeight = Math.min(line.bottom - line.top, rect.bottom - rect.top);
+        const rectCenterY = rect.top + rect.height / 2;
+        const lineCenterY = line.top + (line.bottom - line.top) / 2;
+        const isNearLine =
+          (overlap > 0 && (minHeight <= 0 || overlap >= minHeight * 0.3)) ||
+          Math.abs(rectCenterY - lineCenterY) <= Math.max(8, minHeight * 0.5);
+
+        if (isNearLine) {
+          matchedLine = line;
+          break;
+        }
+      }
+
+      if (matchedLine) {
+        matchedLine.top = Math.min(matchedLine.top, rect.top);
+        matchedLine.bottom = Math.max(matchedLine.bottom, rect.bottom);
+        matchedLine.left = Math.min(matchedLine.left, rect.left);
+        matchedLine.right = Math.max(matchedLine.right, rect.right);
+        matchedLine.rects.push(rect);
+      } else {
+        lines.push({
+          top: rect.top,
+          bottom: rect.bottom,
+          left: rect.left,
+          right: rect.right,
+          rects: [rect],
+        });
+      }
+    }
+
+    lines.sort((a, b) => a.top - b.top);
+
+    let targetLine = lines[lines.length - 1];
+    let targetLineIndex = lines.length - 1;
+    let bestDist = Infinity;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (e.clientY >= line.top - 2 && e.clientY <= line.bottom + 2) {
+        targetLine = line;
+        targetLineIndex = i;
+        break;
+      }
+      const dist = Math.min(Math.abs(e.clientY - line.top), Math.abs(e.clientY - line.bottom));
+      if (dist < bestDist) {
+        bestDist = dist;
+        targetLine = line;
+        targetLineIndex = i;
+      }
+    }
+
+    const isFirstVisualLine = targetLineIndex === 0;
+    const isLastVisualLine = targetLineIndex === lines.length - 1;
+
+    const isClickBelowLine = isBelowAllBlocks || (targetLine && e.clientY > targetLine.bottom + 2);
+    const isClickAboveLine = isAboveAllBlocks || (targetLine && e.clientY < targetLine.top - 2);
+
+    const isClickToRight =
+      (targetLine && targetLine.right > 0 && e.clientX > targetLine.right - 2) ||
+      (isLastVisualLine && isClickBelowLine);
+    const isClickToLeft =
+      (targetLine && e.clientX < targetLine.left + 2) ||
+      (isFirstVisualLine && isClickAboveLine);
 
     // Handle clicks to the left (start of line) or right (end of line) of text:
     if (isClickToRight || isClickToLeft) {
       if (doc.activeElement !== canvas && !canvas.contains(doc.activeElement)) {
-        canvas.focus();
+        canvas.focus({ preventScroll: true });
       }
 
-      let anchorNode: Node = lastNode;
-      let anchorOffset = lastNode.nodeType === 3 ? (lastNode as Text).length : 0;
+      let anchorNode: Node;
+      let anchorOffset: number;
 
       if (isClickToLeft) {
         // Place caret at start of line
-        anchorNode = firstNode;
-        anchorOffset = 0;
-        if (lineIndex > 0 && typeof (doc as any).caretRangeFromPoint === 'function') {
-          const ptRange = (doc as any).caretRangeFromPoint(lineRect.left + 1, lineRect.top + lineRect.height / 2);
-          if (ptRange && ptRange.startContainer && contentEl.contains(ptRange.startContainer)) {
-            anchorNode = ptRange.startContainer;
-            anchorOffset = ptRange.startOffset;
+        if (isFirstVisualLine) {
+          const firstPos = getFirstCaretPosition(firstNode);
+          anchorNode = firstPos.node;
+          anchorOffset = firstPos.offset;
+        } else {
+          const centerY = targetLine.top + (targetLine.bottom - targetLine.top) / 2;
+          const ptPos = getCaretAtPoint(doc, targetLine.left + 1, centerY, contentEl);
+          if (ptPos) {
+            anchorNode = ptPos.node;
+            anchorOffset = ptPos.offset;
+          } else {
+            const firstPos = getFirstCaretPosition(firstNode);
+            anchorNode = firstPos.node;
+            anchorOffset = firstPos.offset;
           }
         }
       } else {
         // Place caret at end of line
-        if (lineRect !== lastRect && typeof (doc as any).caretRangeFromPoint === 'function') {
-          const ptRange = (doc as any).caretRangeFromPoint(lineRect.right - 1, lineRect.top + lineRect.height / 2);
-          if (ptRange && ptRange.startContainer && contentEl.contains(ptRange.startContainer)) {
-            anchorNode = ptRange.startContainer;
-            anchorOffset = ptRange.startOffset;
+        if (isLastVisualLine) {
+          const lastPos = getLastCaretPosition(lastNode);
+          anchorNode = lastPos.node;
+          anchorOffset = lastPos.offset;
+        } else {
+          const centerY = targetLine.top + (targetLine.bottom - targetLine.top) / 2;
+          const ptPos = getCaretAtPoint(doc, targetLine.right - 1, centerY, contentEl);
+          if (ptPos) {
+            anchorNode = ptPos.node;
+            anchorOffset = ptPos.offset;
+          } else {
+            const lastPos = getLastCaretPosition(lastNode);
+            anchorNode = lastPos.node;
+            anchorOffset = lastPos.offset;
           }
         }
       }
 
       const newRange = doc.createRange();
-      if (anchorNode.nodeType === 3) {
+      try {
         newRange.setStart(anchorNode, anchorOffset);
         newRange.collapse(true);
-      } else {
+      } catch {
         if (isClickToLeft) {
           newRange.setStartBefore(anchorNode);
         } else {
@@ -677,6 +868,10 @@ export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElem
       if (sel) {
         sel.removeAllRanges();
         sel.addRange(newRange);
+      }
+
+      if (viewport && prevScrollTop !== null && viewport.scrollTop !== prevScrollTop) {
+        viewport.scrollTop = prevScrollTop;
       }
 
       // If mousedown: attach drag selection listeners to track dragging
@@ -744,6 +939,31 @@ export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElem
 
       e.preventDefault();
       return true;
+    }
+
+    // If clicked on text when no cursor is present in canvas:
+    const hasCaretInCanvas = sel && sel.anchorNode && canvas.contains(sel.anchorNode);
+    if (!hasCaretInCanvas && doc.activeElement !== canvas && !canvas.contains(doc.activeElement)) {
+      const pos = getCaretPositionForCoordinates(doc, canvas, e.clientX, e.clientY);
+      if (doc.activeElement !== canvas && !canvas.contains(doc.activeElement)) {
+        canvas.focus({ preventScroll: true });
+      }
+      if (pos) {
+        const textRange = doc.createRange();
+        try {
+          textRange.setStart(pos.node, pos.offset);
+          textRange.collapse(true);
+          if (sel) {
+            sel.removeAllRanges();
+            sel.addRange(textRange);
+          }
+        } catch {
+          // Ignore
+        }
+      }
+      if (viewport && prevScrollTop !== null && viewport.scrollTop !== prevScrollTop) {
+        viewport.scrollTop = prevScrollTop;
+      }
     }
   } catch {
     // Ignore measurement or range errors
@@ -946,10 +1166,10 @@ export function handleWindowMessage(event: MessageEvent): void {
     }
     case 'focus': {
       if (state.isRawMode) {
-        textarea?.focus();
+        textarea?.focus({ preventScroll: true });
       } else {
         const canvas = getEditorCanvas();
-        canvas?.focus();
+        canvas?.focus({ preventScroll: true });
       }
       break;
     }
@@ -1064,8 +1284,35 @@ export function initMarkdownEditor(): void {
   // Focus textarea when clicking in empty document viewport space in raw mode,
   // or handle line click / drag outside text in formatted mode
   const doc = canvas.ownerDocument || (typeof document !== 'undefined' ? document : null);
-  const viewport = doc?.querySelector('.document-viewport');
-  const container = doc?.querySelector('.document-container');
+  const viewport = (doc?.querySelector('.document-viewport') as HTMLElement | null) || null;
+  const container = (doc?.querySelector('.document-container') as HTMLElement | null) || null;
+
+  // Preserve scroll position during clicks when viewport is scrolled
+  let lastScrollTop: number | null = null;
+  const onViewportScrollGuard = (e: MouseEvent) => {
+    if (!viewport) return;
+    const vRect = viewport.getBoundingClientRect();
+    if (e.clientX >= vRect.left + viewport.clientWidth) {
+      return; // Scrollbar interaction
+    }
+    lastScrollTop = viewport.scrollTop;
+  };
+
+  const onViewportScrollRestore = (e: MouseEvent) => {
+    if (!viewport || lastScrollTop === null) return;
+    const vRect = viewport.getBoundingClientRect();
+    if (e.clientX >= vRect.left + viewport.clientWidth) {
+      return; // Scrollbar interaction
+    }
+    if (viewport.scrollTop !== lastScrollTop) {
+      viewport.scrollTop = lastScrollTop;
+    }
+  };
+
+  viewport?.addEventListener('mousedown', onViewportScrollGuard as EventListener, true);
+  viewport?.addEventListener('mouseup', onViewportScrollRestore as EventListener, true);
+  viewport?.addEventListener('click', onViewportScrollRestore as EventListener, true);
+
   const onViewportMouseDown = (e: Event) => {
     if (!state.isRawMode && (e.target === viewport || e.target === container)) {
       handleLineClickOrDragOutsideText(e as MouseEvent, canvas);
@@ -1077,7 +1324,7 @@ export function initMarkdownEditor(): void {
   const onViewportClick = (e: Event) => {
     if (e.target === viewport || e.target === container) {
       if (state.isRawMode) {
-        textarea.focus();
+        textarea.focus({ preventScroll: true });
         textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
       } else {
         // If selection is already placed inside canvas (e.g. by mousedown at start/end of line), do not reset to top
@@ -1085,7 +1332,10 @@ export function initMarkdownEditor(): void {
         if (sel && sel.anchorNode && canvas.contains(sel.anchorNode)) {
           return;
         }
-        canvas.focus();
+        const handled = handleLineClickOrDragOutsideText(e as MouseEvent, canvas);
+        if (!handled) {
+          canvas.focus({ preventScroll: true });
+        }
       }
     }
   };
