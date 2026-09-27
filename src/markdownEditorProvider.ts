@@ -205,6 +205,12 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           );
           break;
         }
+        case 'copy': {
+          if (typeof message.text === 'string') {
+            await vscode.env.clipboard.writeText(message.text);
+          }
+          break;
+        }
         case 'cowork': {
           if (document.isDirty) {
             await document.save();

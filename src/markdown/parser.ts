@@ -460,6 +460,8 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false, lang?: '
   const effectiveLang = detectParserLang(lang);
   const deleteBtnHtml = getBlockDeleteBtnHtml(effectiveLang);
   const codeLangTitle = effectiveLang === 'en' ? 'Edit code language' : 'Code-Typ bearbeiten';
+  const codeCopyTitle = effectiveLang === 'en' ? 'Copy code' : 'Code kopieren';
+  const copyBtnHtml = `<button type="button" class="code-copy-btn" title="${codeCopyTitle}" aria-label="${codeCopyTitle}" tabindex="-1"><svg class="copy-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25v-7.5z"/><path fill-rule="evenodd" d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25v-7.5zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25h-7.5z"/></svg></button>`;
 
   const htmlParts: string[] = [];
 
@@ -499,7 +501,7 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false, lang?: '
       case 'code_block': {
         const langStr = block.language ? escapeHtml(block.language) : '';
         const codeText = escapeHtml(block.content || '');
-        const inner = `<div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="${langStr}"><div class="code-block-header"><input type="text" class="code-lang-input" value="${langStr}" placeholder="Code" title="${codeLangTitle}" spellcheck="false" autocomplete="off" /></div><pre><code class="editor-code" contenteditable="true">${codeText}</code></pre></div>`;
+        const inner = `<div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="${langStr}"><div class="code-block-header"><input type="text" class="code-lang-input" value="${langStr}" placeholder="Code" title="${codeLangTitle}" spellcheck="false" autocomplete="off" />${copyBtnHtml}</div><pre><code class="editor-code" contenteditable="true">${codeText}</code></pre></div>`;
         htmlParts.push(
           isNested
             ? inner

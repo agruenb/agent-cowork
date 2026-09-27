@@ -30,6 +30,8 @@ export function serializeInlineNodes(container: Node): string {
         el.classList.contains('table-confirm-popup') ||
         el.classList.contains('code-lang-input') ||
         el.classList.contains('code-block-header') ||
+        el.classList.contains('code-copy-btn') ||
+        el.classList.contains('inline-code-copy-btn') ||
         el.classList.contains('task-list-controls') ||
         el.classList.contains('task-item-drag-btn') ||
         el.classList.contains('task-item-del-btn') ||

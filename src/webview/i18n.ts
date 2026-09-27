@@ -69,6 +69,8 @@ const enWebviewTranslations: Record<string, string> = {
   'Code': 'Code',
   'Code-Typ bearbeiten': 'Edit code language',
   '// Code hier eingeben...': '// Enter code here...',
+  'Code kopieren': 'Copy code',
+  'Kopiert!': 'Copied!',
 
   // Quote
   'Zitat...': 'Quote...',

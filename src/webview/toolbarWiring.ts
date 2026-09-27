@@ -19,6 +19,7 @@ import {
 import { wireTableInteractions } from './tableInteractions';
 import { getBlockDeleteBtnHtml } from '../markdown/parser';
 import { handleCodeButtonClick } from './inlineCode';
+import { getCodeBlockCopyBtnHtml } from './codeCopy';
 import { tWebview, getWebviewLanguage } from './i18n';
 
 export interface ToolbarHooks {
@@ -182,12 +183,14 @@ export function insertCodeBlock(): void {
   focusCanvas(canvas);
   const lang = getWebviewLanguage();
   const deleteBtn = getBlockDeleteBtnHtml(lang);
+  const copyBtn = getCodeBlockCopyBtnHtml();
   const codeHtml = `
     <div class="editor-block-container widget-block" data-block-type="code_block" data-language="" contenteditable="false">
       ${deleteBtn}
       <div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="">
         <div class="code-block-header">
           <input type="text" class="code-lang-input" value="" placeholder="${tWebview('Code')}" title="${tWebview('Code-Typ bearbeiten')}" spellcheck="false" autocomplete="off" />
+          ${copyBtn}
         </div>
         <pre><code class="editor-code" contenteditable="true">${tWebview('// Code hier eingeben...')}</code></pre>
       </div>

@@ -26,6 +26,12 @@ import {
   updateSelectionCoworkButtonLanguage,
 } from './selectionCowork';
 import {
+  wireCodeBlockCopy,
+  wireCodeBlockCopyButtons,
+  initInlineCodeCopy,
+  updateCodeCopyLanguage,
+} from './codeCopy';
+import {
   state,
   showErrorBanner,
   hideErrorBanner,
@@ -142,6 +148,7 @@ export function setContentFormatted(markdown: string): boolean {
   if (textarea) textarea.value = markdown;
   wireTaskCheckboxes();
   if (canvas) wireTableInteractions(canvas, () => emitCanvasEdit());
+  if (canvas) wireCodeBlockCopyButtons(canvas);
   state.isCanvasDirty = false;
   return true;
 }
@@ -1239,6 +1246,8 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
     if (textarea) {
       textarea.placeholder = tWebview('Markdown eingeben...');
     }
+
+    updateCodeCopyLanguage(document);
   }
 }
 
@@ -1852,6 +1861,10 @@ export function initMarkdownEditor(): void {
 
   // Initialize selection Cowork floating button
   wireSelectionCowork();
+
+  // Initialize code copying for code blocks and inline code
+  wireCodeBlockCopy(canvas);
+  initInlineCodeCopy(canvas, (viewport || container) as HTMLElement);
 
   window.addEventListener('message', handleWindowMessage);
 }

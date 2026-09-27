@@ -107,6 +107,12 @@ code.inline-code {
   padding: 2px 6px;
   border-radius: 4px;
   border: 1px solid var(--card-border);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+code.inline-code:hover {
+  background-color: #e2e8f0;
+  border-color: #cbd5e1;
 }
 
 /* Horizontal Rule */
