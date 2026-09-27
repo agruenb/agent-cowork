@@ -38,13 +38,13 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       const themePath = path.join(__dirname, '..', 'themes', 'agent-cowork-light.json');
       const themeContent = JSON.parse(fs.readFileSync(themePath, 'utf8'));
 
-      assert.strictEqual(themeContent.colors['tab.activeBackground'], '#0f172a');
-      assert.strictEqual(themeContent.colors['tab.hoverBackground'], '#0f172a');
+      assert.strictEqual(themeContent.colors['tab.activeBackground'], '#334155');
+      assert.strictEqual(themeContent.colors['tab.hoverBackground'], '#334155');
       assert.strictEqual(themeContent.colors['tab.hoverForeground'], '#ffffff');
-      assert.strictEqual(themeContent.colors['tab.hoverBorder'], '#0f172a');
-      assert.strictEqual(themeContent.colors['tab.unfocusedHoverBackground'], '#1e293b');
+      assert.strictEqual(themeContent.colors['tab.hoverBorder'], '#334155');
+      assert.strictEqual(themeContent.colors['tab.unfocusedHoverBackground'], '#334155');
       assert.strictEqual(themeContent.colors['tab.unfocusedHoverForeground'], '#ffffff');
-      assert.strictEqual(themeContent.colors['tab.unfocusedHoverBorder'], '#1e293b');
+      assert.strictEqual(themeContent.colors['tab.unfocusedHoverBorder'], '#334155');
       assert.strictEqual(themeContent.colors['list.activeSelectionBackground'], '#0f172a');
       assert.strictEqual(themeContent.colors['list.inactiveSelectionBackground'], '#0f172a');
       assert.strictEqual(themeContent.colors['list.activeSelectionForeground'], '#ffffff');
@@ -266,13 +266,13 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
     it('getFilePastelColors matches tab hover state to dark obsidian (#0f172a) like cowork button with white text', () => {
       const colors = getFilePastelColors('activeDoc.md');
 
-      // Tab hover matches Cowork button styling (#0f172a) with white text so text does not flicker
-      assert.strictEqual(colors['tab.hoverBackground'], '#0f172a');
+      // Tab hover matches dark grey tone (#334155) with white text so text does not flicker
+      assert.strictEqual(colors['tab.hoverBackground'], '#334155');
       assert.strictEqual(colors['tab.hoverForeground'], '#ffffff');
-      assert.strictEqual(colors['tab.hoverBorder'], '#0f172a');
-      assert.strictEqual(colors['tab.unfocusedHoverBackground'], '#1e293b');
+      assert.strictEqual(colors['tab.hoverBorder'], '#334155');
+      assert.strictEqual(colors['tab.unfocusedHoverBackground'], '#334155');
       assert.strictEqual(colors['tab.unfocusedHoverForeground'], '#ffffff');
-      assert.strictEqual(colors['tab.unfocusedHoverBorder'], '#1e293b');
+      assert.strictEqual(colors['tab.unfocusedHoverBorder'], '#334155');
 
       assert.strictEqual(colors['list.hoverBackground'], '#e2e8f0');
       assert.strictEqual(colors['list.hoverForeground'], '#0f172a');
@@ -308,12 +308,12 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       assert.strictEqual(themeCustomizations['tab.inactiveBackground'], '#e2e8f0');
       assert.strictEqual(themeCustomizations['tab.inactiveForeground'], '#475569');
 
-      // Tab hover is dark obsidian like cowork button with crisp white text
-      assert.strictEqual(themeCustomizations['tab.hoverBackground'], '#0f172a');
+      // Tab hover is dark grey with crisp white text
+      assert.strictEqual(themeCustomizations['tab.hoverBackground'], '#334155');
       assert.strictEqual(themeCustomizations['tab.hoverForeground'], '#ffffff');
-      assert.strictEqual(themeCustomizations['tab.hoverBorder'], '#0f172a');
-      assert.strictEqual(themeCustomizations['tab.unfocusedHoverBackground'], '#1e293b');
-      assert.strictEqual(themeCustomizations['tab.unfocusedHoverBorder'], '#1e293b');
+      assert.strictEqual(themeCustomizations['tab.hoverBorder'], '#334155');
+      assert.strictEqual(themeCustomizations['tab.unfocusedHoverBackground'], '#334155');
+      assert.strictEqual(themeCustomizations['tab.unfocusedHoverBorder'], '#334155');
     });
 
     it('applyFilePastelHighlight updates highlights when switching to a different file', async () => {

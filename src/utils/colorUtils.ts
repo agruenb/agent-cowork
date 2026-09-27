@@ -107,13 +107,13 @@ export function getFilePastelColors(filename: string): Record<string, string> {
     'tab.unfocusedInactiveBackground': '#e2e8f0',
     'tab.unfocusedInactiveForeground': '#64748b',
 
-    // Tab hover: Dark obsidian (#0f172a) like the Cowork toolbar button with white text
-    'tab.hoverBackground': '#0f172a',
+    // Tab hover: Dark grey (#334155) with white text
+    'tab.hoverBackground': '#334155',
     'tab.hoverForeground': textWhiteHex,
-    'tab.hoverBorder': '#0f172a',
-    'tab.unfocusedHoverBackground': '#1e293b',
+    'tab.hoverBorder': '#334155',
+    'tab.unfocusedHoverBackground': '#334155',
     'tab.unfocusedHoverForeground': textWhiteHex,
-    'tab.unfocusedHoverBorder': '#1e293b',
+    'tab.unfocusedHoverBorder': '#334155',
 
 
     // Tree view (file list) selected / clicked state: Matches the active tab's darker shade
