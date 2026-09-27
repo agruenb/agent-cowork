@@ -1,4 +1,11 @@
 import { safeMarkdownToHtml } from '../markdown/parser';
+import {
+  processPastedContent,
+  cleanHtmlToMarkdown,
+  isCodeEditorHtml,
+  getInlinePasteHtml,
+} from '../markdown/pasteHandler';
+import { findTopBlock, getActiveListItem, isBlockEmpty } from './toolbarOperations';
 import { getFilenameHue, getDarkShade, hslToHex } from '../utils/colorUtils';
 import {
   indentListItem,
@@ -1181,6 +1188,189 @@ export function handleWindowMessage(event: MessageEvent): void {
   }
 }
 
+/**
+ * Handles paste events on the contenteditable formatted canvas.
+ * Preserves Markdown-compatible formatting (bold, italic, headings, lists, tables, etc.)
+ * while completely stripping colors, fonts, and incompatible styles.
+ */
+export function handleCanvasPaste(e: ClipboardEvent, canvas: HTMLElement): void {
+  const target = e.target as HTMLElement | null;
+  if (target?.closest('input')) {
+    return;
+  }
+  e.preventDefault();
+
+  const doc = canvas.ownerDocument;
+  const sel = doc.defaultView ? doc.defaultView.getSelection() : window.getSelection();
+  const anchor = sel && sel.rangeCount > 0 ? sel.anchorNode : null;
+  const anchorEl = (anchor?.nodeType === 1 ? anchor : anchor?.parentElement) as HTMLElement | null;
+
+  const html = e.clipboardData?.getData('text/html');
+  const plainText = e.clipboardData?.getData('text/plain') ?? '';
+
+  if (!html && !plainText) {
+    return;
+  }
+
+  // 1. Inside a code block: paste raw plain text only (no formatting/blocks)
+  const codeBlock =
+    anchorEl?.closest('code.editor-code, pre') || target?.closest('code.editor-code, pre');
+  if (codeBlock) {
+    const rawText = plainText || (html ? doc.createElement('div').textContent || '' : '');
+    if (!rawText) return;
+    const success = doc.execCommand?.('insertText', false, rawText);
+    if (!success && sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const textNode = doc.createTextNode(rawText);
+      range.insertNode(textNode);
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    emitCanvasEdit();
+    return;
+  }
+
+  // 2. Inside a table cell: keep content inline to avoid breaking the table structure
+  const tableCell = anchorEl?.closest('td, th') || target?.closest('td, th');
+  if (tableCell) {
+    const processed = processPastedContent(html, plainText, doc);
+    if (!processed.markdown) return;
+    const flattenedMd = processed.markdown.replace(/\r?\n+/g, ' ').trim();
+    const inlineHtml = getInlinePasteHtml(flattenedMd);
+    const success = doc.execCommand?.('insertHTML', false, inlineHtml);
+    if (!success && sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const temp = doc.createElement('template');
+      temp.innerHTML = inlineHtml;
+      const frag = temp.content || temp;
+      const last = frag.lastChild;
+      range.insertNode(frag);
+      if (last) {
+        range.setStartAfter(last);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+    emitCanvasEdit();
+    return;
+  }
+
+  // 3. General canvas paste: process content
+  const processed = processPastedContent(html, plainText, doc);
+  if (!processed.markdown) {
+    return;
+  }
+
+  if (processed.isInline) {
+    // Single line / inline content: insert at cursor
+    const inlineHtml = getInlinePasteHtml(processed.markdown);
+    const success = doc.execCommand?.('insertHTML', false, inlineHtml);
+    if (!success && sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const temp = doc.createElement('template');
+      temp.innerHTML = inlineHtml;
+      const frag = temp.content || temp;
+      const last = frag.lastChild;
+      range.insertNode(frag);
+      if (last) {
+        range.setStartAfter(last);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+    emitCanvasEdit();
+    return;
+  }
+
+  // 4. Block-level content: parse to canvas DOM blocks
+  const { html: blocksHtml, error } = safeMarkdownToHtml(processed.markdown);
+  if (error || !blocksHtml) {
+    const success = doc.execCommand?.('insertText', false, processed.markdown);
+    if (!success && sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const textNode = doc.createTextNode(processed.markdown);
+      range.insertNode(textNode);
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    emitCanvasEdit();
+    return;
+  }
+
+  const temp = doc.createElement('div');
+  temp.innerHTML = blocksHtml.trim();
+  const newBlocks = Array.from(temp.children) as HTMLElement[];
+  if (newBlocks.length === 0) {
+    return;
+  }
+
+  const activeLi = getActiveListItem(canvas, sel);
+  if (
+    activeLi &&
+    newBlocks.length === 1 &&
+    (newBlocks[0].tagName.toLowerCase() === 'ul' || newBlocks[0].tagName.toLowerCase() === 'ol')
+  ) {
+    // Pasting list items inside a list: insert items into the current list
+    const items = Array.from(newBlocks[0].children);
+    let lastLi: Node = activeLi;
+    for (const li of items) {
+      activeLi.parentNode?.insertBefore(li, lastLi.nextSibling);
+      lastLi = li;
+    }
+    if (!activeLi.textContent?.trim()) {
+      activeLi.remove();
+    }
+  } else {
+    const topBlock = findTopBlock(anchor, canvas);
+    if (topBlock && canvas.contains(topBlock)) {
+      const isEmpty = isBlockEmpty(topBlock) && !topBlock.classList.contains('widget-block');
+      if (isEmpty) {
+        let last: Node = topBlock;
+        for (const block of newBlocks) {
+          topBlock.parentNode?.insertBefore(block, last.nextSibling);
+          last = block;
+        }
+        topBlock.remove();
+      } else {
+        let last: Node = topBlock;
+        for (const block of newBlocks) {
+          topBlock.parentNode?.insertBefore(block, last.nextSibling);
+          last = block;
+        }
+      }
+    } else {
+      for (const block of newBlocks) {
+        canvas.appendChild(block);
+      }
+    }
+  }
+
+  // Restore cursor at the end of the newly inserted content
+  if (sel && newBlocks.length > 0) {
+    const lastBlock = newBlocks[newBlocks.length - 1];
+    const targetFocus = lastBlock.querySelector<HTMLElement>('.editor-code, p, li') || lastBlock;
+    const range = doc.createRange();
+    range.selectNodeContents(targetFocus);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  wireTaskCheckboxes();
+  wireTableInteractions(canvas, () => emitCanvasEdit());
+  emitCanvasEdit();
+}
+
 export function initMarkdownEditor(): void {
   const canvas = getEditorCanvas();
   const textarea = getRawTextarea();
@@ -1241,32 +1431,25 @@ export function initMarkdownEditor(): void {
   });
 
   canvas.addEventListener('paste', (e: ClipboardEvent) => {
-    const target = e.target as HTMLElement | null;
-    if (target?.closest('input')) {
-      return;
-    }
-    e.preventDefault();
-    const text = e.clipboardData?.getData('text/plain') ?? '';
-    if (!text) {
-      return;
-    }
+    handleCanvasPaste(e, canvas);
+  });
 
-    const success = document.execCommand('insertText', false, text);
-    if (!success) {
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        range.deleteContents();
-        const textNode = document.createTextNode(text);
-        range.insertNode(textNode);
-        range.setStartAfter(textNode);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
+  textarea.addEventListener('paste', (e: ClipboardEvent) => {
+    const html = e.clipboardData?.getData('text/html');
+    if (html && !isCodeEditorHtml(html)) {
+      const md = cleanHtmlToMarkdown(html, textarea.ownerDocument);
+      if (md) {
+        e.preventDefault();
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const val = textarea.value;
+        textarea.value = val.substring(0, start) + md + val.substring(end);
+        textarea.selectionStart = textarea.selectionEnd = start + md.length;
+        autoResizeRawTextarea();
+        updateRawLineNumbers();
+        emitEdit(textarea.value);
       }
     }
-
-    emitCanvasEdit();
   });
 
   textarea.addEventListener('input', () => {
