@@ -1,4 +1,5 @@
 import { safeDomToMarkdown } from '../markdown/serializer';
+import { DocumentAnnotation } from '../types/annotation';
 
 declare function acquireVsCodeApi(): {
   postMessage(message: unknown): void;
@@ -156,6 +157,7 @@ export interface EditorState {
   isInitialized: boolean;
   activeFilename?: string;
   activeLanguage?: string;
+  annotations?: DocumentAnnotation[];
 }
 
 export const state: EditorState = {
@@ -166,6 +168,7 @@ export const state: EditorState = {
   hasParseError: false,
   isCanvasDirty: false,
   isInitialized: false,
+  annotations: [],
 };
 
 /**
@@ -182,6 +185,7 @@ export function persistWebviewState(): void {
       isRawMode: state.isRawMode,
       activeFilename: state.activeFilename,
       activeLanguage: state.activeLanguage,
+      annotations: state.annotations,
     });
   } catch {
     // Ignore in environments where getState/setState is not supported

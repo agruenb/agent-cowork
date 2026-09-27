@@ -1,0 +1,293 @@
+/* -------------------------------------------------------------
+   Document Annotations Styling (Agent Cowork)
+------------------------------------------------------------- */
+
+/* Inline text highlight in active file tint color */
+mark.doc-annotation {
+  background-color: var(--primary-selection);
+  border-bottom: 2px solid var(--primary);
+  border-radius: 2px;
+  color: inherit;
+  cursor: pointer;
+  padding: 1px 2px;
+  margin: 0 -1px;
+  text-decoration: none;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+mark.doc-annotation:hover,
+mark.doc-annotation.is-active {
+  background-color: hsla(var(--file-tint-hue, 210), 65%, 45%, 0.35);
+  border-bottom-color: var(--primary-hover);
+  box-shadow: 0 1px 4px var(--primary-selection);
+}
+
+/* Margin comment indicator pill (right of the document content) */
+.annotation-margin-pill {
+  position: absolute;
+  right: -36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--primary-border);
+  color: var(--primary);
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+  z-index: 20;
+  user-select: none;
+}
+
+.annotation-margin-pill:hover,
+.annotation-margin-pill.is-active {
+  background-color: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  transform: scale(1.12);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* Floating Annotate Button on selection */
+.selection-annotate-btn {
+  position: fixed;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background-color: #ffffff;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 10px;
+  height: 26px;
+  cursor: pointer;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.1);
+  user-select: none;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px) scale(0.95);
+  transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  pointer-events: auto;
+}
+
+.selection-annotate-btn.is-visible {
+  display: inline-flex;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.selection-annotate-btn:hover {
+  background-color: var(--primary-light);
+  border-color: var(--primary-hover);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.selection-annotate-btn:active {
+  background-color: var(--primary-border);
+  transform: translateY(0) scale(0.98);
+}
+
+/* Popover card container (Create & View) */
+.annotation-popover {
+  position: fixed;
+  z-index: 1050;
+  width: 290px;
+  max-width: calc(100vw - 32px);
+  background-color: #ffffff;
+  border: 1px solid var(--primary-border, #cbd5e1);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.16), 0 4px 10px -2px rgba(0, 0, 0, 0.08);
+  padding: 12px;
+  box-sizing: border-box;
+  font-family: var(--font-family);
+  animation: popover-fade-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popover-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.annotation-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.annotation-popover-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.annotation-popover-close {
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.annotation-popover-close:hover {
+  background-color: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+}
+
+/* Selected text quote preview in view popover */
+.annotation-popover-quote {
+  background-color: var(--primary-light, #f8fafc);
+  border-left: 3px solid var(--primary);
+  padding: 4px 8px;
+  font-size: 11.5px;
+  color: var(--text-muted, #475569);
+  margin-bottom: 8px;
+  border-radius: 0 4px 4px 0;
+  max-height: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.annotation-popover-body {
+  margin-bottom: 10px;
+}
+
+.annotation-comment-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text, #1e293b);
+  word-break: break-word;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+
+.annotation-input,
+.annotation-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 64px;
+  max-height: 160px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text, #1e293b);
+  background-color: #ffffff;
+  border: 1px solid var(--primary-border, #cbd5e1);
+  border-radius: 6px;
+  padding: 8px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.annotation-input:focus,
+.annotation-edit-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-selection);
+}
+
+.annotation-popover-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.annotation-actions-spacer {
+  flex: 1;
+}
+
+.annotation-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.annotation-btn-save,
+.annotation-btn-save-edit {
+  background-color: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  font-weight: 600;
+}
+
+.annotation-btn-save:hover,
+.annotation-btn-save-edit:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.annotation-btn-cancel {
+  background-color: transparent;
+  color: var(--text-muted, #64748b);
+}
+
+.annotation-btn-cancel:hover {
+  background-color: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+}
+
+.annotation-btn-edit {
+  background-color: var(--primary-light, #f1f5f9);
+  color: var(--primary);
+  border-color: var(--primary-border, #cbd5e1);
+}
+
+.annotation-btn-edit:hover {
+  background-color: var(--primary-border, #e2e8f0);
+}
+
+.annotation-btn-delete {
+  background-color: transparent;
+  color: #ef4444;
+}
+
+.annotation-btn-delete:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+/* Toolbar Forward to Agent indicator state */
+.cowork-btn.has-annotations {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  font-weight: 600;
+}

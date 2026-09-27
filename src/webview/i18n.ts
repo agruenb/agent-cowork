@@ -121,6 +121,18 @@ const enWebviewTranslations: Record<string, string> = {
   'Inhalt 4': 'Content 4',
   'Inhalt 5': 'Content 5',
   'Inhalt 6': 'Content 6',
+
+  // Annotations
+  'Anmerkung': 'Annotate',
+  'Anmerkung hinzufügen': 'Add annotation',
+  'Anmerkung eingeben...': 'Enter annotation...',
+  'Anmerkung bearbeiten': 'Edit annotation',
+  'Speichern': 'Save',
+  'Bearbeiten': 'Edit',
+  'An Agent weiterleiten ({0})': 'Forward to Agent ({0})',
+  'An Agent weiterleiten': 'Forward to Agent',
+  'Dokument und {0} Anmerkungen an KI-Agent weiterleiten': 'Forward document and {0} annotations to AI Agent',
+  'Dokument und Anmerkungen an KI-Agent weiterleiten': 'Forward document and annotations to AI Agent',
 };
 
 /**

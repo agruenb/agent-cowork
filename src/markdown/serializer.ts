@@ -36,7 +36,9 @@ export function serializeInlineNodes(container: Node): string {
         el.classList.contains('task-item-drag-btn') ||
         el.classList.contains('task-item-del-btn') ||
         el.classList.contains('task-item-top-btn') ||
-        el.classList.contains('task-drop-indicator')
+        el.classList.contains('task-drop-indicator') ||
+        el.classList.contains('annotation-margin-pill') ||
+        el.classList.contains('annotation-popover')
       ) {
         continue;
       }
@@ -96,6 +98,11 @@ export function serializeInlineNodes(container: Node): string {
         } else {
           text += inner;
         }
+        continue;
+      }
+
+      if (tagName === 'mark') {
+        text += serializeInlineNodes(el);
         continue;
       }
 
@@ -179,6 +186,13 @@ export function serializeListBlock(listEl: HTMLElement, indentLevel = 0): string
  * Serializes a single block element or container element into one or more Markdown blocks.
  */
 export function serializeBlockElement(blockEl: HTMLElement): string[] {
+  if (
+    blockEl.classList.contains('annotation-popover') ||
+    blockEl.classList.contains('annotation-margin-pill')
+  ) {
+    return [];
+  }
+
   // Block containers: unwrap and serialize child blocks (skipping UI buttons/controls)
   if (blockEl.classList.contains('editor-block-container')) {
     const subBlocks: string[] = [];

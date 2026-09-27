@@ -1,6 +1,7 @@
 import { serializeBlockElement } from '../markdown/serializer';
 import { state, vscode, getEditorCanvas, getRawTextarea } from './editorState';
 import { tWebview } from './i18n';
+import { openCreateAnnotationPopover } from './annotations';
 
 export interface SelectionLineRange {
   startLine: number;
@@ -354,13 +355,113 @@ export function getSelectionCoworkButton(): HTMLButtonElement | null {
 }
 
 /**
- * Hides the floating selection Cowork button.
+ * Returns or dynamically creates the floating selection Annotate button element.
+ */
+export function getSelectionAnnotateButton(): HTMLButtonElement | null {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  let btn = document.getElementById('btn-selection-annotate') as HTMLButtonElement | null;
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'btn-selection-annotate';
+    btn.className = 'selection-annotate-btn';
+    btn.tabIndex = -1;
+    btn.title = tWebview('Anmerkung hinzufügen');
+    btn.setAttribute('aria-label', tWebview('Anmerkung'));
+    btn.innerHTML = `<span>💬 ${tWebview('Anmerkung')}</span>`;
+    document.body.appendChild(btn);
+  }
+
+  if (!btn.dataset.wired) {
+    btn.dataset.wired = 'true';
+
+    const preventDef = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    btn.addEventListener('mousedown', preventDef);
+    btn.addEventListener('pointerdown', preventDef);
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleAnnotateSelectionClick();
+    });
+  }
+
+  return btn;
+}
+
+/**
+ * Handles click on the selection Annotate button.
+ */
+export function handleAnnotateSelectionClick(): void {
+  const sel = typeof window !== 'undefined' ? window.getSelection() : null;
+  const canvas = getEditorCanvas();
+  if (!sel || sel.isCollapsed || !canvas) {
+    hideSelectionCoworkButton();
+    return;
+  }
+
+  const selectedText = sel.toString().trim();
+  if (!selectedText) {
+    hideSelectionCoworkButton();
+    return;
+  }
+
+  const range = sel.getRangeAt(0);
+  const clientRects = range.getClientRects();
+  const rect =
+    clientRects.length > 0 ? clientRects[clientRects.length - 1] : range.getBoundingClientRect();
+
+  let prefix = '';
+  let suffix = '';
+  try {
+    const preRange = range.cloneRange();
+    preRange.collapse(true);
+    preRange.setStart(canvas, 0);
+    const preText = preRange.toString();
+    prefix = preText.slice(-30);
+
+    const postRange = range.cloneRange();
+    postRange.collapse(false);
+    postRange.setEnd(canvas, canvas.childNodes.length);
+    const postText = postRange.toString();
+    suffix = postText.slice(0, 30);
+  } catch {
+    // ignore
+  }
+
+  hideSelectionCoworkButton();
+
+  openCreateAnnotationPopover({
+    selectedText,
+    prefix,
+    suffix,
+    rect: {
+      top: rect.top,
+      bottom: rect.bottom,
+      left: rect.left,
+      right: rect.right,
+    },
+  });
+}
+
+/**
+ * Hides the floating selection Cowork and Annotate buttons.
  */
 export function hideSelectionCoworkButton(): void {
   const btn = document.getElementById('btn-selection-cowork');
   if (btn) {
     btn.classList.remove('is-visible');
     btn.style.display = 'none';
+  }
+  const annBtn = document.getElementById('btn-selection-annotate');
+  if (annBtn) {
+    annBtn.classList.remove('is-visible');
+    annBtn.style.display = 'none';
   }
 }
 
@@ -379,12 +480,22 @@ export function positionSelectionButton(
     return;
   }
 
+  const annBtn = getSelectionAnnotateButton();
   btn.style.display = 'inline-flex';
   btn.style.visibility = 'hidden';
+  if (annBtn) {
+    annBtn.style.display = 'inline-flex';
+    annBtn.style.visibility = 'hidden';
+  }
 
   const btnWidth = btn.offsetWidth || 84;
+  const annWidth = annBtn?.offsetWidth || 90;
+  const gap = 5;
+  const totalWidth = annBtn ? annWidth + gap + btnWidth : btnWidth;
   const btnHeight = btn.offsetHeight || 26;
+
   btn.style.visibility = 'visible';
+  if (annBtn) annBtn.style.visibility = 'visible';
 
   const margin = 8;
   const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
@@ -392,8 +503,8 @@ export function positionSelectionButton(
 
   // Align with bottom-right corner of selection
   let left = rect.right + 4;
-  if (left + btnWidth > windowWidth - margin) {
-    left = Math.max(margin, windowWidth - btnWidth - margin);
+  if (left + totalWidth > windowWidth - margin) {
+    left = Math.max(margin, windowWidth - totalWidth - margin);
   }
   if (left < margin) {
     left = margin;
@@ -407,6 +518,12 @@ export function positionSelectionButton(
   btn.style.left = `${Math.round(left)}px`;
   btn.style.top = `${Math.round(top)}px`;
   btn.classList.add('is-visible');
+
+  if (annBtn) {
+    annBtn.style.left = `${Math.round(left + btnWidth + gap)}px`;
+    annBtn.style.top = `${Math.round(top)}px`;
+    annBtn.classList.add('is-visible');
+  }
 }
 
 /**
@@ -450,6 +567,15 @@ export function updateSelectionCoworkButtonLanguage(): void {
   const btn = document.getElementById('btn-selection-cowork');
   if (btn) {
     btn.title = tWebview('Mit KI-Agent an den ausgewählten Zeilen zusammenarbeiten');
+  }
+  const annBtn = document.getElementById('btn-selection-annotate');
+  if (annBtn) {
+    annBtn.title = tWebview('Anmerkung hinzufügen');
+    annBtn.setAttribute('aria-label', tWebview('Anmerkung'));
+    const span = annBtn.querySelector('span');
+    if (span) {
+      span.textContent = `💬 ${tWebview('Anmerkung')}`;
+    }
   }
 }
 
@@ -533,12 +659,17 @@ export function wireSelectionCowork(): () => void {
     return () => {};
   }
 
-  // Ensure button exists and is wired
+  // Ensure buttons exist and are wired
   getSelectionCoworkButton();
+  getSelectionAnnotateButton();
 
   const handleMouseDown = (e: MouseEvent) => {
     const btn = document.getElementById('btn-selection-cowork');
-    if (btn && (btn === e.target || btn.contains(e.target as Node))) {
+    const annBtn = document.getElementById('btn-selection-annotate');
+    if (
+      (btn && (btn === e.target || btn.contains(e.target as Node))) ||
+      (annBtn && (annBtn === e.target || annBtn.contains(e.target as Node)))
+    ) {
       return;
     }
     isMouseDown = true;

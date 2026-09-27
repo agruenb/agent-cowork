@@ -165,6 +165,14 @@ const enTranslations: Record<string, string> = {
     'Cowork view activated! Custom folder and document views active.',
   'Cowork-Ansicht deaktiviert. Standard-Ansicht wiederhergestellt.':
     'Cowork view deactivated. Standard view restored.',
+  'An Agent weiterleiten': 'Forward to Agent',
+  'An Agent weiterleiten ({0})': 'Forward to Agent ({0})',
+  'Dokument und {0} Anmerkungen an KI-Agent weiterleiten':
+    'Forward document and {0} annotations to AI Agent',
+  'Dokument und Anmerkungen an KI-Agent weiterleiten':
+    'Forward document and annotations to AI Agent',
+  'Dokument und Anmerkungen für "{0}" wurden in die Zwischenablage kopiert. Fügen Sie sie in das KI-Chatfenster ein.':
+    'Document and annotations for "{0}" have been copied to clipboard. Paste them into the AI chat window.',
 };
 
 const deTranslations: Record<string, string> = {

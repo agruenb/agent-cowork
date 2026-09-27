@@ -21,6 +21,7 @@ import { getBlockDeleteBtnHtml } from '../markdown/parser';
 import { handleCodeButtonClick } from './inlineCode';
 import { getCodeBlockCopyBtnHtml } from './codeCopy';
 import { tWebview, getWebviewLanguage } from './i18n';
+import { getAnnotations, updateCoworkButtonWithAnnotations } from './annotations';
 
 export interface ToolbarHooks {
   toggleRawMode: () => void;
@@ -437,9 +438,18 @@ export function wireToolbar(hooks: ToolbarHooks): void {
         }, 150);
       }
     }
-    vscode.postMessage({
-      type: 'cowork',
-    });
+    const currentAnnotations = getAnnotations();
+    if (currentAnnotations.length > 0) {
+      vscode.postMessage({
+        type: 'forwardWithAnnotations',
+        text: state.currentMarkdown,
+        annotations: currentAnnotations,
+      });
+    } else {
+      vscode.postMessage({
+        type: 'cowork',
+      });
+    }
   });
 
   // Collapse / expand toolbar button
@@ -465,6 +475,8 @@ export function wireToolbar(hooks: ToolbarHooks): void {
   } catch {
     // Ignore in environments where getState is not supported
   }
+
+  updateCoworkButtonWithAnnotations();
 
   // Update heading select value and toolbar active states based on selection change
   const onSelectionChange = () => {

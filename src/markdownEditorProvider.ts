@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { hasVisibleContent } from './utils/markdownContent';
 import { t, getEffectiveLanguage } from './i18n';
 import { openCoworkTreeView } from './coworkViewManager';
+import { DocumentAnnotation } from './types/annotation';
+import { forwardToAgentWithAnnotations } from './coworkChat';
 
 /**
  * Provider for the built-in formatted and editable Markdown editor in Agent Cowork.
@@ -98,12 +100,15 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         initFallbackTimer = null;
       }
       const filename = document.uri.path.split('/').pop() || '';
+      const annKey = `agentCowork.annotations:${document.uri.toString()}`;
+      const annotations = this.context.workspaceState.get<DocumentAnnotation[]>(annKey) || [];
       webviewPanel.webview.postMessage({
         type: 'init',
         text: document.getText(),
         language: getEffectiveLanguage(),
         filename,
         treeViewVisible: MarkdownEditorProvider.isTreeViewVisible(),
+        annotations,
       });
     };
 
@@ -268,6 +273,21 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           });
           break;
         }
+        case 'updateAnnotations': {
+          const annKey = `agentCowork.annotations:${document.uri.toString()}`;
+          const annotations = Array.isArray(message.annotations) ? message.annotations : [];
+          await this.context.workspaceState.update(annKey, annotations);
+          break;
+        }
+        case 'forwardWithAnnotations': {
+          if (document.isDirty) {
+            await document.save();
+          }
+          const annotations = Array.isArray(message.annotations) ? message.annotations : [];
+          const markdownText = typeof message.text === 'string' ? message.text : document.getText();
+          await forwardToAgentWithAnnotations(document.uri, annotations, markdownText);
+          break;
+        }
       }
     });
 
@@ -295,11 +315,16 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const lang = getEffectiveLanguage();
     const docText = document ? document.getText() : '';
     const filename = document ? document.uri.path.split('/').pop() || '' : '';
+    const annKey = `agentCowork.annotations:${document ? document.uri.toString() : ''}`;
+    const annotations = document
+      ? this.context.workspaceState.get<DocumentAnnotation[]>(annKey) || []
+      : [];
     const initialDataJson = JSON.stringify({
       text: docText,
       filename,
       language: lang,
       treeViewVisible: MarkdownEditorProvider.isTreeViewVisible(),
+      annotations,
     })
       .replace(/</g, '\\u003c')
       .replace(/>/g, '\\u003e')
@@ -427,7 +452,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       </div>
     </div>
 
-    <!-- Floating Cowork button on text selection -->
+    <!-- Floating buttons on text selection -->
+    <button id="btn-selection-annotate" class="selection-annotate-btn" tabindex="-1" title="${t('Anmerkung hinzufügen')}" aria-label="${t('Anmerkung')}">
+      <span>💬 ${t('Anmerkung')}</span>
+    </button>
     <button id="btn-selection-cowork" class="selection-cowork-btn" tabindex="-1" title="${t('Mit KI-Agent an den ausgewählten Zeilen zusammenarbeiten')}" aria-label="Cowork">
       <span>Cowork</span>
       <svg class="cowork-arrow-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">

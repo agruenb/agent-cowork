@@ -2,8 +2,9 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { formatFileReference } from './utils/fileReference';
 import { t } from './i18n';
+import { DocumentAnnotation, formatAnnotationsChatPrompt } from './types/annotation';
 
-export { formatFileReference };
+export { formatFileReference, formatAnnotationsChatPrompt };
 
 /**
  * Formats a file or folder reference for VS Code Chat prompt input from a vscode.Uri.
@@ -238,3 +239,68 @@ export async function coworkWithFolder(
 ): Promise<void> {
   return coworkWithFile(targetUri, options);
 }
+
+/**
+ * Forwards the document and user annotations to the AI chat window.
+ */
+export async function forwardToAgentWithAnnotations(
+  uri: vscode.Uri,
+  annotations: DocumentAnnotation[],
+  markdownContent: string
+): Promise<void> {
+  const fileName = path.basename(uri.fsPath);
+  const prompt = formatAnnotationsChatPrompt(fileName, annotations, markdownContent);
+  const availableCommands = new Set(await vscode.commands.getCommands(true));
+
+  // Try attaching the file to chat context
+  if (availableCommands.has('workbench.action.chat.attachFile')) {
+    try {
+      await vscode.commands.executeCommand('workbench.action.chat.attachFile', uri);
+    } catch (err) {
+      console.warn('workbench.action.chat.attachFile failed:', err);
+    }
+  }
+
+  // Open chat with query and isPartialQuery: true so user can review and prompt
+  if (availableCommands.has('workbench.action.chat.open')) {
+    try {
+      await vscode.commands.executeCommand('workbench.action.chat.open', {
+        attachFiles: [uri],
+        attachFileUris: [uri],
+        query: prompt,
+        isPartialQuery: true,
+      });
+      return;
+    } catch (err) {
+      console.warn('workbench.action.chat.open with options failed, fallback string:', err);
+      try {
+        await vscode.commands.executeCommand('workbench.action.chat.open', prompt);
+        return;
+      } catch (err2) {
+        console.warn('workbench.action.chat.open failed:', err2);
+      }
+    }
+  }
+
+  // Fallback: Quickchat
+  if (availableCommands.has('workbench.action.quickchat.open')) {
+    try {
+      await vscode.commands.executeCommand('workbench.action.quickchat.open', {
+        query: prompt,
+      });
+      return;
+    } catch (err) {
+      console.warn('workbench.action.quickchat.open failed:', err);
+    }
+  }
+
+  // Fallback: Copy to clipboard and inform user
+  await vscode.env.clipboard.writeText(prompt);
+  vscode.window.showInformationMessage(
+    t(
+      'Dokument und Anmerkungen für "{0}" wurden in die Zwischenablage kopiert. Fügen Sie sie in das KI-Chatfenster ein.',
+      fileName
+    )
+  );
+}
+

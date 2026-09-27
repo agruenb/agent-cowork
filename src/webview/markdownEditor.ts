@@ -32,6 +32,12 @@ import {
   updateCodeCopyLanguage,
 } from './codeCopy';
 import {
+  setAnnotations,
+  renderAllAnnotations,
+  updateCoworkButtonWithAnnotations,
+  wireAnnotationGlobalEvents,
+} from './annotations';
+import {
   state,
   showErrorBanner,
   hideErrorBanner,
@@ -152,6 +158,7 @@ export function setContentFormatted(markdown: string): boolean {
   wireTaskCheckboxes();
   if (canvas) wireTableInteractions(canvas, () => emitCanvasEdit());
   if (canvas) wireCodeBlockCopyButtons(canvas);
+  renderAllAnnotations();
   state.isCanvasDirty = false;
   return true;
 }
@@ -1221,10 +1228,7 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
     }
 
     // Cowork button
-    const btnCowork = document.getElementById('btn-cowork');
-    if (btnCowork) {
-      btnCowork.title = tWebview('Mit KI-Agent an diesem Dokument zusammenarbeiten');
-    }
+    updateCoworkButtonWithAnnotations();
     updateSelectionCoworkButtonLanguage();
 
     // Collapse toolbar button
@@ -1323,12 +1327,21 @@ export function handleWindowMessage(event: MessageEvent): void {
       if (message.filename) {
         applyFilenameTint(message.filename);
       }
+      if (Array.isArray(message.annotations)) {
+        setAnnotations(message.annotations);
+      }
       setContentFormatted(message.text || '');
       state.isInitialized = true;
       persistWebviewState();
       if (state.isRawMode) {
         autoResizeRawTextarea();
         updateRawLineNumbers();
+      }
+      break;
+    }
+    case 'setAnnotations': {
+      if (Array.isArray(message.annotations)) {
+        setAnnotations(message.annotations);
       }
       break;
     }
@@ -1758,6 +1771,9 @@ export function initMarkdownEditor(): void {
           toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
         }
       }
+      if (Array.isArray(saved.annotations)) {
+        setAnnotations(saved.annotations);
+      }
       setContentFormatted(saved.markdown);
       state.isInitialized = true;
       restored = true;
@@ -1783,6 +1799,9 @@ export function initMarkdownEditor(): void {
           state.activeFilename = initData.filename;
           applyFilenameTint(initData.filename);
         }
+        if (Array.isArray(initData.annotations)) {
+          setAnnotations(initData.annotations);
+        }
         if (typeof initData.text === 'string') {
           setContentFormatted(initData.text);
           state.isInitialized = true;
@@ -1797,6 +1816,9 @@ export function initMarkdownEditor(): void {
 
   // Signal ready to extension host
   vscode.postMessage({ type: 'ready' });
+
+  // Wire document-wide annotation popover dismissal
+  wireAnnotationGlobalEvents();
 
   dismissBtn?.addEventListener('click', () => {
     hideErrorBanner();
