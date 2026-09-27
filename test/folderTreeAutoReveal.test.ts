@@ -332,6 +332,27 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       assert.strictEqual(customizations['[Agent Cowork Light]']['list.activeSelectionBackground'], darkBudget);
     });
 
+    it('applyFilePastelHighlight re-applies if colorCustomizations is modified by another window', async () => {
+      await applyFilePastelHighlight('project.md');
+      const darkProject = getDarkShade(getFilenameHue('project.md'));
+
+      const config = vscode.workspace.getConfiguration('workbench');
+      let customizations = config.get<Record<string, any>>('colorCustomizations');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], darkProject);
+
+      // Simulate another window overwriting colorCustomizations
+      await config.update('colorCustomizations', {
+        '[Agent Cowork Light]': {
+          'tab.activeBackground': '#000000',
+        },
+      }, vscode.ConfigurationTarget.Global);
+
+      // Call applyFilePastelHighlight again for project.md
+      await applyFilePastelHighlight('project.md');
+      customizations = config.get<Record<string, any>>('colorCustomizations');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], darkProject);
+    });
+
     it('applyFilenameTint applies document accents and CSS custom properties based on file hue', () => {
       const dom = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>');
       const originalDoc = (global as any).document;

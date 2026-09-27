@@ -50,6 +50,7 @@ import {
   getRawGutter,
   flushPendingEdit,
   getDocumentViewport,
+  persistWebviewState,
 } from './editorState';
 import { updateRawLineNumbers } from './rawLineNumbers';
 import {
@@ -141,6 +142,8 @@ export function setContentFormatted(markdown: string): boolean {
   state.hasParseError = false;
   hideErrorBanner();
   state.currentMarkdown = markdown;
+  state.isInitialized = true;
+  persistWebviewState();
   if (canvas) {
     canvas.innerHTML = html;
     syncBlockLineAttributes(canvas, markdown);
@@ -1275,6 +1278,8 @@ export function setCoworkTreeButtonVisible(visible: boolean): void {
  * automatically adapting links, blockquotes, checkboxes, table focus, and selections.
  */
 export function applyFilenameTint(filename: string): void {
+  state.activeFilename = filename;
+  persistWebviewState();
   const hue = getFilenameHue(filename);
   const darkShade = getDarkShade(hue);
 
@@ -1312,12 +1317,15 @@ export function handleWindowMessage(event: MessageEvent): void {
         setCoworkTreeButtonVisible(!message.treeViewVisible);
       }
       if (message.language) {
+        state.activeLanguage = message.language;
         setWebviewLanguage(message.language);
       }
       if (message.filename) {
         applyFilenameTint(message.filename);
       }
       setContentFormatted(message.text || '');
+      state.isInitialized = true;
+      persistWebviewState();
       if (state.isRawMode) {
         autoResizeRawTextarea();
         updateRawLineNumbers();
@@ -1332,6 +1340,8 @@ export function handleWindowMessage(event: MessageEvent): void {
     }
     case 'setLanguage': {
       if (message.language) {
+        state.activeLanguage = message.language;
+        persistWebviewState();
         updateEditorLanguage(message.language);
       }
       break;
@@ -1342,6 +1352,8 @@ export function handleWindowMessage(event: MessageEvent): void {
         if (state.isRawMode && textarea) {
           textarea.value = message.text || '';
           state.currentMarkdown = message.text || '';
+          state.isInitialized = true;
+          persistWebviewState();
           autoResizeRawTextarea();
           updateRawLineNumbers();
         } else {
@@ -1708,6 +1720,9 @@ export function wireDragSelection(
 }
 
 export function initMarkdownEditor(): void {
+  // Always register window message listener immediately so incoming messages are never lost
+  window.addEventListener('message', handleWindowMessage);
+
   const canvas = getEditorCanvas();
   const textarea = getRawTextarea();
   const dismissBtn = getErrorBannerDismiss();
@@ -1715,6 +1730,73 @@ export function initMarkdownEditor(): void {
   if (!canvas || !textarea) {
     return;
   }
+
+  // Restore state: 1. From vscode.getState() (for auxiliary windows, tab moves, reloads)
+  let restored = false;
+  try {
+    const saved = vscode.getState() as Record<string, unknown> | undefined;
+    if (saved && typeof saved.markdown === 'string') {
+      if (typeof saved.activeFilename === 'string') {
+        state.activeFilename = saved.activeFilename;
+        applyFilenameTint(saved.activeFilename);
+      }
+      if (saved.activeLanguage === 'en' || saved.activeLanguage === 'de') {
+        state.activeLanguage = saved.activeLanguage;
+        setWebviewLanguage(saved.activeLanguage);
+      }
+      if (saved.isRawMode === true && !state.isRawMode) {
+        state.isRawMode = true;
+        if (canvas) canvas.style.display = 'none';
+        const wrapper = getRawWrapper();
+        if (wrapper) wrapper.style.display = 'flex';
+        const gutter = getRawGutter();
+        if (gutter) gutter.style.display = 'block';
+        if (textarea) textarea.style.display = 'block';
+        const toggleBtn = getRawToggleBtn();
+        if (toggleBtn) {
+          toggleBtn.classList.add('is-active');
+          toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
+        }
+      }
+      setContentFormatted(saved.markdown);
+      state.isInitialized = true;
+      restored = true;
+    }
+  } catch (err) {
+    console.warn('Agent Cowork: Failed to restore state from vscode.getState():', err);
+  }
+
+  // 2. If not restored from state, load from embedded JSON script tag
+  if (!restored) {
+    try {
+      const dataEl = document.getElementById('agent-cowork-init-data');
+      if (dataEl && dataEl.textContent) {
+        const initData = JSON.parse(dataEl.textContent);
+        if (typeof initData.treeViewVisible === 'boolean') {
+          setCoworkTreeButtonVisible(!initData.treeViewVisible);
+        }
+        if (initData.language === 'en' || initData.language === 'de') {
+          state.activeLanguage = initData.language;
+          setWebviewLanguage(initData.language);
+        }
+        if (initData.filename) {
+          state.activeFilename = initData.filename;
+          applyFilenameTint(initData.filename);
+        }
+        if (typeof initData.text === 'string') {
+          setContentFormatted(initData.text);
+          state.isInitialized = true;
+          restored = true;
+          persistWebviewState();
+        }
+      }
+    } catch (err) {
+      console.warn('Agent Cowork: Failed to load embedded initial data:', err);
+    }
+  }
+
+  // Signal ready to extension host
+  vscode.postMessage({ type: 'ready' });
 
   dismissBtn?.addEventListener('click', () => {
     hideErrorBanner();
@@ -1896,13 +1978,6 @@ export function initMarkdownEditor(): void {
       vscode.postMessage({ type: 'openCoworkView' });
     });
   }
-
-  window.addEventListener('message', handleWindowMessage);
-
-  // Signal to the extension host that the webview is ready to receive messages.
-  // This handshake prevents the init message from being lost when a tab is dragged
-  // to a new VS Code window (the extension waits for this before posting init data).
-  vscode.postMessage({ type: 'ready' });
 }
 
 // Auto-run in browser environment when DOM is ready

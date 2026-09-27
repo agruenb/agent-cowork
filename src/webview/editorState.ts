@@ -153,6 +153,9 @@ export interface EditorState {
   isInternalChange: boolean;
   hasParseError: boolean;
   isCanvasDirty: boolean;
+  isInitialized: boolean;
+  activeFilename?: string;
+  activeLanguage?: string;
 }
 
 export const state: EditorState = {
@@ -162,7 +165,28 @@ export const state: EditorState = {
   isInternalChange: false,
   hasParseError: false,
   isCanvasDirty: false,
+  isInitialized: false,
 };
+
+/**
+ * Persists the current editor state using the VS Code Webview State API.
+ * This guarantees that when a tab is dragged to an auxiliary window or reloaded,
+ * the content, view mode, and filename tint can be restored immediately without data loss.
+ */
+export function persistWebviewState(): void {
+  try {
+    const prev = (vscode.getState() as Record<string, unknown>) || {};
+    vscode.setState({
+      ...prev,
+      markdown: state.currentMarkdown,
+      isRawMode: state.isRawMode,
+      activeFilename: state.activeFilename,
+      activeLanguage: state.activeLanguage,
+    });
+  } catch {
+    // Ignore in environments where getState/setState is not supported
+  }
+}
 
 /**
  * Displays the error / warning banner in the editor.
@@ -249,6 +273,12 @@ export function getMarkdownFromCanvas(): string | null {
  * @param markdown The serialized markdown text
  */
 export function emitEdit(markdown: string): void {
+  // Safety guard: Suppress emitting edits before editor initialization is completed
+  if (!state.isInitialized) {
+    console.warn('Agent Cowork: Suppressing edit emission before editor is initialized.');
+    return;
+  }
+
   // Safety guard: Suppress emitting edits from formatted mode if parser failed and canvas is corrupted
   if (state.hasParseError && !state.isRawMode) {
     console.warn('Agent Cowork: Suppressing edit emission due to active parser error.');
@@ -268,6 +298,7 @@ export function emitEdit(markdown: string): void {
   }
 
   state.currentMarkdown = markdown;
+  persistWebviewState();
 
   if (state.debounceTimer) {
     clearTimeout(state.debounceTimer);
@@ -309,6 +340,10 @@ export function flushPendingEdit(): void {
  * Serializes the canvas and emits an edit if serialization succeeded.
  */
 export function emitCanvasEdit(): void {
+  if (!state.isInitialized) {
+    console.warn('Agent Cowork: Suppressing canvas edit before editor is initialized.');
+    return;
+  }
   state.isCanvasDirty = true;
   const md = getMarkdownFromCanvas();
   if (md !== null) {

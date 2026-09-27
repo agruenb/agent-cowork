@@ -62,6 +62,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     MarkdownEditorProvider._onDidActiveDocumentChange.fire(document.uri);
 
     webviewPanel.onDidChangeViewState((e) => {
+      if (e.webviewPanel.visible) {
+        sendInitialContent();
+      }
       if (e.webviewPanel.active) {
         MarkdownEditorProvider._onDidActiveDocumentChange.fire(document.uri);
       }
@@ -79,8 +82,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // Register panel for dynamic language configuration updates
     MarkdownEditorProvider.activePanels.add(webviewPanel);
 
-    // Load initial HTML content
-    webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
+    // Load initial HTML content with document content pre-embedded
+    webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview, document);
 
     let isInternalEdit = false;
     let initFallbackTimer: ReturnType<typeof setTimeout> | null = null;
@@ -280,7 +283,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     });
   }
 
-  private getHtmlForWebview(webview: vscode.Webview): string {
+  private getHtmlForWebview(webview: vscode.Webview, document?: vscode.TextDocument): string {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'markdownEditor.js')
     );
@@ -290,6 +293,17 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     const nonce = getNonce();
     const lang = getEffectiveLanguage();
+    const docText = document ? document.getText() : '';
+    const filename = document ? document.uri.path.split('/').pop() || '' : '';
+    const initialDataJson = JSON.stringify({
+      text: docText,
+      filename,
+      language: lang,
+      treeViewVisible: MarkdownEditorProvider.isTreeViewVisible(),
+    })
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e')
+      .replace(/&/g, '\\u0026');
 
     return `<!DOCTYPE html>
 <html lang="${lang}">
@@ -422,6 +436,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     </button>
   </div>
 
+  <script id="agent-cowork-init-data" type="application/json" nonce="${nonce}">${initialDataJson}</script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

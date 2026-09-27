@@ -286,4 +286,66 @@ describe('Data Loss Safeguards & Anomaly Detection', () => {
       assert.strictEqual(hasVisibleContent(undefined), false);
     });
   });
+
+  describe('Uninitialized Editor Safeguards & State Persistence', () => {
+    const { state, emitEdit, emitCanvasEdit, persistWebviewState, vscode } = require('../src/webview/editorState');
+
+    it('suppresses emitEdit when isInitialized is false', () => {
+      let messageSent = false;
+      const originalPostMessage = vscode.postMessage;
+      vscode.postMessage = () => {
+        messageSent = true;
+      };
+
+      try {
+        state.isInitialized = false;
+        state.currentMarkdown = '';
+        emitEdit('Accidental content from empty canvas');
+        assert.strictEqual(messageSent, false);
+      } finally {
+        vscode.postMessage = originalPostMessage;
+      }
+    });
+
+    it('suppresses emitCanvasEdit when isInitialized is false', () => {
+      let messageSent = false;
+      const originalPostMessage = vscode.postMessage;
+      vscode.postMessage = () => {
+        messageSent = true;
+      };
+
+      try {
+        state.isInitialized = false;
+        emitCanvasEdit();
+        assert.strictEqual(messageSent, false);
+      } finally {
+        vscode.postMessage = originalPostMessage;
+      }
+    });
+
+    it('persists webview state correctly to vscode.setState', () => {
+      let savedState: any = null;
+      const originalSetState = vscode.setState;
+      const originalGetState = vscode.getState;
+      vscode.setState = (st: any) => {
+        savedState = st;
+      };
+      vscode.getState = () => savedState;
+
+      try {
+        state.currentMarkdown = '# Header\nContent';
+        state.isRawMode = false;
+        state.activeFilename = 'doc.md';
+        persistWebviewState();
+
+        assert.ok(savedState);
+        assert.strictEqual(savedState.markdown, '# Header\nContent');
+        assert.strictEqual(savedState.isRawMode, false);
+        assert.strictEqual(savedState.activeFilename, 'doc.md');
+      } finally {
+        vscode.setState = originalSetState;
+        vscode.getState = originalGetState;
+      }
+    });
+  });
 });

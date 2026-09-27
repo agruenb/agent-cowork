@@ -284,17 +284,11 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'editorGroupHeader.tabsBorder': '#00000000',
       'editorGroupHeader.border': '#00000000',
       'editorGroup.border': '#e2e8f0',
-      'tab.activeBackground': '#0f172a',
-      'tab.activeForeground': '#ffffff',
-      'tab.activeBorder': '#0f172a',
       'tab.activeBorderTop': '#00000000',
       'tab.selectedBorderTop': '#00000000',
       'tab.inactiveBackground': '#e2e8f0',
       'tab.inactiveForeground': '#475569',
       'tab.border': '#00000000',
-      'tab.unfocusedActiveBackground': '#0f172acc',
-      'tab.unfocusedActiveForeground': '#ffffff',
-      'tab.unfocusedActiveBorder': '#0f172acc',
       'tab.unfocusedActiveBorderTop': '#00000000',
       'tab.unfocusedInactiveBackground': '#e2e8f0',
       'tab.unfocusedInactiveForeground': '#64748b',
@@ -303,23 +297,12 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'tab.inactiveModifiedBorder': '#00000000',
       'tab.unfocusedActiveModifiedBorder': '#00000000',
       'tab.unfocusedInactiveModifiedBorder': '#00000000',
-      'tab.dragAndDropBorder': '#0f172a',
-      'tab.selectedBackground': '#0f172a',
-      'tab.selectedForeground': '#ffffff',
       'tab.hoverBackground': '#334155',
       'tab.hoverForeground': '#ffffff',
       'tab.hoverBorder': '#334155',
       'tab.unfocusedHoverBackground': '#334155',
       'tab.unfocusedHoverForeground': '#ffffff',
       'tab.unfocusedHoverBorder': '#334155',
-      'list.activeSelectionBackground': '#0f172a',
-      'list.activeSelectionForeground': '#ffffff',
-      'list.activeSelectionIconForeground': '#ffffff',
-      'list.inactiveSelectionBackground': '#0f172a',
-      'list.inactiveSelectionForeground': '#ffffff',
-      'list.inactiveSelectionIconForeground': '#ffffff',
-      'list.focusBackground': '#0f172a',
-      'list.focusForeground': '#ffffff',
       'statusBar.background': '#ffffff',
       'statusBar.foreground': '#475569',
       'statusBar.border': '#e2e8f0',
@@ -597,21 +580,8 @@ export function resetLastPastelFilename(): void {
 /**
  * Applies the darker shade of the active document's color to the active tab and tree view selection highlight,
  * keeping unselected tabs on the neutral browser backdrop and hover styling invariant.
- *
- * Only updates from the focused VS Code window to prevent racing when multiple windows
- * are open (colorCustomizations is global and shared across all windows).
  */
 export async function applyFilePastelHighlight(filename: string): Promise<void> {
-  // Guard: only the focused window should write global color customizations.
-  // When a tab is dragged to a new window, both extension host instances fire
-  // tab-change events, and without this guard they race to overwrite each other.
-  if (!vscode.window.state.focused) {
-    return;
-  }
-
-  if (lastPastelFilename === filename) {
-    return;
-  }
   lastPastelFilename = filename;
 
   try {
