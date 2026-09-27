@@ -597,8 +597,18 @@ export function resetLastPastelFilename(): void {
 /**
  * Applies the darker shade of the active document's color to the active tab and tree view selection highlight,
  * keeping unselected tabs on the neutral browser backdrop and hover styling invariant.
+ *
+ * Only updates from the focused VS Code window to prevent racing when multiple windows
+ * are open (colorCustomizations is global and shared across all windows).
  */
 export async function applyFilePastelHighlight(filename: string): Promise<void> {
+  // Guard: only the focused window should write global color customizations.
+  // When a tab is dragged to a new window, both extension host instances fire
+  // tab-change events, and without this guard they race to overwrite each other.
+  if (!vscode.window.state.focused) {
+    return;
+  }
+
   if (lastPastelFilename === filename) {
     return;
   }
@@ -802,6 +812,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     folderTreeView.onDidChangeVisibility((e) => {
       if (e.visible) {
+        queueAutoReveal(undefined, 50, true);
+      }
+    }),
+    // When this window gains focus, re-apply the active file's color.
+    // Since colorCustomizations is global, the other window may have overwritten
+    // our colors while we were unfocused. Reset the cache so the update isn't skipped.
+    vscode.window.onDidChangeWindowState((windowState) => {
+      if (windowState.focused) {
+        resetLastPastelFilename();
         queueAutoReveal(undefined, 50, true);
       }
     })

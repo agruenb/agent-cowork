@@ -83,9 +83,17 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
 
     let isInternalEdit = false;
+    let initFallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Send initial text and effective language to the editor webview once ready
+    // Send document text and effective language to the editor webview.
+    // Called whenever the webview signals it is ready (including after being
+    // recreated when the panel is moved to a new VS Code window).
     const sendInitialContent = () => {
+      // Cancel any pending fallback timer to avoid double-sends
+      if (initFallbackTimer) {
+        clearTimeout(initFallbackTimer);
+        initFallbackTimer = null;
+      }
       const filename = document.uri.path.split('/').pop() || '';
       webviewPanel.webview.postMessage({
         type: 'init',
@@ -96,7 +104,15 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       });
     };
 
-    sendInitialContent();
+    // Wait for the webview to signal it is ready before sending initial content.
+    // When a panel is moved to a new window, VS Code recreates the webview iframe
+    // (JS re-executes, canvas is empty) but does NOT call resolveCustomTextEditor
+    // again. The webview's fresh JS posts 'ready', and sendInitialContent responds.
+    // Safety fallback: if the webview doesn't signal ready within 1.5s, send anyway.
+    initFallbackTimer = setTimeout(() => {
+      initFallbackTimer = null;
+      sendInitialContent();
+    }, 1500);
 
     // Listen to changes in the underlying VS Code TextDocument
     // (e.g. background edits from AI Agents, git pulls, or text editor saves)
@@ -121,6 +137,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // Handle messages sent from the webview editor
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
       switch (message.type) {
+        case 'ready': {
+          // Webview JS has loaded and is listening for messages
+          sendInitialContent();
+          break;
+        }
         case 'edit': {
           if (typeof message.text !== 'string') {
             return;
@@ -249,6 +270,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.onDidDispose(() => {
       MarkdownEditorProvider.activePanels.delete(webviewPanel);
+      if (initFallbackTimer) {
+        clearTimeout(initFallbackTimer);
+      }
       if (autoSaveTimer) {
         clearTimeout(autoSaveTimer);
       }

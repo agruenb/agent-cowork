@@ -1898,6 +1898,11 @@ export function initMarkdownEditor(): void {
   }
 
   window.addEventListener('message', handleWindowMessage);
+
+  // Signal to the extension host that the webview is ready to receive messages.
+  // This handshake prevents the init message from being lost when a tab is dragged
+  // to a new VS Code window (the extension waits for this before posting init data).
+  vscode.postMessage({ type: 'ready' });
 }
 
 // Auto-run in browser environment when DOM is ready

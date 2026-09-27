@@ -268,6 +268,7 @@ if (!(globalThis as any).__vscodeMockInstalled) {
               },
             };
           },
+          state: { focused: true },
         },
         StatusBarAlignment: {
           Left: 1,
