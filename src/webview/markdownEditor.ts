@@ -1153,6 +1153,8 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
       if (optH2) optH2.textContent = tWebview('Überschrift 2 (Mittel)');
       const optH3 = selectHeading.querySelector('option[value="h3"]');
       if (optH3) optH3.textContent = tWebview('Überschrift 3 (Klein)');
+      const optH4 = selectHeading.querySelector('option[value="h4"]');
+      if (optH4) optH4.textContent = tWebview('Überschrift 4 (Sehr klein)');
     }
 
     // Formatting buttons

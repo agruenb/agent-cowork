@@ -29,6 +29,7 @@ describe('Webview i18n & Localization', () => {
       <option value="h1">Überschrift 1 (Groß)</option>
       <option value="h2">Überschrift 2 (Mittel)</option>
       <option value="h3">Überschrift 3 (Klein)</option>
+      <option value="h4">Überschrift 4 (Sehr klein)</option>
     </select>
     <button id="btn-bold" title="Fett (Cmd+B)">B</button>
     <button id="btn-italic" title="Kursiv (Cmd+I)">I</button>
@@ -243,6 +244,7 @@ describe('Webview i18n & Localization', () => {
       const selectHeading = document.getElementById('select-heading') as HTMLSelectElement;
       assert.strictEqual(selectHeading.options[0].textContent, 'Normal text');
       assert.strictEqual(selectHeading.options[1].textContent, 'Heading 1 (Large)');
+      assert.strictEqual(selectHeading.options[4].textContent, 'Heading 4 (Very small)');
 
       const btnBold = document.getElementById('btn-bold')!;
       assert.strictEqual(btnBold.getAttribute('title'), 'Bold (Cmd+B)');
@@ -271,6 +273,7 @@ describe('Webview i18n & Localization', () => {
       const selectHeading = document.getElementById('select-heading') as HTMLSelectElement;
       assert.strictEqual(selectHeading.options[0].textContent, 'Normaler Text');
       assert.strictEqual(selectHeading.options[1].textContent, 'Überschrift 1 (Groß)');
+      assert.strictEqual(selectHeading.options[4].textContent, 'Überschrift 4 (Sehr klein)');
 
       const btnBold = document.getElementById('btn-bold')!;
       assert.strictEqual(btnBold.getAttribute('title'), 'Fett (Cmd+B)');

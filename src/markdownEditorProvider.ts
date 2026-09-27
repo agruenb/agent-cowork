@@ -260,6 +260,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           <option value="h1">${t('Überschrift 1 (Groß)')}</option>
           <option value="h2">${t('Überschrift 2 (Mittel)')}</option>
           <option value="h3">${t('Überschrift 3 (Klein)')}</option>
+          <option value="h4">${t('Überschrift 4 (Sehr klein)')}</option>
         </select>
         <div class="toolbar-subgroup">
           <button id="btn-bold" class="tb-btn tb-btn-compact" tabindex="-1" title="${t('Fett (Cmd+B)')}"><strong>B</strong></button>

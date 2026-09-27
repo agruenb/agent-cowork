@@ -216,6 +216,7 @@ export function applyRawFormatting(
       if (param === 'h1') prefix = '# ';
       else if (param === 'h2') prefix = '## ';
       else if (param === 'h3') prefix = '### ';
+      else if (param === 'h4') prefix = '#### ';
 
       const transformed = `${prefix}${cleanLine}`;
       newText = val.slice(0, lineStart) + transformed + val.slice(lineEnd);

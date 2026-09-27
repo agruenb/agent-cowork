@@ -314,7 +314,7 @@ describe('Toolbar Operations & Expanded Testing', () => {
       assert.strictEqual(md, '```javascript\nconsole.log("hello");\n```');
     });
 
-    it('applies headings h1, h2, h3 and reverts to paragraph', () => {
+    it('applies headings h1, h2, h3, h4 and reverts to paragraph', () => {
       editor.innerHTML = '<p class="editor-block">Heading text</p>';
       const p = editor.querySelector('p')!;
       selectElement(p.firstChild || p);
@@ -327,6 +327,9 @@ describe('Toolbar Operations & Expanded Testing', () => {
 
       applyHeading(editor, 'h3');
       assert.strictEqual(domToMarkdown(editor).trim(), '### Heading text');
+
+      applyHeading(editor, 'h4');
+      assert.strictEqual(domToMarkdown(editor).trim(), '#### Heading text');
 
       applyHeading(editor, 'p');
       assert.strictEqual(domToMarkdown(editor).trim(), 'Heading text');
@@ -431,6 +434,9 @@ describe('Toolbar Operations & Expanded Testing', () => {
 
       applyRawFormatting(textarea, 'heading', 'h2');
       assert.strictEqual(textarea.value, '## My Title');
+
+      applyRawFormatting(textarea, 'heading', 'h4');
+      assert.strictEqual(textarea.value, '#### My Title');
 
       applyRawFormatting(textarea, 'heading', 'p');
       assert.strictEqual(textarea.value, 'My Title');

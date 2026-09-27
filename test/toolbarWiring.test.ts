@@ -24,6 +24,7 @@ describe('User Interactions - Toolbar Button Wiring', () => {
         <option value="h1">Überschrift 1</option>
         <option value="h2">Überschrift 2</option>
         <option value="h3">Überschrift 3</option>
+        <option value="h4">Überschrift 4</option>
       </select>
       <div class="toolbar-subgroup">
         <button id="btn-bold" class="tb-btn tb-btn-compact">B</button>
@@ -288,8 +289,17 @@ describe('User Interactions - Toolbar Button Wiring', () => {
     assert.ok(h2, 'Should convert to h2');
     assert.strictEqual(domToMarkdown(editor).trim(), '## Main Header');
 
-    // Revert to paragraph
+    // Select H4
     selectElement(h2!.firstChild || h2!, 0);
+    select.value = 'h4';
+    select.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    let h4 = editor.querySelector('h4');
+    assert.ok(h4, 'Should convert to h4');
+    assert.strictEqual(domToMarkdown(editor).trim(), '#### Main Header');
+
+    // Revert to paragraph
+    selectElement(h4!.firstChild || h4!, 0);
     select.value = 'p';
     select.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
 

@@ -41,6 +41,7 @@ const enWebviewTranslations: Record<string, string> = {
   'Überschrift 1 (Groß)': 'Heading 1 (Large)',
   'Überschrift 2 (Mittel)': 'Heading 2 (Medium)',
   'Überschrift 3 (Klein)': 'Heading 3 (Small)',
+  'Überschrift 4 (Sehr klein)': 'Heading 4 (Very small)',
   'Fett (Cmd+B)': 'Bold (Cmd+B)',
   'Kursiv (Cmd+I)': 'Italic (Cmd+I)',
   'Durchgestrichen': 'Strikethrough',

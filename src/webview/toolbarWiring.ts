@@ -215,7 +215,7 @@ export function updateHeadingSelect(): void {
       if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as HTMLElement;
         const tag = el.tagName.toLowerCase();
-        if (/^h[1-3]$/.test(tag)) {
+        if (/^h[1-4]$/.test(tag)) {
           if (headingSel) {
             headingSel.value = tag;
           }
