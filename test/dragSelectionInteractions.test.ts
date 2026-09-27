@@ -3,6 +3,8 @@ import { JSDOM } from 'jsdom';
 import {
   setContentFormatted,
   handleLineClickOrDragOutsideText,
+  getCaretPositionForCoordinates,
+  wireDragSelection,
 } from '../src/webview/markdownEditor';
 
 describe('User Interactions - Drag Selection Behind Text Lines', () => {
@@ -849,6 +851,273 @@ describe('User Interactions - Drag Selection Behind Text Lines', () => {
       const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
       assert.strictEqual(handled, false);
       assert.strictEqual(viewport.scrollTop, 200);
+    });
+  });
+
+  describe('Multi-line Bottom-to-Top Drag Selection - First Character Inclusion', () => {
+    it('dragging from bottom line upwards across lines to left/start of top line selects first character (offset 0)', () => {
+      setContentFormatted('First top line\n\nSecond bottom line');
+      const paragraphs = editor.querySelectorAll('p.editor-block');
+      assert.strictEqual(paragraphs.length, 2);
+      const p1 = paragraphs[0];
+      const p2 = paragraphs[1];
+
+      p1.getBoundingClientRect = () =>
+        ({ top: 10, bottom: 30, left: 100, right: 300, width: 200, height: 20 } as DOMRect);
+      p2.getBoundingClientRect = () =>
+        ({ top: 40, bottom: 60, left: 100, right: 300, width: 200, height: 20 } as DOMRect);
+
+      editor.getBoundingClientRect = () =>
+        ({ top: 0, bottom: 200, left: 100, right: 800, width: 700, height: 200 } as DOMRect);
+
+      const origCreateRange = document.createRange.bind(document);
+      document.createRange = () => {
+        const range = origCreateRange();
+        range.getClientRects = () => [
+          { left: 100, right: 300, top: 10, bottom: 30, width: 200, height: 20 } as DOMRect,
+        ];
+        return range;
+      };
+
+      const sel = window.getSelection()!;
+
+      // Mousedown behind p2 (clientX = 500, clientY = 50)
+      const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 500,
+        clientY: 50,
+        button: 0,
+      });
+      Object.defineProperty(mousedownEvent, 'target', { value: p2 });
+
+      const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+      assert.strictEqual(handled, true);
+      // Anchor placed at end of p2 ("Second bottom line", length = 18)
+      assert.strictEqual(sel.anchorNode, p2.firstChild);
+      assert.strictEqual(sel.anchorOffset, 18);
+
+      // Drag upwards towards p1, moving cursor to the left of the line text (clientX = 50, clientY = 20)
+      const mousemoveEvent = new dom.window.MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 50, // To the left of p1.left (100)
+        clientY: 20,
+        buttons: 1,
+      });
+      document.dispatchEvent(mousemoveEvent);
+
+      // Focus must be at offset 0 of p1 (the first character "F" is included)
+      assert.strictEqual(sel.focusNode, p1.firstChild);
+      assert.strictEqual(sel.focusOffset, 0);
+
+      // Release mouseup
+      document.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true }));
+      assert.strictEqual(sel.focusNode, p1.firstChild);
+      assert.strictEqual(sel.focusOffset, 0);
+    });
+
+    it('dragging upwards across lines above the top line selects first character (offset 0)', () => {
+      setContentFormatted('Header text\n\nContent text');
+      const paragraphs = editor.querySelectorAll('.editor-block');
+      const p1 = paragraphs[0];
+      const p2 = paragraphs[1];
+
+      p1.getBoundingClientRect = () =>
+        ({ top: 30, bottom: 50, left: 100, right: 300, width: 200, height: 20 } as DOMRect);
+      p2.getBoundingClientRect = () =>
+        ({ top: 60, bottom: 80, left: 100, right: 300, width: 200, height: 20 } as DOMRect);
+
+      editor.getBoundingClientRect = () =>
+        ({ top: 20, bottom: 200, left: 100, right: 800, width: 700, height: 180 } as DOMRect);
+
+      const sel = window.getSelection()!;
+
+      const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 400,
+        clientY: 70,
+        button: 0,
+      });
+      Object.defineProperty(mousedownEvent, 'target', { value: p2 });
+      handleLineClickOrDragOutsideText(mousedownEvent, editor);
+
+      // Drag above top of canvas (clientY = 5, canvas top is 20)
+      const mousemoveEvent = new dom.window.MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 150,
+        clientY: 5,
+        buttons: 1,
+      });
+      document.dispatchEvent(mousemoveEvent);
+
+      assert.strictEqual(sel.focusNode, p1.firstChild);
+      assert.strictEqual(sel.focusOffset, 0);
+      document.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true }));
+    });
+
+    it('native backward drag selection across multiple lines adjusts focus to offset 0 when cursor is at line start or left margin', () => {
+      const cleanup = wireDragSelection(document, editor);
+
+      setContentFormatted('Alpha line\n\nBeta line');
+      const paragraphs = editor.querySelectorAll('p.editor-block');
+      const p1 = paragraphs[0];
+      const p2 = paragraphs[1];
+
+      p1.getBoundingClientRect = () =>
+        ({ top: 10, bottom: 30, left: 100, right: 300, width: 200, height: 20 } as DOMRect);
+      p2.getBoundingClientRect = () =>
+        ({ top: 40, bottom: 60, left: 100, right: 300, width: 200, height: 20 } as DOMRect);
+
+      editor.getBoundingClientRect = () =>
+        ({ top: 0, bottom: 200, left: 100, right: 800, width: 700, height: 200 } as DOMRect);
+
+      // Mousedown on p2 text
+      const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 120,
+        clientY: 50,
+        button: 0,
+      });
+      Object.defineProperty(mousedownEvent, 'target', { value: p2 });
+      document.dispatchEvent(mousedownEvent);
+
+      // Simulate native browser setting a backward selection from p2 (offset 5) up to p1 (offset 1, missing first char)
+      const sel = window.getSelection()!;
+      sel.setBaseAndExtent(p2.firstChild!, 5, p1.firstChild!, 1);
+      assert.strictEqual(sel.focusOffset, 1);
+
+      // Mousemove into left margin of p1 (clientX = 50, left = 100)
+      const mousemoveEvent = new dom.window.MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 50,
+        clientY: 20,
+        buttons: 1,
+      });
+      document.dispatchEvent(mousemoveEvent);
+
+      // Focus offset must now be snapped to 0, selecting "Alpha line" completely from the first character
+      assert.strictEqual(sel.focusNode, p1.firstChild);
+      assert.strictEqual(sel.focusOffset, 0);
+
+      cleanup();
+    });
+
+    it('backward selection stopping in the middle of the top line preserves the selection without snapping to 0', () => {
+      const cleanup = wireDragSelection(document, editor);
+
+      setContentFormatted('Alpha beta gamma\n\nDelta epsilon');
+      const paragraphs = editor.querySelectorAll('p.editor-block');
+      const p1 = paragraphs[0];
+      const p2 = paragraphs[1];
+
+      p1.getBoundingClientRect = () =>
+        ({ top: 10, bottom: 30, left: 100, right: 300, width: 200, height: 20 } as DOMRect);
+      p2.getBoundingClientRect = () =>
+        ({ top: 40, bottom: 60, left: 100, right: 300, width: 200, height: 20 } as DOMRect);
+
+      const sel = window.getSelection()!;
+      sel.setBaseAndExtent(p2.firstChild!, 5, p1.firstChild!, 6); // At "beta"
+
+      // Mousemove in the middle of p1 (clientX = 180, inside [100, 300])
+      const mousemoveEvent = new dom.window.MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 180,
+        clientY: 20,
+        buttons: 1,
+      });
+      document.dispatchEvent(mousemoveEvent);
+
+      // Offset must NOT be snapped to 0, it must remain at 6
+      assert.strictEqual(sel.focusOffset, 6);
+
+      cleanup();
+    });
+
+    it('task list item backward selection selects first character of task text without selecting checkbox', () => {
+      setContentFormatted('- [ ] First task item\n\n- [ ] Second task item');
+      const items = editor.querySelectorAll('li.task-item');
+      const t1 = items[0];
+      const t2 = items[1];
+
+      t1.getBoundingClientRect = () =>
+        ({ top: 10, bottom: 30, left: 100, right: 350, width: 250, height: 20 } as DOMRect);
+      t2.getBoundingClientRect = () =>
+        ({ top: 40, bottom: 60, left: 100, right: 350, width: 250, height: 20 } as DOMRect);
+
+      const span1 = t1.querySelector('.task-content') as HTMLElement;
+      span1.getBoundingClientRect = () =>
+        ({ top: 10, bottom: 30, left: 130, right: 350, width: 220, height: 20 } as DOMRect);
+
+      const span2 = t2.querySelector('.task-content') as HTMLElement;
+      span2.getBoundingClientRect = () =>
+        ({ top: 40, bottom: 60, left: 130, right: 350, width: 220, height: 20 } as DOMRect);
+
+      const sel = window.getSelection()!;
+      const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 500,
+        clientY: 50,
+        button: 0,
+      });
+      Object.defineProperty(mousedownEvent, 'target', { value: t2 });
+      const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+      assert.strictEqual(handled, true);
+
+      // Drag up to t1 left margin
+      const mousemoveEvent = new dom.window.MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 50,
+        clientY: 20,
+        buttons: 1,
+      });
+      document.dispatchEvent(mousemoveEvent);
+
+      assert.strictEqual(sel.focusNode, span1.firstChild);
+      assert.strictEqual(sel.focusOffset, 0);
+      document.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true }));
+    });
+
+    it('getCaretPositionForCoordinates returns offset 0 when clientX is in the first half of character 0', () => {
+      setContentFormatted('Character line text');
+      const p = editor.querySelector('p.editor-block')!;
+      assert.ok(p);
+
+      p.getBoundingClientRect = () =>
+        ({ top: 10, bottom: 30, left: 100, right: 300, width: 200, height: 20 } as DOMRect);
+
+      editor.getBoundingClientRect = () =>
+        ({ top: 0, bottom: 200, left: 100, right: 800, width: 700, height: 200 } as DOMRect);
+
+      // Mock caretPositionFromPoint to simulate browser prematurely returning offset 1
+      (document as any).caretPositionFromPoint = (_x: number, _y: number) => {
+        return { offsetNode: p.firstChild, offset: 1 };
+      };
+
+      // Mock character 0 range rect: left = 100, right = 110, width = 10
+      const origCreateRange = document.createRange.bind(document);
+      document.createRange = () => {
+        const range = origCreateRange();
+        range.getBoundingClientRect = () =>
+          ({ top: 10, bottom: 30, left: 100, right: 110, width: 10, height: 20 } as DOMRect);
+        range.getClientRects = () => [
+          { top: 10, bottom: 30, left: 100, right: 300, width: 200, height: 20 } as DOMRect,
+        ];
+        return range;
+      };
+
+      // Cursor at clientX = 104 (within the first half of character 0, 104 <= 100 + 6)
+      const pos = getCaretPositionForCoordinates(document, editor, 104, 20);
+      assert.ok(pos);
+      assert.strictEqual(pos.node, p.firstChild);
+      assert.strictEqual(pos.offset, 0);
     });
   });
 });

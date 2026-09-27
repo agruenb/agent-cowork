@@ -474,6 +474,86 @@ export function handleCanvasKeyDown(e: KeyboardEvent): void {
   }
 }
 
+export interface VisualLine {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+  rects: DOMRect[];
+}
+
+export function getVisualLinesForBlock(doc: Document, contentEl: HTMLElement): VisualLine[] {
+  const childNodes = Array.from(contentEl.childNodes).filter(
+    (n) => n.nodeName !== 'UL' && n.nodeName !== 'OL' && n.nodeName !== 'INPUT'
+  );
+  if (childNodes.length === 0) {
+    const br = contentEl.getBoundingClientRect();
+    return [{ top: br.top, bottom: br.bottom, left: br.left, right: br.right, rects: [br] }];
+  }
+
+  const firstNode = childNodes[0];
+  const lastNode = childNodes[childNodes.length - 1];
+
+  let validRects: DOMRect[] = [];
+  try {
+    const r = doc.createRange();
+    r.setStartBefore(firstNode);
+    r.setEndAfter(lastNode);
+    validRects = Array.from(
+      typeof r.getClientRects === 'function' ? r.getClientRects() : []
+    ).filter((rect) => rect.width > 0 || rect.height > 0);
+  } catch {
+    // Ignore measurement error
+  }
+
+  if (validRects.length === 0) {
+    const br = typeof contentEl.getBoundingClientRect === 'function' ? contentEl.getBoundingClientRect() : null;
+    if (br && (br.width > 0 || br.height > 0)) {
+      validRects.push(br);
+    }
+  }
+
+  const sortedRects = [...validRects].sort((a, b) => a.top - b.top || a.left - b.left);
+  const lines: VisualLine[] = [];
+
+  for (const rect of sortedRects) {
+    let matchedLine: VisualLine | null = null;
+    for (const line of lines) {
+      const overlap = Math.min(line.bottom, rect.bottom) - Math.max(line.top, rect.top);
+      const minHeight = Math.min(line.bottom - line.top, rect.bottom - rect.top);
+      const rectCenterY = rect.top + rect.height / 2;
+      const lineCenterY = line.top + (line.bottom - line.top) / 2;
+      const isNearLine =
+        (overlap > 0 && (minHeight <= 0 || overlap >= minHeight * 0.3)) ||
+        Math.abs(rectCenterY - lineCenterY) <= Math.max(8, minHeight * 0.5);
+
+      if (isNearLine) {
+        matchedLine = line;
+        break;
+      }
+    }
+
+    if (matchedLine) {
+      matchedLine.top = Math.min(matchedLine.top, rect.top);
+      matchedLine.bottom = Math.max(matchedLine.bottom, rect.bottom);
+      matchedLine.left = Math.min(matchedLine.left, rect.left);
+      matchedLine.right = Math.max(matchedLine.right, rect.right);
+      matchedLine.rects.push(rect);
+    } else {
+      lines.push({
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left,
+        right: rect.right,
+        rects: [rect],
+      });
+    }
+  }
+
+  lines.sort((a, b) => a.top - b.top);
+  return lines;
+}
+
 export function getCaretPositionForCoordinates(
   doc: Document,
   canvas: HTMLElement,
@@ -481,32 +561,153 @@ export function getCaretPositionForCoordinates(
   clientY: number
 ): { node: Node; offset: number } | null {
   const canvasRect = canvas.getBoundingClientRect();
-  let clampedX = clientX;
-  let clampedY = clientY;
-  if (canvasRect.width > 0 && canvasRect.height > 0) {
-    clampedX = Math.max(canvasRect.left + 5, Math.min(canvasRect.right - 5, clientX));
-    clampedY = Math.max(canvasRect.top + 2, Math.min(canvasRect.bottom - 2, clientY));
+  const hasCanvasDimensions = canvasRect.width > 0 && canvasRect.height > 0;
+
+  const blocks = Array.from(
+    canvas.querySelectorAll<HTMLElement>(
+      'li, p.editor-block, h1, h2, h3, h4, h5, h6, blockquote, .editor-code'
+    )
+  ).filter((b) => canvas.contains(b));
+
+  if (blocks.length === 0) {
+    return { node: canvas, offset: 0 };
   }
 
-  // 1. Standard API: caretPositionFromPoint (Chrome 128+)
-  if (typeof (doc as any).caretPositionFromPoint === 'function') {
-    const pos = (doc as any).caretPositionFromPoint(clampedX, clampedY);
-    if (pos && pos.offsetNode && canvas.contains(pos.offsetNode)) {
-      return { node: pos.offsetNode, offset: pos.offset };
+  // If clientY is above the canvas:
+  if (hasCanvasDimensions && clientY < canvasRect.top) {
+    const firstBlock = blocks[0];
+    const isTask =
+      firstBlock.classList.contains('task-item') ||
+      firstBlock.querySelector(':scope > input[type="checkbox"]');
+    const contentEl =
+      ((isTask ? firstBlock.querySelector('.task-content') : firstBlock) as HTMLElement) ||
+      firstBlock;
+    return getFirstCaretPosition(contentEl);
+  }
+
+  // If clientY is below the canvas:
+  if (hasCanvasDimensions && clientY > canvasRect.bottom) {
+    const lastBlock = blocks[blocks.length - 1];
+    return getLastCaretPosition(lastBlock);
+  }
+
+  // Find block at clientY:
+  let targetBlock: HTMLElement | null = null;
+  let minDistance = Infinity;
+
+  for (const b of blocks) {
+    const br = b.getBoundingClientRect();
+    if (br.height > 0) {
+      if (clientY >= br.top - 2 && clientY <= br.bottom + 2) {
+        targetBlock = b;
+        break;
+      }
+      const dist = Math.min(Math.abs(clientY - br.top), Math.abs(clientY - br.bottom));
+      if (dist < minDistance) {
+        minDistance = dist;
+        targetBlock = b;
+      }
     }
   }
 
-  // 2. WebKit / Blink API: caretRangeFromPoint (All Chrome / Electron versions)
-  if (typeof (doc as any).caretRangeFromPoint === 'function') {
-    const range = (doc as any).caretRangeFromPoint(clampedX, clampedY);
-    if (range && range.startContainer && canvas.contains(range.startContainer)) {
-      return { node: range.startContainer, offset: range.startOffset };
+  if (!targetBlock) {
+    // If no block had height > 0 (e.g. headless tests without mocked element rects),
+    // check if caretPositionFromPoint or caretRangeFromPoint can directly find the container:
+    if (typeof (doc as any).caretPositionFromPoint === 'function') {
+      const pos = (doc as any).caretPositionFromPoint(clientX, clientY);
+      if (pos && pos.offsetNode && canvas.contains(pos.offsetNode)) {
+        return { node: pos.offsetNode, offset: pos.offset };
+      }
+    }
+    if (typeof (doc as any).caretRangeFromPoint === 'function') {
+      const range = (doc as any).caretRangeFromPoint(clientX, clientY);
+      if (range && range.startContainer && canvas.contains(range.startContainer)) {
+        return { node: range.startContainer, offset: range.startOffset };
+      }
+    }
+    targetBlock = blocks[0];
+  }
+
+  const isTask =
+    targetBlock.classList.contains('task-item') ||
+    targetBlock.querySelector(':scope > input[type="checkbox"]');
+  const contentEl =
+    ((isTask ? targetBlock.querySelector('.task-content') : targetBlock) as HTMLElement) ||
+    targetBlock;
+  const lines = getVisualLinesForBlock(doc, contentEl);
+
+  if (lines.length > 0) {
+    let targetLine = lines[0];
+    let targetLineIndex = 0;
+    let bestLineDist = Infinity;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (clientY >= line.top - 2 && clientY <= line.bottom + 2) {
+        targetLine = line;
+        targetLineIndex = i;
+        break;
+      }
+      const dist = Math.min(Math.abs(clientY - line.top), Math.abs(clientY - line.bottom));
+      if (dist < bestLineDist) {
+        bestLineDist = dist;
+        targetLine = line;
+        targetLineIndex = i;
+      }
+    }
+
+    const isFirstLine = targetLineIndex === 0;
+    const isLastLine = targetLineIndex === lines.length - 1;
+    const hasMeasuredLine = targetLine.right > targetLine.left;
+
+    if (hasMeasuredLine) {
+      // Check if clientX is to the left of the line text
+      if (clientX <= targetLine.left + 2 || (isFirstLine && clientY < targetLine.top - 2)) {
+        if (isFirstLine) {
+          return getFirstCaretPosition(contentEl);
+        } else {
+          const centerY = targetLine.top + (targetLine.bottom - targetLine.top) / 2;
+          const pt = getCaretAtPoint(doc, targetLine.left + 1, centerY, contentEl);
+          return pt || getFirstCaretPosition(contentEl);
+        }
+      }
+
+      // Check if clientX is to the right of the line text
+      if (clientX >= targetLine.right - 2 || (isLastLine && clientY > targetLine.bottom + 2)) {
+        if (isLastLine) {
+          return getLastCaretPosition(contentEl);
+        } else {
+          const centerY = targetLine.top + (targetLine.bottom - targetLine.top) / 2;
+          const pt = getCaretAtPoint(doc, targetLine.right - 1, centerY, contentEl);
+          return pt || getLastCaretPosition(contentEl);
+        }
+      }
     }
   }
 
-  // 3. Fallback for test / headless environments
+  // Otherwise, coordinates are inside text area of canvas:
+  // Fall back to native getCaretAtPoint
+  const ptPos = getCaretAtPoint(doc, clientX, clientY, canvas);
+  if (ptPos) {
+    if (ptPos.offset === 1 && ptPos.node.nodeType === 3) {
+      try {
+        const r = doc.createRange();
+        r.setStart(ptPos.node, 0);
+        r.setEnd(ptPos.node, 1);
+        const char0Rect = r.getBoundingClientRect();
+        if (char0Rect.width > 0 && clientX <= char0Rect.left + char0Rect.width * 0.6) {
+          ptPos.offset = 0;
+        }
+      } catch {
+        // Ignore
+      }
+    }
+    return ptPos;
+  }
+
+  // Fallback for test / headless environments when caretRangeFromPoint is not mocked
   if (typeof doc.elementFromPoint === 'function') {
-    const el = doc.elementFromPoint(clampedX, clampedY);
+    const el = doc.elementFromPoint(clientX, clientY);
     if (el && canvas.contains(el)) {
       const walker = doc.createTreeWalker(el, 4 /* NodeFilter.SHOW_TEXT */);
       let lastText: Text | null = null;
@@ -722,68 +923,7 @@ export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElem
   const lastNode = childNodes[childNodes.length - 1];
 
   try {
-    const r = doc.createRange();
-    r.setStartBefore(firstNode);
-    r.setEndAfter(lastNode);
-
-    const validRects = Array.from(
-      typeof r.getClientRects === 'function' ? r.getClientRects() : []
-    ).filter((rect) => rect.width > 0 || rect.height > 0);
-    if (validRects.length === 0) {
-      const br = typeof r.getBoundingClientRect === 'function' ? r.getBoundingClientRect() : null;
-      if (br && (br.width > 0 || br.height > 0)) {
-        validRects.push(br);
-      } else {
-        validRects.push(contentEl.getBoundingClientRect());
-      }
-    }
-
-    interface VisualLine {
-      top: number;
-      bottom: number;
-      left: number;
-      right: number;
-      rects: DOMRect[];
-    }
-
-    const sortedRects = [...validRects].sort((a, b) => a.top - b.top || a.left - b.left);
-    const lines: VisualLine[] = [];
-
-    for (const rect of sortedRects) {
-      let matchedLine: VisualLine | null = null;
-      for (const line of lines) {
-        const overlap = Math.min(line.bottom, rect.bottom) - Math.max(line.top, rect.top);
-        const minHeight = Math.min(line.bottom - line.top, rect.bottom - rect.top);
-        const rectCenterY = rect.top + rect.height / 2;
-        const lineCenterY = line.top + (line.bottom - line.top) / 2;
-        const isNearLine =
-          (overlap > 0 && (minHeight <= 0 || overlap >= minHeight * 0.3)) ||
-          Math.abs(rectCenterY - lineCenterY) <= Math.max(8, minHeight * 0.5);
-
-        if (isNearLine) {
-          matchedLine = line;
-          break;
-        }
-      }
-
-      if (matchedLine) {
-        matchedLine.top = Math.min(matchedLine.top, rect.top);
-        matchedLine.bottom = Math.max(matchedLine.bottom, rect.bottom);
-        matchedLine.left = Math.min(matchedLine.left, rect.left);
-        matchedLine.right = Math.max(matchedLine.right, rect.right);
-        matchedLine.rects.push(rect);
-      } else {
-        lines.push({
-          top: rect.top,
-          bottom: rect.bottom,
-          left: rect.left,
-          right: rect.right,
-          rects: [rect],
-        });
-      }
-    }
-
-    lines.sort((a, b) => a.top - b.top);
+    const lines = getVisualLinesForBlock(doc, contentEl);
 
     let targetLine = lines[lines.length - 1];
     let targetLineIndex = lines.length - 1;
@@ -1371,6 +1511,168 @@ export function handleCanvasPaste(e: ClipboardEvent, canvas: HTMLElement): void 
   emitCanvasEdit();
 }
 
+export function wireDragSelection(
+  doc: Document,
+  canvas: HTMLElement,
+  viewport?: HTMLElement | null,
+  container?: HTMLElement | null
+): () => void {
+  let isEditorMouseDown = false;
+
+  const onDocMouseDown = (e: MouseEvent) => {
+    if (e.button !== 0) return;
+    if (state.isRawMode) return;
+    const targetNode = e.target as Node | null;
+    const target = targetNode?.nodeType === 1 ? (targetNode as HTMLElement) : targetNode?.parentElement;
+    if (!target) return;
+    if (
+      target.closest(
+        'input, button, a, table, code, .widget-block:not([data-block-type="blockquote"]), .block-delete-btn, .table-controls, .task-list-controls, .task-item-drag-btn, .task-item-del-btn, .task-item-top-btn'
+      )
+    ) {
+      return;
+    }
+    if (canvas.contains(target) || viewport?.contains(target) || container?.contains(target)) {
+      isEditorMouseDown = true;
+    }
+  };
+
+  const adjustBackwardSelectionIfAtLineStart = (
+    sel: Selection,
+    clientX: number,
+    clientY: number
+  ) => {
+    if (!sel || sel.isCollapsed || !sel.anchorNode || !sel.focusNode) return;
+    if (!canvas.contains(sel.anchorNode)) return;
+
+    const comp = sel.anchorNode.compareDocumentPosition(sel.focusNode);
+    const isBackward =
+      (comp & Node.DOCUMENT_POSITION_PRECEDING) !== 0 ||
+      (sel.anchorNode === sel.focusNode && sel.anchorOffset > sel.focusOffset);
+
+    if (!isBackward) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const hasCanvasDimensions = canvasRect.width > 0 && canvasRect.height > 0;
+    const isLeftOfCanvas = hasCanvasDimensions && clientX <= canvasRect.left + 2;
+    const isAboveCanvas = hasCanvasDimensions && clientY < canvasRect.top;
+
+    const focusEl =
+      sel.focusNode.nodeType === 1
+        ? (sel.focusNode as HTMLElement)
+        : sel.focusNode.parentElement;
+    const blockEl = focusEl
+      ? focusEl.closest<HTMLElement>(
+          'li, p, h1, h2, h3, h4, h5, h6, blockquote, .editor-code'
+        )
+      : null;
+
+    if (blockEl && canvas.contains(blockEl)) {
+      const isTask =
+        blockEl.classList.contains('task-item') ||
+        blockEl.querySelector(':scope > input[type="checkbox"]');
+      const contentEl =
+        ((isTask ? blockEl.querySelector('.task-content') : blockEl) as HTMLElement) ||
+        blockEl;
+      const targetFirstPos = getFirstCaretPosition(contentEl);
+      const bRect = contentEl.getBoundingClientRect();
+      const lines = getVisualLinesForBlock(doc, contentEl);
+
+      let isTopVisualLine = true;
+      if (lines.length > 1) {
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          if (clientY >= line.top - 2 && clientY <= line.bottom + 2) {
+            isTopVisualLine = i === 0;
+            break;
+          }
+        }
+      }
+
+      if (isTopVisualLine) {
+        let shouldSnap =
+          (bRect.width > 0 && clientX <= bRect.left + 2) ||
+          (bRect.height > 0 && clientY < bRect.top - 2) ||
+          isLeftOfCanvas ||
+          isAboveCanvas;
+
+        if (!shouldSnap && targetFirstPos.node.nodeType === 3) {
+          try {
+            const r = doc.createRange();
+            r.setStart(targetFirstPos.node, 0);
+            r.setEnd(
+              targetFirstPos.node,
+              Math.min(1, (targetFirstPos.node.textContent || '').length)
+            );
+            const char0Rect = r.getBoundingClientRect();
+            if (char0Rect.width > 0 && clientX <= char0Rect.left + char0Rect.width * 0.6) {
+              shouldSnap = true;
+            }
+          } catch {
+            // Ignore
+          }
+        }
+
+        if (shouldSnap && (sel.focusNode !== targetFirstPos.node || sel.focusOffset !== 0)) {
+          if (typeof sel.setBaseAndExtent === 'function') {
+            try {
+              sel.setBaseAndExtent(sel.anchorNode, sel.anchorOffset, targetFirstPos.node, 0);
+            } catch {
+              // Ignore
+            }
+          }
+        }
+      }
+    } else if (isLeftOfCanvas || isAboveCanvas) {
+      const focusPos = getCaretPositionForCoordinates(doc, canvas, clientX, clientY);
+      if (focusPos && (sel.focusNode !== focusPos.node || sel.focusOffset !== focusPos.offset)) {
+        if (typeof sel.setBaseAndExtent === 'function') {
+          try {
+            sel.setBaseAndExtent(sel.anchorNode, sel.anchorOffset, focusPos.node, focusPos.offset);
+          } catch {
+            // Ignore
+          }
+        }
+      }
+    }
+  };
+
+  const onDocMouseMove = (e: MouseEvent) => {
+    if (!isEditorMouseDown || e.buttons !== 1) {
+      if (e.buttons !== 1) {
+        isEditorMouseDown = false;
+      }
+      return;
+    }
+    const win = doc.defaultView || (typeof window !== 'undefined' ? window : null);
+    const sel = win ? win.getSelection() : null;
+    if (sel) {
+      adjustBackwardSelectionIfAtLineStart(sel, e.clientX, e.clientY);
+    }
+  };
+
+  const onDocMouseUp = (e: MouseEvent) => {
+    if (isEditorMouseDown) {
+      isEditorMouseDown = false;
+      const win = doc.defaultView || (typeof window !== 'undefined' ? window : null);
+      const sel = win ? win.getSelection() : null;
+      if (sel) {
+        adjustBackwardSelectionIfAtLineStart(sel, e.clientX, e.clientY);
+      }
+    }
+  };
+
+  doc.addEventListener('mousedown', onDocMouseDown, true);
+  doc.addEventListener('mousemove', onDocMouseMove, true);
+  doc.addEventListener('mouseup', onDocMouseUp, true);
+
+  return () => {
+    doc.removeEventListener('mousedown', onDocMouseDown, true);
+    doc.removeEventListener('mousemove', onDocMouseMove, true);
+    doc.removeEventListener('mouseup', onDocMouseUp, true);
+  };
+}
+
 export function initMarkdownEditor(): void {
   const canvas = getEditorCanvas();
   const textarea = getRawTextarea();
@@ -1529,6 +1831,12 @@ export function initMarkdownEditor(): void {
   };
   viewport?.addEventListener('click', onViewportClick);
   container?.addEventListener('click', onViewportClick);
+
+  // Wire global drag selection listener to ensure backward selections include the first character
+  // when dragging from bottom to top across lines or into margins
+  if (doc) {
+    wireDragSelection(doc, canvas, viewport, container);
+  }
 
   // Initialize toolbar wiring
   wireToolbar({
