@@ -22,6 +22,7 @@ describe('Webview i18n & Localization', () => {
 <html lang="de">
 <head><title>Test</title></head>
 <body>
+  <button id="btn-show-cowork-tree" title="Arbeitsordner anzeigen" aria-label="Arbeitsordner anzeigen"></button>
   <div class="toolbar">
     <button id="btn-toggle-toolbar" title="Symbolleiste einklappen" aria-label="Symbolleiste einklappen"></button>
     <select id="select-heading">
@@ -264,6 +265,10 @@ describe('Webview i18n & Localization', () => {
         btnRaw.getAttribute('title'),
         'View or edit Markdown source'
       );
+
+      const btnShowCoworkTree = document.getElementById('btn-show-cowork-tree')!;
+      assert.strictEqual(btnShowCoworkTree.getAttribute('title'), 'Show workspace folder');
+      assert.strictEqual(btnShowCoworkTree.getAttribute('aria-label'), 'Show workspace folder');
     });
 
     it('updates DOM elements in place when switching to German', () => {
@@ -287,6 +292,10 @@ describe('Webview i18n & Localization', () => {
 
       const btnCode = document.getElementById('btn-code')!;
       assert.strictEqual(btnCode.textContent, '<> Code');
+
+      const btnShowCoworkTree = document.getElementById('btn-show-cowork-tree')!;
+      assert.strictEqual(btnShowCoworkTree.getAttribute('title'), 'Arbeitsordner anzeigen');
+      assert.strictEqual(btnShowCoworkTree.getAttribute('aria-label'), 'Arbeitsordner anzeigen');
     });
   });
 });

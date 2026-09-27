@@ -179,6 +179,12 @@
         "category": "%command.category%",
         "title": "%command.toggleCoworkView.title%",
         "icon": "$(folder-library)"
+      },
+      {
+        "command": "agent-cowork.openCoworkTreeView",
+        "category": "%command.category%",
+        "title": "%command.openCoworkTreeView.title%",
+        "icon": "$(folder-library)"
       }
     ],
     "viewsContainers": {

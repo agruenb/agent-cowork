@@ -155,6 +155,7 @@ const enTranslations: Record<string, string> = {
   'Cowork: An': 'Cowork: On',
   'Cowork: Aus': 'Cowork: Off',
   'Agent Cowork Ansicht': 'Agent Cowork View',
+  'Arbeitsordner anzeigen': 'Show workspace folder',
   'Cowork-Ansicht umschalten': 'Toggle Cowork View',
   'Cowork-Ansicht umschalten (Derzeit: Aktiviert - Klicken zum Deaktivieren)':
     'Toggle Cowork View (Currently: Enabled - Click to disable)',

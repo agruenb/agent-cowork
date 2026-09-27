@@ -1248,6 +1248,20 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
     }
 
     updateCodeCopyLanguage(document);
+
+    // Show cowork tree button
+    const btnShowCoworkTree = document.getElementById('btn-show-cowork-tree');
+    if (btnShowCoworkTree) {
+      btnShowCoworkTree.title = tWebview('Arbeitsordner anzeigen');
+      btnShowCoworkTree.setAttribute('aria-label', tWebview('Arbeitsordner anzeigen'));
+    }
+  }
+}
+
+export function setCoworkTreeButtonVisible(visible: boolean): void {
+  const btn = document.getElementById('btn-show-cowork-tree');
+  if (btn) {
+    btn.classList.toggle('is-visible', visible);
   }
 }
 
@@ -1265,7 +1279,7 @@ export function applyFilenameTint(filename: string): void {
   const darkShade = getDarkShade(hue);
 
   let hoverL = 26;
-  let hoverS = 75;
+  const hoverS = 75;
   if (40 <= hue && hue <= 80) {
     hoverL = 22;
   } else if (200 <= hue && hue <= 280) {
@@ -1294,6 +1308,9 @@ export function handleWindowMessage(event: MessageEvent): void {
   const textarea = getRawTextarea();
   switch (message?.type) {
     case 'init': {
+      if (typeof message.treeViewVisible === 'boolean') {
+        setCoworkTreeButtonVisible(!message.treeViewVisible);
+      }
       if (message.language) {
         setWebviewLanguage(message.language);
       }
@@ -1304,6 +1321,12 @@ export function handleWindowMessage(event: MessageEvent): void {
       if (state.isRawMode) {
         autoResizeRawTextarea();
         updateRawLineNumbers();
+      }
+      break;
+    }
+    case 'treeViewVisibility': {
+      if (typeof message.visible === 'boolean') {
+        setCoworkTreeButtonVisible(!message.visible);
       }
       break;
     }
@@ -1865,6 +1888,14 @@ export function initMarkdownEditor(): void {
   // Initialize code copying for code blocks and inline code
   wireCodeBlockCopy(canvas);
   initInlineCodeCopy(canvas, (viewport || container) as HTMLElement);
+
+  // Wire floating button to reopen closed Cowork tree view
+  const btnShowCoworkTree = document.getElementById('btn-show-cowork-tree');
+  if (btnShowCoworkTree) {
+    btnShowCoworkTree.addEventListener('click', () => {
+      vscode.postMessage({ type: 'openCoworkView' });
+    });
+  }
 
   window.addEventListener('message', handleWindowMessage);
 }

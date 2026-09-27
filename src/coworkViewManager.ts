@@ -494,3 +494,23 @@ export async function toggleCoworkView(statusBarItem?: vscode.StatusBarItem): Pr
 
   return newState;
 }
+
+/**
+ * Opens and focuses the Agent Cowork tree view (revealing sidebar if hidden).
+ */
+export async function openCoworkTreeView(): Promise<void> {
+  if (!isCoworkViewEnabled()) {
+    await setCoworkViewConfig(true);
+    await applyCoworkView(true);
+  }
+  try {
+    await vscode.commands.executeCommand('workbench.view.extension.agentCoworkContainer');
+  } catch (err) {
+    console.warn('Unable to open Agent Cowork container:', err);
+  }
+  try {
+    await vscode.commands.executeCommand('agentCowork.folderView.focus');
+  } catch (err) {
+    console.warn('Unable to focus agentCowork.folderView:', err);
+  }
+}

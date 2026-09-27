@@ -19,6 +19,7 @@ import {
   updateCoworkStatusBarItem,
   isCoworkViewEnabled,
   toggleCoworkView,
+  openCoworkTreeView,
   applyCoworkView,
   applyCoworkTheme,
   setCoworkManagerContext,
@@ -636,6 +637,51 @@ export async function applyFilePastelHighlight(filename: string): Promise<void> 
 }
 
 /**
+ * Reveals and highlights the active file in the custom folder tree view.
+ * If the tree view is currently folded away / hidden, this function deliberately skips
+ * calling folderTreeView.reveal() to prevent VS Code from automatically opening/unfolding the sidebar.
+ */
+export async function revealActiveFileInTree(
+  folderTreeView: vscode.TreeView<FolderItem>,
+  folderTreeProvider: FolderTreeProvider,
+  targetUri: vscode.Uri,
+  force: boolean = false,
+  getLastRevealedPath: () => string | undefined = () => undefined,
+  setLastRevealedPath: (path: string) => void = () => {}
+): Promise<boolean> {
+  // If the tree view is folded away / closed, do not call reveal.
+  // In VS Code, calling folderTreeView.reveal() forces the sidebar container to unfold/open.
+  if (!folderTreeView.visible) {
+    return false;
+  }
+
+  const normPath = path.normalize(targetUri.fsPath);
+  if (!force && getLastRevealedPath() === normPath) {
+    return false;
+  }
+  setLastRevealedPath(normPath);
+
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(targetUri);
+  if (!workspaceFolder) {
+    return false;
+  }
+
+  try {
+    folderTreeProvider.expandAncestors(targetUri);
+    const item = folderTreeProvider.getFolderItem(targetUri, false);
+    await folderTreeView.reveal(item, {
+      select: true,
+      focus: false,
+      expand: true,
+    });
+    return true;
+  } catch {
+    // Silently ignore if tree view is not visible or cannot be revealed
+    return false;
+  }
+}
+
+/**
  * Called when the extension is activated.
  * The extension is activated the very first time the command is executed or on startup.
  */
@@ -694,6 +740,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
   folderTreeView.onDidExpandElement((e) => folderTreeProvider.onDidExpandElement(e.element));
   folderTreeView.onDidCollapseElement((e) => folderTreeProvider.onDidCollapseElement(e.element));
+  MarkdownEditorProvider.setTreeViewVisible(folderTreeView.visible);
+  folderTreeView.onDidChangeVisibility((e) => {
+    MarkdownEditorProvider.setTreeViewVisible(e.visible);
+  });
   context.subscriptions.push(folderTreeView);
 
   let lastRevealedPath: string | undefined;
@@ -713,28 +763,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const darkHex = getDarkShade(activeHue);
     updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled(), darkHex);
 
-    const normPath = path.normalize(targetUri.fsPath);
-    if (!force && lastRevealedPath === normPath) {
-      return;
-    }
-    lastRevealedPath = normPath;
-
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(targetUri);
-    if (!workspaceFolder) {
-      return;
-    }
-
-    try {
-      folderTreeProvider.expandAncestors(targetUri);
-      const item = folderTreeProvider.getFolderItem(targetUri, false);
-      await folderTreeView.reveal(item, {
-        select: true,
-        focus: false,
-        expand: true,
-      });
-    } catch {
-      // Silently ignore if tree view is not visible or cannot be revealed
-    }
+    await revealActiveFileInTree(
+      folderTreeView,
+      folderTreeProvider,
+      targetUri,
+      force,
+      () => lastRevealedPath,
+      (p) => {
+        lastRevealedPath = p;
+      }
+    );
   }
 
   function queueAutoReveal(uri?: vscode.Uri, delayMs: number = 80, force: boolean = false): void {
@@ -937,12 +975,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   );
 
+  // Register openCoworkTreeView command
+  const openCoworkTreeViewCmd = vscode.commands.registerCommand(
+    'agent-cowork.openCoworkTreeView',
+    async () => {
+      await openCoworkTreeView();
+    }
+  );
+
   context.subscriptions.push(
     openWelcomeCmd,
     helloWorldCmd,
     applyThemeCmd,
     simplifyLayoutCmd,
     toggleCoworkViewCmd,
+    openCoworkTreeViewCmd,
     openWorkspaceFolderCmd,
     refreshFolderViewCmd,
     newFileCmd,

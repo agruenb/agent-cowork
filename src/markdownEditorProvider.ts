@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { hasVisibleContent } from './utils/markdownContent';
 import { t, getEffectiveLanguage } from './i18n';
+import { openCoworkTreeView } from './coworkViewManager';
 
 /**
  * Provider for the built-in formatted and editable Markdown editor in Agent Cowork.
@@ -8,8 +9,23 @@ import { t, getEffectiveLanguage } from './i18n';
 export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   public static readonly viewType = 'agentCowork.markdownEditor';
   private static readonly activePanels = new Set<vscode.WebviewPanel>();
+  private static treeViewVisible = true;
   private static readonly _onDidActiveDocumentChange = new vscode.EventEmitter<vscode.Uri>();
   public static readonly onDidActiveDocumentChange = MarkdownEditorProvider._onDidActiveDocumentChange.event;
+
+  public static setTreeViewVisible(visible: boolean): void {
+    MarkdownEditorProvider.treeViewVisible = visible;
+    for (const panel of MarkdownEditorProvider.activePanels) {
+      panel.webview.postMessage({
+        type: 'treeViewVisibility',
+        visible,
+      });
+    }
+  }
+
+  public static isTreeViewVisible(): boolean {
+    return MarkdownEditorProvider.treeViewVisible;
+  }
 
   public static register(context: vscode.ExtensionContext): vscode.Disposable {
     const provider = new MarkdownEditorProvider(context);
@@ -76,6 +92,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         text: document.getText(),
         language: getEffectiveLanguage(),
         filename,
+        treeViewVisible: MarkdownEditorProvider.isTreeViewVisible(),
       });
     };
 
@@ -211,6 +228,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           }
           break;
         }
+        case 'openCoworkView': {
+          await openCoworkTreeView();
+          break;
+        }
         case 'cowork': {
           if (document.isDirty) {
             await document.save();
@@ -257,6 +278,16 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 </head>
 <body>
   <div class="app-container">
+    <!-- Floating button on left edge to restore closed Cowork tree view -->
+    <button id="btn-show-cowork-tree" class="show-cowork-tree-btn" tabindex="-1" title="${t('Arbeitsordner anzeigen')}" aria-label="${t('Arbeitsordner anzeigen')}">
+      <svg class="tree-toggle-icon" width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M1.75 2A1.75 1.75 0 0 0 0 3.75v8.5C0 13.216.784 14 1.75 14h12.5A1.75 1.75 0 0 0 16 12.25v-8.5A1.75 1.75 0 0 0 14.25 2H1.75zM1.5 6h4v6.5h-3.75a.25.25 0 0 1-.25-.25V6zm5.5 6.5V6h7.5v6.25a.25.25 0 0 1-.25.25H7zm7.5-8H1.5v-.25c0-.138.112-.25.25-.25h12.5c.138 0 .25.112.25.25V4.5z"/>
+      </svg>
+      <svg class="tree-arrow-icon" width="9" height="9" viewBox="0 0 16 16" fill="currentColor">
+        <path fill-rule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06z"/>
+      </svg>
+    </button>
+
     <!-- Top Formatting Toolbar -->
     <div class="toolbar" role="toolbar" aria-label="${t('Editor Werkzeugleiste')}">
       <!-- Heading Select & Inline Formatting (Stacked Vertically) -->

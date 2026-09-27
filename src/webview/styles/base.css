@@ -72,3 +72,51 @@ body {
   box-sizing: border-box;
   padding-bottom: 60px;
 }
+
+/* Floating Reopen Cowork Tree View Button */
+.show-cowork-tree-btn {
+  position: absolute;
+  left: 0;
+  top: 54px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 7px 6px 6px;
+  background-color: var(--card-bg, #f8fafc);
+  color: var(--text-muted, #64748b);
+  border: 1px solid var(--card-border, #cbd5e1);
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.18s ease,
+              background-color 0.15s ease,
+              color 0.15s ease,
+              box-shadow 0.15s ease;
+}
+
+.show-cowork-tree-btn.is-visible {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.show-cowork-tree-btn:hover {
+  background-color: #ffffff;
+  color: var(--primary, #0f172a);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.show-cowork-tree-btn:active {
+  transform: scale(0.97);
+}
+
+.show-cowork-tree-btn svg {
+  display: block;
+  flex-shrink: 0;
+}

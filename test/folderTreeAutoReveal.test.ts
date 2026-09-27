@@ -14,6 +14,7 @@ const {
   applyFilePastelHighlight,
   getLastPastelFilename,
   resetLastPastelFilename,
+  revealActiveFileInTree,
 } = require('../src/extension');
 const {
   getFilenameHue,
@@ -365,4 +366,103 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       }
     });
   });
+
+  describe('revealActiveFileInTree and Tree View Visibility', () => {
+    it('skips calling reveal when tree view is folded away (!visible)', async () => {
+      let revealCalled = false;
+      const mockTreeView: any = {
+        visible: false,
+        reveal: async () => {
+          revealCalled = true;
+        },
+      };
+      const provider = new FolderTreeProvider();
+      const fileUri = vscode.Uri.file(path.join(rootPath, 'note.md'));
+
+      const revealed = await revealActiveFileInTree(mockTreeView, provider, fileUri);
+      assert.strictEqual(revealed, false);
+      assert.strictEqual(revealCalled, false, 'Must not call reveal when tree view is closed');
+    });
+
+    it('calls reveal and expands ancestors when tree view is visible', async () => {
+      let revealedItem: any = null;
+      let revealOptions: any = null;
+      const mockTreeView: any = {
+        visible: true,
+        reveal: async (item: any, opts: any) => {
+          revealedItem = item;
+          revealOptions = opts;
+        },
+      };
+      const provider = new FolderTreeProvider();
+      const fileUri = vscode.Uri.file(path.join(rootPath, 'notes.md'));
+
+      let lastPath: string | undefined;
+      const revealed = await revealActiveFileInTree(
+        mockTreeView,
+        provider,
+        fileUri,
+        false,
+        () => lastPath,
+        (p) => {
+          lastPath = p;
+        }
+      );
+
+      assert.strictEqual(revealed, true);
+      assert.ok(revealedItem);
+      assert.strictEqual(revealedItem.resourceUri.fsPath, fileUri.fsPath);
+      assert.deepStrictEqual(revealOptions, { select: true, focus: false, expand: true });
+      assert.strictEqual(lastPath, path.normalize(fileUri.fsPath));
+    });
+
+    it('does not re-reveal if path matches and force is false', async () => {
+      let revealCount = 0;
+      const mockTreeView: any = {
+        visible: true,
+        reveal: async () => {
+          revealCount++;
+        },
+      };
+      const provider = new FolderTreeProvider();
+      const fileUri = vscode.Uri.file(path.join(rootPath, 'notes.md'));
+      const normPath = path.normalize(fileUri.fsPath);
+
+      const revealed = await revealActiveFileInTree(
+        mockTreeView,
+        provider,
+        fileUri,
+        false,
+        () => normPath
+      );
+
+      assert.strictEqual(revealed, false);
+      assert.strictEqual(revealCount, 0);
+    });
+
+    it('re-reveals if force is true even if path matches', async () => {
+      let revealCount = 0;
+      const mockTreeView: any = {
+        visible: true,
+        reveal: async () => {
+          revealCount++;
+        },
+      };
+      const provider = new FolderTreeProvider();
+      const fileUri = vscode.Uri.file(path.join(rootPath, 'notes.md'));
+      const normPath = path.normalize(fileUri.fsPath);
+
+      const revealed = await revealActiveFileInTree(
+        mockTreeView,
+        provider,
+        fileUri,
+        true,
+        () => normPath
+      );
+
+      assert.strictEqual(revealed, true);
+      assert.strictEqual(revealCount, 1);
+    });
+  });
 });
+

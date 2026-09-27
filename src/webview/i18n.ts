@@ -63,6 +63,7 @@ const enWebviewTranslations: Record<string, string> = {
   'Symbolleiste einklappen': 'Collapse toolbar',
   'Symbolleiste ausklappen': 'Expand toolbar',
   'Schließen': 'Close',
+  'Arbeitsordner anzeigen': 'Show workspace folder',
   'Markdown eingeben...': 'Enter Markdown...',
 
   // Code block

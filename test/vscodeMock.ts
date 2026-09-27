@@ -12,6 +12,8 @@ export interface VscodeMockState {
   contexts: Record<string, any>;
   workspaceFolders: any[];
   activeTextEditor?: any;
+  createdTreeViews: any[];
+  treeViewVisible?: boolean;
 }
 
 export const vscodeMockState: VscodeMockState = {
@@ -25,6 +27,8 @@ export const vscodeMockState: VscodeMockState = {
   contexts: {},
   workspaceFolders: [],
   activeTextEditor: undefined,
+  createdTreeViews: [],
+  treeViewVisible: undefined,
 };
 
 export function resetVscodeMock(): void {
@@ -38,6 +42,8 @@ export function resetVscodeMock(): void {
   vscodeMockState.contexts = {};
   vscodeMockState.workspaceFolders = [];
   vscodeMockState.activeTextEditor = undefined;
+  vscodeMockState.createdTreeViews = [];
+  vscodeMockState.treeViewVisible = undefined;
 }
 
 // Hook Module._resolveFilename and Module._load once
@@ -200,6 +206,47 @@ if (!(globalThis as any).__vscodeMockInstalled) {
             hide: () => {},
             dispose: () => {},
           }),
+          createTreeView: (viewId: string, options: any) => {
+            const listeners: {
+              onDidExpandElement: ((e: any) => any)[];
+              onDidCollapseElement: ((e: any) => any)[];
+              onDidChangeVisibility: ((e: any) => any)[];
+            } = {
+              onDidExpandElement: [],
+              onDidCollapseElement: [],
+              onDidChangeVisibility: [],
+            };
+            const treeView = {
+              viewId,
+              options,
+              visible: vscodeMockState.treeViewVisible ?? true,
+              revealedElements: [] as any[],
+              onDidExpandElement: (listener: (e: any) => any) => {
+                listeners.onDidExpandElement.push(listener);
+                return { dispose: () => {} };
+              },
+              onDidCollapseElement: (listener: (e: any) => any) => {
+                listeners.onDidCollapseElement.push(listener);
+                return { dispose: () => {} };
+              },
+              onDidChangeVisibility: (listener: (e: any) => any) => {
+                listeners.onDidChangeVisibility.push(listener);
+                return { dispose: () => {} };
+              },
+              reveal: async (item: any, options?: any) => {
+                treeView.revealedElements.push({ item, options });
+              },
+              dispose: () => {},
+              _fireVisibilityChange: (visible: boolean) => {
+                treeView.visible = visible;
+                for (const l of listeners.onDidChangeVisibility) {
+                  l({ visible });
+                }
+              },
+            };
+            vscodeMockState.createdTreeViews.push(treeView);
+            return treeView;
+          },
           showInformationMessage: async () => {},
           get activeTextEditor() {
             return vscodeMockState.activeTextEditor;

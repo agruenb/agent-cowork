@@ -23,6 +23,7 @@ const {
   ICON_THEME_NAME,
   DEFAULT_FALLBACK_THEME,
   DEFAULT_FALLBACK_ICON_THEME,
+  openCoworkTreeView,
   MARKDOWN_PATTERNS,
 } = require('../src/coworkViewManager');
 
@@ -320,4 +321,42 @@ describe('Cowork View Manager', () => {
       assert.strictEqual(vscodeMockState.configUpdates['iconTheme'], DEFAULT_FALLBACK_ICON_THEME);
     });
   });
+
+  describe('openCoworkTreeView', () => {
+    it('executes container command and focuses folder view when cowork view is already enabled', async () => {
+      vscodeMockState.coworkViewSetting = true;
+      vscodeMockState.executedCommands = [];
+
+      await openCoworkTreeView();
+
+      const executedCmdNames = vscodeMockState.executedCommands.map((c) => c.command);
+      assert.ok(
+        executedCmdNames.includes('workbench.view.extension.agentCoworkContainer'),
+        'Should execute workbench.view.extension.agentCoworkContainer'
+      );
+      assert.ok(
+        executedCmdNames.includes('agentCowork.folderView.focus'),
+        'Should execute agentCowork.folderView.focus'
+      );
+    });
+
+    it('enables cowork view if disabled before opening tree view', async () => {
+      vscodeMockState.coworkViewSetting = false;
+      vscodeMockState.executedCommands = [];
+
+      await openCoworkTreeView();
+
+      assert.strictEqual(vscodeMockState.configUpdates['agentCowork.coworkView'], true);
+      const executedCmdNames = vscodeMockState.executedCommands.map((c) => c.command);
+      assert.ok(
+        executedCmdNames.includes('workbench.view.extension.agentCoworkContainer'),
+        'Should execute container command'
+      );
+      assert.ok(
+        executedCmdNames.includes('agentCowork.folderView.focus'),
+        'Should execute focus command'
+      );
+    });
+  });
 });
+

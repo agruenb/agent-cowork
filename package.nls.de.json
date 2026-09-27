@@ -18,6 +18,7 @@
   "command.pasteItem.title": "Einfügen",
   "command.deleteItem.title": "Löschen",
   "command.toggleCoworkView.title": "Cowork-Ansicht umschalten",
+  "command.openCoworkTreeView.title": "Arbeitsordner-Ansicht öffnen",
   "viewContainer.agentCowork.title": "Arbeitsbereich",
   "view.folderView.name": "Arbeitsordner",
   "view.folderView.contextualTitle": "Arbeitsbereich",

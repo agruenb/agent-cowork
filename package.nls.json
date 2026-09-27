@@ -18,6 +18,7 @@
   "command.pasteItem.title": "Paste",
   "command.deleteItem.title": "Delete",
   "command.toggleCoworkView.title": "Toggle Cowork View",
+  "command.openCoworkTreeView.title": "Open Workspace Folder View",
   "viewContainer.agentCowork.title": "Workspace",
   "view.folderView.name": "Workspace Folder",
   "view.folderView.contextualTitle": "Workspace",
