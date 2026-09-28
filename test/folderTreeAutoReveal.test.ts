@@ -10,6 +10,7 @@ const vscode = require('vscode');
 const { FolderTreeProvider, FolderItem } = require('../src/folderTreeProvider');
 const {
   getActiveDocumentUri,
+  getOpenedFilePaths,
   enforceBrowserTabBar,
   applyFilePastelHighlight,
   getLastPastelFilename,
@@ -34,7 +35,7 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
   });
 
   describe('Theme Highlighting Colors', () => {
-    it('theme JSON defines list selection in the same obsidian black as the tab (#0f172a)', () => {
+    it('theme JSON defines list selection as subtle slate (#e2e8f0) and inactive as transparent', () => {
       const themePath = path.join(__dirname, '..', 'themes', 'agent-cowork-light.json');
       const themeContent = JSON.parse(fs.readFileSync(themePath, 'utf8'));
 
@@ -45,10 +46,10 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       assert.strictEqual(themeContent.colors['tab.unfocusedHoverBackground'], '#334155');
       assert.strictEqual(themeContent.colors['tab.unfocusedHoverForeground'], '#ffffff');
       assert.strictEqual(themeContent.colors['tab.unfocusedHoverBorder'], '#334155');
-      assert.strictEqual(themeContent.colors['list.activeSelectionBackground'], '#0f172a');
-      assert.strictEqual(themeContent.colors['list.inactiveSelectionBackground'], '#0f172a');
-      assert.strictEqual(themeContent.colors['list.activeSelectionForeground'], '#ffffff');
-      assert.strictEqual(themeContent.colors['list.inactiveSelectionForeground'], '#ffffff');
+      assert.strictEqual(themeContent.colors['list.activeSelectionBackground'], '#e2e8f0');
+      assert.strictEqual(themeContent.colors['list.inactiveSelectionBackground'], '#00000000');
+      assert.strictEqual(themeContent.colors['list.activeSelectionForeground'], '#0f172a');
+      assert.strictEqual(themeContent.colors['list.inactiveSelectionForeground'], '#0f172a');
       assert.strictEqual(themeContent.colors['statusBar.background'], '#ffffff');
       assert.strictEqual(themeContent.colors['statusBar.border'], '#e2e8f0');
     });
@@ -238,20 +239,21 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       assert.strictEqual(pastelGreen, hslToHex(160, 50, 92));
     });
 
-    it('getFilePastelColors maps active tab and tree view selection to the darker shade with white text', () => {
+    it('getFilePastelColors maps active tab to the darker shade and leaves tree view selection invariant', () => {
       const colors = getFilePastelColors('project-plan.md');
       const expectedDark = getDarkShade(getFilenameHue('project-plan.md'));
 
       assert.strictEqual(colors['tab.activeBackground'], expectedDark);
       assert.strictEqual(colors['tab.selectedBackground'], expectedDark);
-      assert.strictEqual(colors['list.activeSelectionBackground'], expectedDark);
-      assert.strictEqual(colors['list.inactiveSelectionBackground'], expectedDark);
-      assert.strictEqual(colors['list.focusBackground'], expectedDark);
+      assert.strictEqual(colors['list.activeSelectionBackground'], '#e2e8f0');
+      assert.strictEqual(colors['list.inactiveSelectionBackground'], '#00000000');
+      assert.strictEqual(colors['list.focusBackground'], '#e2e8f0');
+      assert.strictEqual(colors['list.activeSelectionForeground'], '#0f172a');
+      assert.strictEqual(colors['list.inactiveSelectionForeground'], '#0f172a');
 
       assert.strictEqual(colors['tab.activeForeground'], '#ffffff');
       assert.strictEqual(colors['tab.selectedForeground'], '#ffffff');
-      assert.strictEqual(colors['list.activeSelectionForeground'], '#ffffff');
-      assert.strictEqual(colors['list.inactiveSelectionForeground'], '#ffffff');
+      assert.strictEqual(colors['tab.unfocusedSelectedForeground'], '#ffffff');
     });
 
     it('getFilePastelColors keeps unselected tabs on neutral slate (#e2e8f0) with readable text', () => {
@@ -263,7 +265,7 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       assert.strictEqual(colors['tab.unfocusedInactiveForeground'], '#64748b');
     });
 
-    it('getFilePastelColors matches tab hover state to dark obsidian (#0f172a) like cowork button with white text', () => {
+    it('getFilePastelColors matches tab hover state to dark grey (#334155) with white text', () => {
       const colors = getFilePastelColors('activeDoc.md');
 
       // Tab hover matches dark grey tone (#334155) with white text so text does not flicker
@@ -278,7 +280,7 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       assert.strictEqual(colors['list.hoverForeground'], '#0f172a');
     });
 
-    it('applyFilePastelHighlight updates active tab and tree view highlight to the darker document color', async () => {
+    it('applyFilePastelHighlight updates active tab highlight to the darker document color', async () => {
       await applyFilePastelHighlight('research.md');
 
       assert.strictEqual(getLastPastelFilename(), 'research.md');
@@ -290,19 +292,15 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       const themeCustomizations = customizations['[Agent Cowork Light]'];
       assert.ok(themeCustomizations);
 
-      const expectedColors = getFilePastelColors('research.md');
       const expectedDark = getDarkShade(getFilenameHue('research.md'));
 
-      // Active tab and tree view selection must be the darker document color
+      // Active tab and selected tab must be the darker document color
       assert.strictEqual(themeCustomizations['tab.activeBackground'], expectedDark);
       assert.strictEqual(themeCustomizations['tab.selectedBackground'], expectedDark);
-      assert.strictEqual(themeCustomizations['list.activeSelectionBackground'], expectedDark);
-      assert.strictEqual(themeCustomizations['list.inactiveSelectionBackground'], expectedDark);
-      assert.strictEqual(themeCustomizations['list.focusBackground'], expectedDark);
 
       // High-contrast text on dark background
       assert.strictEqual(themeCustomizations['tab.activeForeground'], '#ffffff');
-      assert.strictEqual(themeCustomizations['list.activeSelectionForeground'], '#ffffff');
+      assert.strictEqual(themeCustomizations['tab.selectedForeground'], '#ffffff');
 
       // Unselected tabs remain neutral slate
       assert.strictEqual(themeCustomizations['tab.inactiveBackground'], '#e2e8f0');
@@ -329,7 +327,6 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
 
       customizations = config.get<Record<string, any>>('colorCustomizations');
       assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], darkBudget);
-      assert.strictEqual(customizations['[Agent Cowork Light]']['list.activeSelectionBackground'], darkBudget);
     });
 
     it('applyFilePastelHighlight re-applies if colorCustomizations is modified by another window', async () => {
@@ -388,101 +385,86 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
     });
   });
 
-  describe('revealActiveFileInTree and Tree View Visibility', () => {
-    it('skips calling reveal when tree view is folded away (!visible)', async () => {
-      let revealCalled = false;
+  describe('Open File Dot Indicator in Tree View', () => {
+    it('revealActiveFileInTree is deprecated and returns false without selecting', async () => {
       const mockTreeView: any = {
-        visible: false,
-        reveal: async () => {
-          revealCalled = true;
-        },
+        visible: true,
+        reveal: async () => {},
       };
       const provider = new FolderTreeProvider();
       const fileUri = vscode.Uri.file(path.join(rootPath, 'note.md'));
 
       const revealed = await revealActiveFileInTree(mockTreeView, provider, fileUri);
       assert.strictEqual(revealed, false);
-      assert.strictEqual(revealCalled, false, 'Must not call reveal when tree view is closed');
     });
 
-    it('calls reveal and expands ancestors when tree view is visible', async () => {
-      let revealedItem: any = null;
-      let revealOptions: any = null;
-      const mockTreeView: any = {
-        visible: true,
-        reveal: async (item: any, opts: any) => {
-          revealedItem = item;
-          revealOptions = opts;
-        },
-      };
+    it('marks file as opened with a dot in its color when in openedPaths', () => {
       const provider = new FolderTreeProvider();
       const fileUri = vscode.Uri.file(path.join(rootPath, 'notes.md'));
 
-      let lastPath: string | undefined;
-      const revealed = await revealActiveFileInTree(
-        mockTreeView,
-        provider,
-        fileUri,
-        false,
-        () => lastPath,
-        (p) => {
-          lastPath = p;
-        }
-      );
+      provider.setOpenedPaths([fileUri.fsPath]);
 
-      assert.strictEqual(revealed, true);
-      assert.ok(revealedItem);
-      assert.strictEqual(revealedItem.resourceUri.fsPath, fileUri.fsPath);
-      assert.deepStrictEqual(revealOptions, { select: true, focus: false, expand: true });
-      assert.strictEqual(lastPath, path.normalize(fileUri.fsPath));
+      const item = provider.getFolderItem(fileUri, false);
+      assert.strictEqual(item.isOpened, true);
+      assert.strictEqual(item.description, undefined);
+      assert.ok(item.tooltip.includes('notes.md'));
+      assert.ok(item.tooltip.includes('Open') || item.tooltip.includes('Geöffnet'));
+      assert.ok(item.iconPath);
     });
 
-    it('does not re-reveal if path matches and force is false', async () => {
-      let revealCount = 0;
-      const mockTreeView: any = {
-        visible: true,
-        reveal: async () => {
-          revealCount++;
-        },
-      };
+    it('marks file as not opened when not in openedPaths', () => {
       const provider = new FolderTreeProvider();
-      const fileUri = vscode.Uri.file(path.join(rootPath, 'notes.md'));
-      const normPath = path.normalize(fileUri.fsPath);
+      const fileUri = vscode.Uri.file(path.join(rootPath, 'unopened.md'));
 
-      const revealed = await revealActiveFileInTree(
-        mockTreeView,
-        provider,
-        fileUri,
-        false,
-        () => normPath
-      );
-
-      assert.strictEqual(revealed, false);
-      assert.strictEqual(revealCount, 0);
+      const item = provider.getFolderItem(fileUri, false);
+      assert.strictEqual(item.isOpened, false);
+      assert.strictEqual(item.description, undefined);
+      assert.strictEqual(item.tooltip, fileUri.fsPath);
     });
 
-    it('re-reveals if force is true even if path matches', async () => {
-      let revealCount = 0;
-      const mockTreeView: any = {
-        visible: true,
-        reveal: async () => {
-          revealCount++;
-        },
-      };
+    it('updates existing cached items when setOpenedPaths changes', () => {
       const provider = new FolderTreeProvider();
-      const fileUri = vscode.Uri.file(path.join(rootPath, 'notes.md'));
-      const normPath = path.normalize(fileUri.fsPath);
+      const fileUri1 = vscode.Uri.file(path.join(rootPath, 'doc1.md'));
+      const fileUri2 = vscode.Uri.file(path.join(rootPath, 'doc2.md'));
 
-      const revealed = await revealActiveFileInTree(
-        mockTreeView,
-        provider,
-        fileUri,
-        true,
-        () => normPath
-      );
+      const item1 = provider.getFolderItem(fileUri1, false);
+      const item2 = provider.getFolderItem(fileUri2, false);
 
-      assert.strictEqual(revealed, true);
-      assert.strictEqual(revealCount, 1);
+      assert.strictEqual(item1.isOpened, false);
+      assert.strictEqual(item2.isOpened, false);
+
+      // Open doc1
+      provider.setOpenedPaths([fileUri1.fsPath]);
+      assert.strictEqual(item1.isOpened, true);
+      assert.strictEqual(item1.description, undefined);
+      assert.strictEqual(item2.isOpened, false);
+
+      // Close doc1, open doc2
+      provider.setOpenedPaths([fileUri2.fsPath]);
+      assert.strictEqual(item1.isOpened, false);
+      assert.strictEqual(item1.description, undefined);
+      assert.strictEqual(item2.isOpened, true);
+      assert.strictEqual(item2.description, undefined);
+    });
+
+    it('getOpenedFilePaths resolves open file paths across tab groups', () => {
+      const file1 = vscode.Uri.file(path.join(rootPath, 'file1.md'));
+      const file2 = vscode.Uri.file(path.join(rootPath, 'file2.md'));
+
+      vscodeMockState.tabGroups = [
+        {
+          activeTab: { input: new vscode.TabInputCustom(file1, 'agentCowork.markdownEditor') },
+          tabs: [
+            { input: new vscode.TabInputCustom(file1, 'agentCowork.markdownEditor') },
+            { input: new vscode.TabInputCustom(file2, 'agentCowork.markdownEditor') },
+          ],
+        },
+      ];
+
+      const opened = getOpenedFilePaths();
+      assert.strictEqual(opened.length, 2);
+      assert.ok(opened.includes(path.normalize(file1.fsPath)));
+      assert.ok(opened.includes(path.normalize(file2.fsPath)));
     });
   });
 });

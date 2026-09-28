@@ -13,6 +13,9 @@ import {
 } from './utils/dragAndDrop';
 import { t } from './i18n';
 
+import { getFilenameHue, getDarkShade } from './utils/colorUtils';
+import { getFileWithDotIconUri } from './utils/fileDotIcon';
+
 export { isSameOrDescendant };
 
 /**
@@ -20,12 +23,14 @@ export { isSameOrDescendant };
  */
 export class FolderItem extends vscode.TreeItem {
   private _isExpanded: boolean = false;
+  private _isOpened: boolean = false;
 
   constructor(
     public readonly uri: vscode.Uri,
     public readonly isDirectory: boolean,
     private readonly extensionUri?: vscode.Uri,
     initiallyExpanded: boolean = false,
+    isOpened: boolean = false
   ) {
     const fileName = path.basename(uri.fsPath);
     super(
@@ -41,6 +46,7 @@ export class FolderItem extends vscode.TreeItem {
     this.resourceUri = uri;
     this.tooltip = uri.fsPath;
     this._isExpanded = initiallyExpanded;
+    this._isOpened = isOpened;
     this._updateIcon();
 
     if (!isDirectory) {
@@ -56,6 +62,17 @@ export class FolderItem extends vscode.TreeItem {
     }
   }
 
+  public get isOpened(): boolean {
+    return this._isOpened;
+  }
+
+  public setOpened(opened: boolean): void {
+    if (this._isOpened !== opened) {
+      this._isOpened = opened;
+      this._updateIcon();
+    }
+  }
+
   public setExpanded(expanded: boolean): void {
     this._isExpanded = expanded;
     if (this.isDirectory) {
@@ -68,6 +85,8 @@ export class FolderItem extends vscode.TreeItem {
 
   private _updateIcon(): void {
     if (this.isDirectory) {
+      this.description = undefined;
+      this.tooltip = this.uri.fsPath;
       if (this.extensionUri) {
         const iconName = this._isExpanded ? 'folder-open' : 'folder';
         const darkIconName = this._isExpanded ? 'folder-open-dark' : 'folder-dark';
@@ -83,14 +102,38 @@ export class FolderItem extends vscode.TreeItem {
       const ext = path.extname(this.uri.fsPath).toLowerCase();
       const isMarkdown = ext === '.md' || ext === '.markdown' || ext === '.mdown' || ext === '.mkdn';
 
-      if (this.extensionUri) {
-        const iconFile = isMarkdown ? 'markdown.svg' : 'file.svg';
-        this.iconPath = {
-          light: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
-          dark: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
-        };
+      if (this._isOpened) {
+        const fileName = path.basename(this.uri.fsPath);
+        const hue = getFilenameHue(fileName);
+        const darkHex = getDarkShade(hue);
+
+        this.description = undefined;
+        this.tooltip = `${this.uri.fsPath} (${t('Geöffnet')})`;
+
+        const dotIcon = getFileWithDotIconUri(isMarkdown, darkHex);
+        if (dotIcon) {
+          this.iconPath = dotIcon;
+        } else if (this.extensionUri) {
+          const iconFile = isMarkdown ? 'markdown.svg' : 'file.svg';
+          this.iconPath = {
+            light: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
+            dark: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
+          };
+        } else {
+          this.iconPath = isMarkdown ? new vscode.ThemeIcon('robot') : vscode.ThemeIcon.File;
+        }
       } else {
-        this.iconPath = isMarkdown ? new vscode.ThemeIcon('robot') : vscode.ThemeIcon.File;
+        this.description = undefined;
+        this.tooltip = this.uri.fsPath;
+        if (this.extensionUri) {
+          const iconFile = isMarkdown ? 'markdown.svg' : 'file.svg';
+          this.iconPath = {
+            light: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
+            dark: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
+          };
+        } else {
+          this.iconPath = isMarkdown ? new vscode.ThemeIcon('robot') : vscode.ThemeIcon.File;
+        }
       }
     }
   }
@@ -129,6 +172,7 @@ export class FolderTreeProvider
   }
 
   private _expandedPaths = new Set<string>();
+  private _openedPaths = new Set<string>();
   private _itemMap = new Map<string, FolderItem>();
 
   /** Trigger a full tree refresh */
@@ -140,6 +184,39 @@ export class FolderTreeProvider
   /** Refresh a single tree item */
   refreshItem(element: FolderItem): void {
     this._onDidChangeTreeData.fire(element);
+  }
+
+  setOpenedPaths(paths: Iterable<string>): void {
+    const newSet = new Set<string>();
+    for (const p of paths) {
+      newSet.add(path.normalize(p));
+    }
+
+    let changed = false;
+    if (newSet.size !== this._openedPaths.size) {
+      changed = true;
+    } else {
+      for (const p of newSet) {
+        if (!this._openedPaths.has(p)) {
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    if (changed) {
+      this._openedPaths = newSet;
+      for (const [fsPath, item] of this._itemMap.entries()) {
+        if (!item.isDirectory) {
+          item.setOpened(this._openedPaths.has(fsPath));
+        }
+      }
+      this._onDidChangeTreeData.fire(undefined);
+    }
+  }
+
+  isPathOpened(fsPath: string): boolean {
+    return this._openedPaths.has(path.normalize(fsPath));
   }
 
   onDidExpandElement(element: FolderItem): void {
@@ -219,11 +296,13 @@ export class FolderTreeProvider
       }
     }
 
+    const isOpen = !isDir && this._openedPaths.has(fsPath);
     item = new FolderItem(
       uri,
       isDir,
       this.extensionUri,
-      isDir ? this._expandedPaths.has(fsPath) : false
+      isDir ? this._expandedPaths.has(fsPath) : false,
+      isOpen
     );
     this._itemMap.set(fsPath, item);
     return item;
@@ -574,11 +653,13 @@ export class FolderTreeProvider
       return [...dirs, ...files].map((entry) => {
         const fullPath = path.normalize(path.join(dirPath, entry.name));
         const isDir = entry.isDirectory();
+        const isOpen = !isDir && this._openedPaths.has(fullPath);
         const item = new FolderItem(
           vscode.Uri.file(fullPath),
           isDir,
           this.extensionUri,
           isDir ? this._expandedPaths.has(fullPath) : false,
+          isOpen
         );
         this._itemMap.set(fullPath, item);
         return item;

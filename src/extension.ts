@@ -284,12 +284,22 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'editorGroupHeader.tabsBorder': '#00000000',
       'editorGroupHeader.border': '#00000000',
       'editorGroup.border': '#e2e8f0',
+      'tab.activeBackground': '#0f172a',
+      'tab.activeForeground': '#ffffff',
+      'tab.activeBorder': '#0f172a',
+      'tab.selectedBackground': '#0f172a',
+      'tab.selectedForeground': '#ffffff',
       'tab.activeBorderTop': '#00000000',
       'tab.selectedBorderTop': '#00000000',
       'tab.inactiveBackground': '#e2e8f0',
       'tab.inactiveForeground': '#475569',
       'tab.border': '#00000000',
+      'tab.unfocusedActiveBackground': '#334155',
+      'tab.unfocusedActiveForeground': '#ffffff',
+      'tab.unfocusedActiveBorder': '#334155',
       'tab.unfocusedActiveBorderTop': '#00000000',
+      'tab.unfocusedSelectedBackground': '#334155',
+      'tab.unfocusedSelectedForeground': '#ffffff',
       'tab.unfocusedInactiveBackground': '#e2e8f0',
       'tab.unfocusedInactiveForeground': '#64748b',
       'tab.lastPinnedBorder': '#00000000',
@@ -297,12 +307,27 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'tab.inactiveModifiedBorder': '#00000000',
       'tab.unfocusedActiveModifiedBorder': '#00000000',
       'tab.unfocusedInactiveModifiedBorder': '#00000000',
+      'tab.dragAndDropBorder': '#0f172a',
       'tab.hoverBackground': '#334155',
       'tab.hoverForeground': '#ffffff',
       'tab.hoverBorder': '#334155',
       'tab.unfocusedHoverBackground': '#334155',
       'tab.unfocusedHoverForeground': '#ffffff',
       'tab.unfocusedHoverBorder': '#334155',
+      'list.activeSelectionBackground': '#e2e8f0',
+      'list.activeSelectionForeground': '#0f172a',
+      'list.activeSelectionIconForeground': '#0f172a',
+      'list.inactiveSelectionBackground': '#00000000',
+      'list.inactiveSelectionForeground': '#0f172a',
+      'list.inactiveSelectionIconForeground': '#0f172a',
+      'list.focusBackground': '#e2e8f0',
+      'list.focusForeground': '#0f172a',
+      'list.focusOutline': '#00000000',
+      'list.focusAndSelectionOutline': '#00000000',
+      'list.hoverBackground': '#e2e8f0',
+      'list.hoverForeground': '#0f172a',
+      'list.highlightForeground': '#0f172a',
+      'list.focusHighlightForeground': '#0f172a',
       'statusBar.background': '#ffffff',
       'statusBar.foreground': '#475569',
       'statusBar.border': '#e2e8f0',
@@ -324,6 +349,24 @@ export async function enforceBrowserTabBar(): Promise<void> {
       if (currentThemeCustomizations[key] !== val) {
         hasChanges = true;
         break;
+      }
+    }
+
+    // Clean up any stale top-level list selection customizations if present
+    const staleKeys = [
+      'list.activeSelectionBackground',
+      'list.activeSelectionForeground',
+      'list.activeSelectionIconForeground',
+      'list.inactiveSelectionBackground',
+      'list.inactiveSelectionForeground',
+      'list.inactiveSelectionIconForeground',
+      'list.focusBackground',
+      'list.focusForeground',
+    ];
+    for (const key of staleKeys) {
+      if (key in existingCustomizations) {
+        delete existingCustomizations[key];
+        hasChanges = true;
       }
     }
 
@@ -567,6 +610,38 @@ export function getActiveDocumentUri(): vscode.Uri | undefined {
   return undefined;
 }
 
+/**
+ * Resolves paths of all documents currently opened in any tab or editor group.
+ */
+export function getOpenedFilePaths(): string[] {
+  const openPaths: string[] = [];
+  const seen = new Set<string>();
+
+  for (const group of vscode.window.tabGroups?.all || []) {
+    for (const tab of group.tabs) {
+      const uri = extractUriFromTab(tab);
+      if (uri && uri.scheme === 'file') {
+        const norm = path.normalize(uri.fsPath);
+        if (!seen.has(norm)) {
+          seen.add(norm);
+          openPaths.push(norm);
+        }
+      }
+    }
+  }
+
+  const activeEditor = vscode.window.activeTextEditor;
+  if (activeEditor?.document?.uri && activeEditor.document.uri.scheme === 'file') {
+    const norm = path.normalize(activeEditor.document.uri.fsPath);
+    if (!seen.has(norm)) {
+      seen.add(norm);
+      openPaths.push(norm);
+    }
+  }
+
+  return openPaths;
+}
+
 let lastPastelFilename: string | undefined;
 
 export function getLastPastelFilename(): string | undefined {
@@ -578,10 +653,18 @@ export function resetLastPastelFilename(): void {
 }
 
 /**
- * Applies the darker shade of the active document's color to the active tab and tree view selection highlight,
+ * Applies the darker shade of the active document's color to the active tab,
  * keeping unselected tabs on the neutral browser backdrop and hover styling invariant.
+ *
+ * Guarded against unfocused windows to prevent multi-window race conditions in global settings.json.
  */
 export async function applyFilePastelHighlight(filename: string): Promise<void> {
+  // Guard: only the focused window should write global color customizations.
+  // When multiple windows are open, unfocused windows must not race to overwrite settings.json.
+  if (!vscode.window.state.focused) {
+    return;
+  }
+
   lastPastelFilename = filename;
 
   try {
@@ -617,48 +700,17 @@ export async function applyFilePastelHighlight(filename: string): Promise<void> 
 }
 
 /**
- * Reveals and highlights the active file in the custom folder tree view.
- * If the tree view is currently folded away / hidden, this function deliberately skips
- * calling folderTreeView.reveal() to prevent VS Code from automatically opening/unfolding the sidebar.
+ * @deprecated Row selection highlight in tree view has been removed in favor of open-file dots.
  */
 export async function revealActiveFileInTree(
-  folderTreeView: vscode.TreeView<FolderItem>,
-  folderTreeProvider: FolderTreeProvider,
-  targetUri: vscode.Uri,
-  force: boolean = false,
-  getLastRevealedPath: () => string | undefined = () => undefined,
-  setLastRevealedPath: (path: string) => void = () => {}
+  _folderTreeView: vscode.TreeView<FolderItem>,
+  _folderTreeProvider: FolderTreeProvider,
+  _targetUri: vscode.Uri,
+  _force: boolean = false,
+  _getLastRevealedPath: () => string | undefined = () => undefined,
+  _setLastRevealedPath: (path: string) => void = () => {}
 ): Promise<boolean> {
-  // If the tree view is folded away / closed, do not call reveal.
-  // In VS Code, calling folderTreeView.reveal() forces the sidebar container to unfold/open.
-  if (!folderTreeView.visible) {
-    return false;
-  }
-
-  const normPath = path.normalize(targetUri.fsPath);
-  if (!force && getLastRevealedPath() === normPath) {
-    return false;
-  }
-  setLastRevealedPath(normPath);
-
-  const workspaceFolder = vscode.workspace.getWorkspaceFolder(targetUri);
-  if (!workspaceFolder) {
-    return false;
-  }
-
-  try {
-    folderTreeProvider.expandAncestors(targetUri);
-    const item = folderTreeProvider.getFolderItem(targetUri, false);
-    await folderTreeView.reveal(item, {
-      select: true,
-      focus: false,
-      expand: true,
-    });
-    return true;
-  } catch {
-    // Silently ignore if tree view is not visible or cannot be revealed
-    return false;
-  }
+  return false;
 }
 
 /**
@@ -726,33 +778,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
   context.subscriptions.push(folderTreeView);
 
-  let lastRevealedPath: string | undefined;
   let revealTimer: NodeJS.Timeout | undefined;
 
-  async function autoRevealActiveFile(uri?: vscode.Uri, force: boolean = false): Promise<void> {
+  function syncOpenedFiles(): void {
+    const openPaths = getOpenedFilePaths();
+    folderTreeProvider.setOpenedPaths(openPaths);
+  }
+
+  async function autoRevealActiveFile(uri?: vscode.Uri, _force: boolean = false): Promise<void> {
+    syncOpenedFiles();
+
     const targetUri = uri || getActiveDocumentUri();
     if (!targetUri || targetUri.scheme !== 'file') {
       return;
     }
 
-    // Apply darker shade of the active document's color to active tab & tree view highlight
+    // Apply darker shade of the active document's color to active tab
     const filename = path.basename(targetUri.fsPath);
     await applyFilePastelHighlight(filename);
 
     const activeHue = getFilenameHue(filename);
     const darkHex = getDarkShade(activeHue);
     updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled(), darkHex);
-
-    await revealActiveFileInTree(
-      folderTreeView,
-      folderTreeProvider,
-      targetUri,
-      force,
-      () => lastRevealedPath,
-      (p) => {
-        lastRevealedPath = p;
-      }
-    );
   }
 
   function queueAutoReveal(uri?: vscode.Uri, delayMs: number = 80, force: boolean = false): void {
@@ -791,6 +838,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.window.onDidChangeWindowState((windowState) => {
       if (windowState.focused) {
         resetLastPastelFilename();
+        syncOpenedFiles();
         queueAutoReveal(undefined, 50, true);
       }
     })

@@ -83,6 +83,7 @@ const enTranslations: Record<string, string> = {
   'Ersetzen': 'Replace',
   'Abbrechen': 'Cancel',
   'Speichern': 'Save',
+  'Geöffnet': 'Open',
   'Überspringen': 'Skip',
   'Löschen': 'Delete',
   'Fehler beim Umbenennen: {0}': 'Error renaming: {0}',

@@ -76,15 +76,18 @@ export function getPastelShade(hue: number): string {
   return hslToHex(hue, 50, 92);
 }
 
+
 /**
  * Returns the color customizations for tabs and tree view:
- * - Active tab and tree view selection use the file's hue in a rich, darker shade with white text.
+ * - Active and selected tabs use the file's hue in a rich, darker shade with white text.
  * - Other opened (inactive) tabs use their pastel color with high-contrast slate text.
- * - Tab and tree view hover and click/active states are fully styled.
+ * - Tab and tree view hover states are fully styled.
+ * - Tree view file selection remains invariant (open files are indicated by dots in their color instead).
  */
 export function getFilePastelColors(filename: string): Record<string, string> {
   const activeHue = getFilenameHue(filename);
   const darkHex = getDarkShade(activeHue);
+  const unfocusedDark = hslToHex(activeHue, 55, 38);
 
   const textDarkHex = '#0f172a';
   const textWhiteHex = '#ffffff';
@@ -96,9 +99,11 @@ export function getFilePastelColors(filename: string): Record<string, string> {
     'tab.activeBorder': darkHex,
     'tab.selectedBackground': darkHex,
     'tab.selectedForeground': textWhiteHex,
-    'tab.unfocusedActiveBackground': hslToHex(activeHue, 55, 38),
+    'tab.unfocusedActiveBackground': unfocusedDark,
     'tab.unfocusedActiveForeground': textWhiteHex,
     'tab.unfocusedActiveBorder': darkHex,
+    'tab.unfocusedSelectedBackground': unfocusedDark,
+    'tab.unfocusedSelectedForeground': textWhiteHex,
     'tab.dragAndDropBorder': darkHex,
 
     // Unselected tabs: Clean neutral backdrop (#e2e8f0) with readable slate text
@@ -115,19 +120,21 @@ export function getFilePastelColors(filename: string): Record<string, string> {
     'tab.unfocusedHoverForeground': textWhiteHex,
     'tab.unfocusedHoverBorder': '#334155',
 
-
-    // Tree view (file list) selected / clicked state: Matches the active tab's darker shade
-    'list.activeSelectionBackground': darkHex,
-    'list.activeSelectionForeground': textWhiteHex,
-    'list.activeSelectionIconForeground': textWhiteHex,
-    'list.inactiveSelectionBackground': darkHex,
-    'list.inactiveSelectionForeground': textWhiteHex,
-    'list.inactiveSelectionIconForeground': textWhiteHex,
-    'list.focusBackground': darkHex,
-    'list.focusForeground': textWhiteHex,
-
-    // Tree view hover state: Subtle feedback on hover
+    // Tree view state: Invariant, subtle neutral styling (no jarring row highlights on open files)
+    'list.activeSelectionBackground': '#e2e8f0',
+    'list.activeSelectionForeground': textDarkHex,
+    'list.activeSelectionIconForeground': textDarkHex,
+    'list.inactiveSelectionBackground': '#00000000',
+    'list.inactiveSelectionForeground': textDarkHex,
+    'list.inactiveSelectionIconForeground': textDarkHex,
+    'list.focusBackground': '#e2e8f0',
+    'list.focusForeground': textDarkHex,
+    'list.focusOutline': '#00000000',
+    'list.focusAndSelectionOutline': '#00000000',
     'list.hoverBackground': '#e2e8f0',
     'list.hoverForeground': textDarkHex,
+    'list.highlightForeground': textDarkHex,
+    'list.focusHighlightForeground': textDarkHex,
   };
 }
+
