@@ -72,5 +72,8 @@
   "Cowork-Ansicht umschalten (Derzeit: Aktiviert - Klicken zum Deaktivieren)": "Cowork-Ansicht umschalten (Derzeit: Aktiviert - Klicken zum Deaktivieren)",
   "Cowork-Ansicht umschalten (Derzeit: Deaktiviert - Klicken zum Aktivieren)": "Cowork-Ansicht umschalten (Derzeit: Deaktiviert - Klicken zum Aktivieren)",
   "Cowork-Ansicht aktiviert! Individuelle Ordner- und Dokumentenansicht aktiv.": "Cowork-Ansicht aktiviert! Individuelle Ordner- und Dokumentenansicht aktiv.",
-  "Cowork-Ansicht deaktiviert. Standard-Ansicht wiederhergestellt.": "Cowork-Ansicht deaktiviert. Standard-Ansicht wiederhergestellt."
+  "Cowork-Ansicht deaktiviert. Standard-Ansicht wiederhergestellt.": "Cowork-Ansicht deaktiviert. Standard-Ansicht wiederhergestellt.",
+  "Agent Cowork: Die verlinkte Datei existiert nicht: {0}": "Agent Cowork: Die verlinkte Datei existiert nicht: {0}",
+  "Datei erstellen": "Datei erstellen",
+  "Agent Cowork: Datei konnte nicht erstellt werden: {0}": "Agent Cowork: Datei konnte nicht erstellt werden: {0}"
 }

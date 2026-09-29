@@ -352,6 +352,7 @@ export function cleanHtmlToDom(html: string, ownerDoc?: Document): HTMLElement {
     }
     if (tagName === 'a' && href) {
       el.setAttribute('href', href);
+      el.classList.add('editor-link');
     }
     const parentChecked = el.parentElement?.getAttribute('data-checked');
     if (tagName === 'input' && parentChecked !== undefined && parentChecked !== null) {

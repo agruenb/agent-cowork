@@ -14,6 +14,12 @@ export interface VscodeMockState {
   activeTextEditor?: any;
   createdTreeViews: any[];
   treeViewVisible?: boolean;
+  existingFiles?: Set<string>;
+  writtenFiles?: { uri: any; content: Uint8Array }[];
+  createdDirs?: any[];
+  warningMessages?: { msg: string; items: any[] }[];
+  warningAnswer?: any;
+  errorMessages?: string[];
 }
 
 export const vscodeMockState: VscodeMockState = {
@@ -29,6 +35,12 @@ export const vscodeMockState: VscodeMockState = {
   activeTextEditor: undefined,
   createdTreeViews: [],
   treeViewVisible: undefined,
+  existingFiles: undefined,
+  writtenFiles: [],
+  createdDirs: [],
+  warningMessages: [],
+  warningAnswer: undefined,
+  errorMessages: [],
 };
 
 export function resetVscodeMock(): void {
@@ -44,6 +56,12 @@ export function resetVscodeMock(): void {
   vscodeMockState.activeTextEditor = undefined;
   vscodeMockState.createdTreeViews = [];
   vscodeMockState.treeViewVisible = undefined;
+  vscodeMockState.existingFiles = undefined;
+  vscodeMockState.writtenFiles = [];
+  vscodeMockState.createdDirs = [];
+  vscodeMockState.warningMessages = [];
+  vscodeMockState.warningAnswer = undefined;
+  vscodeMockState.errorMessages = [];
 }
 
 // Hook Module._resolveFilename and Module._load once
@@ -59,18 +77,34 @@ if (!(globalThis as any).__vscodeMockInstalled) {
   };
 
   class MockUri {
-    constructor(public readonly fsPath: string, public readonly path: string = fsPath) {}
+    constructor(
+      public readonly fsPath: string,
+      public readonly path: string = fsPath,
+      public readonly scheme: string = 'file'
+    ) {}
     static file(filePath: string) {
-      return new MockUri(filePath);
+      return new MockUri(filePath, filePath, 'file');
     }
     static joinPath(base: MockUri, ...segments: string[]) {
-      return new MockUri([base.fsPath, ...segments].join('/'));
+      return new MockUri([base.fsPath, ...segments].join('/'), [base.path, ...segments].join('/'), base.scheme);
     }
-    get scheme() {
-      return 'file';
+    static parse(uriString: string) {
+      if (uriString.startsWith('file://')) {
+        const p = uriString.replace(/^file:\/\//, '');
+        return new MockUri(p, p, 'file');
+      }
+      const match = uriString.match(/^([a-z0-9+.-]+):\/\/(.*)$/i);
+      if (match) {
+        return new MockUri(match[2], match[2], match[1]);
+      }
+      const matchNoSlash = uriString.match(/^([a-z0-9+.-]+):(.*)$/i);
+      if (matchNoSlash) {
+        return new MockUri(matchNoSlash[2], matchNoSlash[2], matchNoSlash[1]);
+      }
+      return new MockUri(uriString, uriString, 'file');
     }
     toString() {
-      return `file://${this.fsPath}`;
+      return `${this.scheme}://${this.fsPath}`;
     }
   }
 
@@ -79,6 +113,20 @@ if (!(globalThis as any).__vscodeMockInstalled) {
     if (request === 'vscode') {
       return {
         Uri: MockUri,
+        Range: class {
+          constructor(
+            public startLine: number,
+            public startCharacter: number,
+            public endLine: number,
+            public endCharacter: number
+          ) {}
+          get start() {
+            return { line: this.startLine, character: this.startCharacter };
+          }
+          get end() {
+            return { line: this.endLine, character: this.endCharacter };
+          }
+        },
         TabInputText: class {
           constructor(public readonly uri: any) {}
         },
@@ -111,6 +159,25 @@ if (!(globalThis as any).__vscodeMockInstalled) {
           public fire(data?: any) {}
         },
         workspace: {
+          fs: {
+            stat: async (uri: any) => {
+              if (vscodeMockState.existingFiles && !vscodeMockState.existingFiles.has(uri.fsPath)) {
+                throw new Error('File not found');
+              }
+              return { type: 1 /* FileType.File */ };
+            },
+            writeFile: async (uri: any, content: Uint8Array) => {
+              if (vscodeMockState.existingFiles) {
+                vscodeMockState.existingFiles.add(uri.fsPath);
+              }
+              vscodeMockState.writtenFiles = vscodeMockState.writtenFiles || [];
+              vscodeMockState.writtenFiles.push({ uri, content });
+            },
+            createDirectory: async (uri: any) => {
+              vscodeMockState.createdDirs = vscodeMockState.createdDirs || [];
+              vscodeMockState.createdDirs.push(uri);
+            },
+          },
           get workspaceFolders() {
             return vscodeMockState.workspaceFolders;
           },
@@ -199,8 +266,25 @@ if (!(globalThis as any).__vscodeMockInstalled) {
           get language() {
             return vscodeMockState.envLanguage;
           },
+          openExternal: async (uri: any) => {
+            vscodeMockState.executedCommands.push({ command: 'env.openExternal', args: [uri] });
+            return true;
+          },
         },
         window: {
+          showInformationMessage: async () => {},
+          showWarningMessage: async (msg: string, ...items: any[]) => {
+            vscodeMockState.warningMessages = vscodeMockState.warningMessages || [];
+            vscodeMockState.warningMessages.push({ msg, items });
+            if (vscodeMockState.warningAnswer !== undefined) {
+              return vscodeMockState.warningAnswer;
+            }
+            return items[0];
+          },
+          showErrorMessage: async (msg: string) => {
+            vscodeMockState.errorMessages = vscodeMockState.errorMessages || [];
+            vscodeMockState.errorMessages.push(msg);
+          },
           createStatusBarItem: (id: string, alignment?: any, priority?: number) => ({
             id,
             alignment,
@@ -254,7 +338,6 @@ if (!(globalThis as any).__vscodeMockInstalled) {
             vscodeMockState.createdTreeViews.push(treeView);
             return treeView;
           },
-          showInformationMessage: async () => {},
           get activeTextEditor() {
             return vscodeMockState.activeTextEditor;
           },

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { hasVisibleContent } from './utils/markdownContent';
 import { t, getEffectiveLanguage } from './i18n';
 import { openCoworkTreeView } from './coworkViewManager';
@@ -256,6 +257,15 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           await openCoworkTreeView();
           break;
         }
+        case 'openLink': {
+          if (document.isDirty) {
+            await document.save();
+          }
+          if (typeof message.href === 'string') {
+            await handleOpenLink(message.href, document, webviewPanel);
+          }
+          break;
+        }
         case 'cowork': {
           if (document.isDirty) {
             await document.save();
@@ -450,4 +460,191 @@ function getNonce(): string {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
   return text;
+}
+
+/**
+ * Resolves and opens a link clicked in the Markdown editor.
+ * Handles relative file paths (e.g. ./file.md, <./file.md>), absolute paths,
+ * line numbers/fragments (e.g. #L42), in-document anchors (#heading),
+ * external URLs (https://, http://, mailto:), and non-existent files with creation prompt.
+ */
+export async function handleOpenLink(
+  href: string,
+  baseDocument: vscode.TextDocument,
+  webviewPanel?: vscode.WebviewPanel
+): Promise<void> {
+  if (typeof href !== 'string') {
+    return;
+  }
+
+  let cleanHref = href.trim();
+  if (cleanHref.startsWith('<') && cleanHref.endsWith('>')) {
+    cleanHref = cleanHref.slice(1, -1).trim();
+  }
+
+  if (!cleanHref) {
+    return;
+  }
+
+  // Handle external links (http, https, mailto, vscode schemes)
+  if (/^(https?|mailto|vscode):/i.test(cleanHref)) {
+    try {
+      await vscode.env.openExternal(vscode.Uri.parse(cleanHref));
+    } catch (err) {
+      console.warn('Failed to open external link:', err);
+    }
+    return;
+  }
+
+  // Handle in-document anchor (#heading)
+  if (cleanHref.startsWith('#')) {
+    if (webviewPanel) {
+      webviewPanel.webview.postMessage({
+        type: 'scrollToAnchor',
+        anchor: cleanHref,
+      });
+    }
+    return;
+  }
+
+  // Separate path from optional fragment (#anchor or #L20)
+  let filePath = cleanHref;
+  let fragment = '';
+  const hashIdx = cleanHref.indexOf('#');
+  if (hashIdx !== -1) {
+    filePath = cleanHref.substring(0, hashIdx);
+    fragment = cleanHref.substring(hashIdx + 1);
+  }
+
+  if (!filePath) {
+    if (webviewPanel && fragment) {
+      webviewPanel.webview.postMessage({
+        type: 'scrollToAnchor',
+        anchor: fragment,
+      });
+    }
+    return;
+  }
+
+  // Decode percent-encoded characters (e.g. %20 -> space)
+  try {
+    filePath = decodeURIComponent(filePath);
+  } catch {
+    // Keep filePath as-is if decoding fails
+  }
+
+  let targetUri: vscode.Uri;
+  if (filePath.startsWith('file://')) {
+    targetUri = vscode.Uri.parse(filePath);
+  } else if (path.isAbsolute(filePath)) {
+    let exists = false;
+    try {
+      await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+      exists = true;
+    } catch {
+      exists = false;
+    }
+
+    if (!exists) {
+      const wsFolder =
+        vscode.workspace.getWorkspaceFolder(baseDocument.uri) ||
+        vscode.workspace.workspaceFolders?.[0];
+      if (wsFolder) {
+        const candidate = vscode.Uri.joinPath(wsFolder.uri, filePath.replace(/^[/\\]+/, ''));
+        try {
+          await vscode.workspace.fs.stat(candidate);
+          targetUri = candidate;
+          exists = true;
+        } catch {
+          // not found in workspace
+        }
+      }
+    }
+
+    if (!targetUri!) {
+      targetUri = vscode.Uri.file(filePath);
+    }
+  } else {
+    // Relative path: resolve relative to the current document's directory
+    const baseDir = path.dirname(baseDocument.uri.fsPath);
+    const resolvedPath = path.resolve(baseDir, filePath);
+    targetUri = vscode.Uri.file(resolvedPath);
+  }
+
+  // If the target is the current document, scroll to fragment if present
+  if (targetUri.fsPath === baseDocument.uri.fsPath) {
+    if (webviewPanel && fragment) {
+      webviewPanel.webview.postMessage({
+        type: 'scrollToAnchor',
+        anchor: fragment,
+      });
+    }
+    return;
+  }
+
+  // Check if target file exists
+  let targetExists = false;
+  try {
+    await vscode.workspace.fs.stat(targetUri);
+    targetExists = true;
+  } catch {
+    targetExists = false;
+  }
+
+  if (!targetExists) {
+    const createBtn = t('Datei erstellen');
+    const answer = await vscode.window.showWarningMessage(
+      t('Agent Cowork: Die verlinkte Datei existiert nicht: {0}', path.basename(targetUri.fsPath)),
+      createBtn
+    );
+    if (answer === createBtn) {
+      try {
+        const parentDir = vscode.Uri.file(path.dirname(targetUri.fsPath));
+        await vscode.workspace.fs.createDirectory(parentDir);
+        await vscode.workspace.fs.writeFile(targetUri, new Uint8Array(0));
+        targetExists = true;
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          t('Agent Cowork: Datei konnte nicht erstellt werden: {0}', String(err))
+        );
+        return;
+      }
+    } else {
+      return;
+    }
+  }
+
+  // Determine line selection if fragment specifies line number (e.g. #L25, #line-25, #25)
+  let lineSelection: vscode.Range | undefined;
+  const lineMatch = fragment.match(/^(?:L|line-?)?(\d+)(?:-(\d+))?$/i);
+  if (lineMatch) {
+    const startLine = Math.max(0, parseInt(lineMatch[1], 10) - 1);
+    const endLine = lineMatch[2] ? Math.max(0, parseInt(lineMatch[2], 10) - 1) : startLine;
+    lineSelection = new vscode.Range(startLine, 0, endLine, 0);
+  }
+
+  // Open the file
+  const ext = path.extname(targetUri.fsPath).toLowerCase();
+  const isMarkdown =
+    ext === '.md' || ext === '.markdown' || ext === '.mdown' || ext === '.mkdn' || ext === '.mdx';
+
+  if (isMarkdown) {
+    try {
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        targetUri,
+        'agentCowork.markdownEditor',
+        lineSelection ? { selection: lineSelection } : undefined
+      );
+      return;
+    } catch {
+      // Fallback to vscode.open if openWith fails
+    }
+  }
+
+  await vscode.commands.executeCommand(
+    'vscode.open',
+    targetUri,
+    lineSelection ? { selection: lineSelection } : undefined
+  );
 }

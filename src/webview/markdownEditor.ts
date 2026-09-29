@@ -1308,10 +1308,52 @@ export function applyFilenameTint(filename: string): void {
   document.documentElement.classList.add('has-file-tint');
 }
 
+/**
+ * Scrolls to a heading or element matching the anchor / hash.
+ */
+export function scrollToHeadingOrAnchor(hash: string): boolean {
+  const targetId = hash.replace(/^#/, '').toLowerCase().trim();
+  if (!targetId) return false;
+
+  const canvas = getEditorCanvas();
+  if (!canvas) return false;
+
+  const doc = canvas.ownerDocument || document;
+
+  // 1. Element with matching ID
+  const elById = doc.getElementById(targetId);
+  if (elById && canvas.contains(elById)) {
+    elById.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return true;
+  }
+
+  // 2. Heading with matching slug or text
+  const headings = canvas.querySelectorAll('h1, h2, h3, h4, h5, h6');
+  for (const h of Array.from(headings)) {
+    const text = (h.textContent || '').trim();
+    const slug = text
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-');
+    if (slug === targetId || text.toLowerCase() === targetId) {
+      h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function handleWindowMessage(event: MessageEvent): void {
   const message = event.data;
   const textarea = getRawTextarea();
   switch (message?.type) {
+    case 'scrollToAnchor': {
+      if (typeof message.anchor === 'string') {
+        scrollToHeadingOrAnchor(message.anchor);
+      }
+      break;
+    }
     case 'init': {
       if (typeof message.treeViewVisible === 'boolean') {
         setCoworkTreeButtonVisible(!message.treeViewVisible);
@@ -1829,7 +1871,41 @@ export function initMarkdownEditor(): void {
     handleLineClickOrDragOutsideText(e, canvas);
   });
 
+  const handleLinkClick = (e: MouseEvent): boolean => {
+    if (e.button !== 0 && e.button !== 1) return false;
+    const link = (e.target as HTMLElement).closest('a') as HTMLAnchorElement | null;
+    if (link && canvas.contains(link)) {
+      const href = link.getAttribute('href');
+      if (href) {
+        const doc = canvas.ownerDocument || document;
+        const win = doc.defaultView || window;
+        const sel = win.getSelection();
+        if (!sel || sel.isCollapsed || sel.toString().trim().length === 0) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          if (href.startsWith('#')) {
+            const scrolled = scrollToHeadingOrAnchor(href);
+            if (scrolled) {
+              return true;
+            }
+          }
+
+          vscode.postMessage({
+            type: 'openLink',
+            href,
+          });
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   canvas.addEventListener('click', (e: MouseEvent) => {
+    if (handleLinkClick(e)) {
+      return;
+    }
     handleLineClickOrDragOutsideText(e, canvas);
     const cell = (e.target as HTMLElement).closest('.table-checkbox-cell') as HTMLElement | null;
     if (cell && canvas.contains(cell)) {
@@ -1846,6 +1922,10 @@ export function initMarkdownEditor(): void {
         emitCanvasEdit();
       }
     }
+  });
+
+  canvas.addEventListener('auxclick', (e: MouseEvent) => {
+    handleLinkClick(e);
   });
 
   canvas.addEventListener('paste', (e: ClipboardEvent) => {
@@ -1877,6 +1957,36 @@ export function initMarkdownEditor(): void {
   });
 
   textarea.addEventListener('keydown', handleRawKeyDown);
+  textarea.addEventListener('click', (e: MouseEvent) => {
+    if (e.metaKey || e.ctrlKey) {
+      const pos = textarea.selectionStart;
+      const text = textarea.value;
+      const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+      let lineEnd = text.indexOf('\n', pos);
+      if (lineEnd === -1) lineEnd = text.length;
+      const line = text.substring(lineStart, lineEnd);
+      const col = pos - lineStart;
+
+      const linkRegex = /(?<!!)\[([^\]]+)\]\((<[^>]+>|(?:[^\s()]|\([^\s()]*\))+)(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\)/g;
+      let match: RegExpExecArray | null;
+      while ((match = linkRegex.exec(line)) !== null) {
+        if (col >= match.index && col <= match.index + match[0].length) {
+          let href = match[2];
+          if (href.startsWith('<') && href.endsWith('>')) {
+            href = href.slice(1, -1);
+          }
+          href = href.trim();
+          if (href) {
+            vscode.postMessage({
+              type: 'openLink',
+              href,
+            });
+            break;
+          }
+        }
+      }
+    }
+  });
   canvas.addEventListener('keydown', handleCanvasKeyDown);
 
   // Resize raw textarea and line numbers when window width / wrapped lines change

@@ -91,8 +91,15 @@ export function serializeInlineNodes(container: Node): string {
       if (tagName === 'a') {
         const href = el.getAttribute('href') || '';
         const inner = serializeInlineNodes(el).trim();
+        const hasAngleBrackets = el.getAttribute('data-angle-brackets') === 'true' || href.includes(' ');
+        const title = el.getAttribute('data-title') === 'true' ? el.getAttribute('title') : null;
+        const titlePart = title ? ` "${title}"` : '';
         if (href) {
-          text += `[${inner || href}](${href})`;
+          if (hasAngleBrackets) {
+            text += `[${inner || href}](<${href}>${titlePart})`;
+          } else {
+            text += `[${inner || href}](${href}${titlePart})`;
+          }
         } else {
           text += inner;
         }

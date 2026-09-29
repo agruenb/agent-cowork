@@ -166,6 +166,11 @@ const enTranslations: Record<string, string> = {
     'Cowork view activated! Custom folder and document views active.',
   'Cowork-Ansicht deaktiviert. Standard-Ansicht wiederhergestellt.':
     'Cowork view deactivated. Standard view restored.',
+  'Agent Cowork: Die verlinkte Datei existiert nicht: {0}':
+    'Agent Cowork: The linked file does not exist: {0}',
+  'Datei erstellen': 'Create File',
+  'Agent Cowork: Datei konnte nicht erstellt werden: {0}':
+    'Agent Cowork: Could not create file: {0}',
 };
 
 const deTranslations: Record<string, string> = {

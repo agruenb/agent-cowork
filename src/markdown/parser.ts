@@ -35,10 +35,24 @@ export function parseInlineMarkdown(text: string): string {
   // Strikethrough: ~~text~~
   result = result.replace(/~~(.*?)~~/g, '<del>$1</del>');
 
-  // Links: [label](url)
+  // Links with angle brackets: [label](<url>) or [label](<url> "title")
   result = result.replace(
-    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer" class="editor-link">$1</a>'
+    /(?<!!)\[([^\]]+)\]\(\s*&lt;([\s\S]+?)&gt;(?:\s+(&quot;[\s\S]*?&quot;|'[\s\S]*?'|\([\s\S]*?\)))?\s*\)/g,
+    (_match, label, href, title) => {
+      const cleanTitle = title ? title.replace(/^(&quot;|'|\()|(&quot;|'|\))$/g, '') : '';
+      const titleAttr = cleanTitle ? ` title="${cleanTitle}" data-title="true"` : '';
+      return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer" class="editor-link" data-angle-brackets="true">${label}</a>`;
+    }
+  );
+
+  // Standard links: [label](url) or [label](url "title")
+  result = result.replace(
+    /(?<!!)\[([^\]]+)\]\(\s*((?:[^\s()]|\([^\s()]*\))+)(?:\s+(&quot;[\s\S]*?&quot;|'[\s\S]*?'|\([\s\S]*?\)))?\s*\)/g,
+    (_match, label, href, title) => {
+      const cleanTitle = title ? title.replace(/^(&quot;|'|\()|(&quot;|'|\))$/g, '') : '';
+      const titleAttr = cleanTitle ? ` title="${cleanTitle}" data-title="true"` : '';
+      return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer" class="editor-link">${label}</a>`;
+    }
   );
 
   return result;
