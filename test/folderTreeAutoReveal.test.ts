@@ -13,6 +13,7 @@ const {
   getOpenedFilePaths,
   enforceBrowserTabBar,
   applyFilePastelHighlight,
+  applyDefaultTabHighlight,
   getLastPastelFilename,
   resetLastPastelFilename,
   revealActiveFileInTree,
@@ -348,6 +349,34 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       await applyFilePastelHighlight('project.md');
       customizations = config.get<Record<string, any>>('colorCustomizations');
       assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], darkProject);
+    });
+
+    it('enforceBrowserTabBar removes stale top-level tab keys to prevent white-on-white fallback', async () => {
+      const config = vscode.workspace.getConfiguration('workbench');
+      await config.update('colorCustomizations', {
+        'tab.activeBackground': '#ffffff',
+        'tab.selectedBackground': '#ffffff',
+        '[Agent Cowork Light]': {},
+      }, vscode.ConfigurationTarget.Global);
+
+      await enforceBrowserTabBar();
+
+      const customizations = config.get<Record<string, any>>('colorCustomizations');
+      assert.strictEqual(customizations['tab.activeBackground'], undefined);
+      assert.strictEqual(customizations['tab.selectedBackground'], undefined);
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeForeground'], '#ffffff');
+      assert.ok(customizations['[Agent Cowork Light]']['tab.activeBackground'] !== '#ffffff');
+    });
+
+    it('applyDefaultTabHighlight applies high-contrast obsidian black tab styling when no document is active', async () => {
+      await applyDefaultTabHighlight();
+
+      const config = vscode.workspace.getConfiguration('workbench');
+      const customizations = config.get<Record<string, any>>('colorCustomizations');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], '#0f172a');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeForeground'], '#ffffff');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.selectedBackground'], '#0f172a');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.selectedForeground'], '#ffffff');
     });
 
     it('applyFilenameTint applies document accents and CSS custom properties based on file hue', () => {

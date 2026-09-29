@@ -284,21 +284,21 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'editorGroupHeader.tabsBorder': '#00000000',
       'editorGroupHeader.border': '#00000000',
       'editorGroup.border': '#e2e8f0',
-      'tab.activeBackground': '#0f172a',
+      'tab.activeBackground': currentThemeCustomizations['tab.activeBackground'] || '#0f172a',
       'tab.activeForeground': '#ffffff',
-      'tab.activeBorder': '#0f172a',
-      'tab.selectedBackground': '#0f172a',
+      'tab.activeBorder': currentThemeCustomizations['tab.activeBorder'] || '#0f172a',
+      'tab.selectedBackground': currentThemeCustomizations['tab.selectedBackground'] || '#0f172a',
       'tab.selectedForeground': '#ffffff',
       'tab.activeBorderTop': '#00000000',
       'tab.selectedBorderTop': '#00000000',
       'tab.inactiveBackground': '#e2e8f0',
       'tab.inactiveForeground': '#475569',
       'tab.border': '#00000000',
-      'tab.unfocusedActiveBackground': '#334155',
+      'tab.unfocusedActiveBackground': currentThemeCustomizations['tab.unfocusedActiveBackground'] || '#334155',
       'tab.unfocusedActiveForeground': '#ffffff',
-      'tab.unfocusedActiveBorder': '#334155',
+      'tab.unfocusedActiveBorder': currentThemeCustomizations['tab.unfocusedActiveBorder'] || '#334155',
       'tab.unfocusedActiveBorderTop': '#00000000',
-      'tab.unfocusedSelectedBackground': '#334155',
+      'tab.unfocusedSelectedBackground': currentThemeCustomizations['tab.unfocusedSelectedBackground'] || '#334155',
       'tab.unfocusedSelectedForeground': '#ffffff',
       'tab.unfocusedInactiveBackground': '#e2e8f0',
       'tab.unfocusedInactiveForeground': '#64748b',
@@ -307,7 +307,7 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'tab.inactiveModifiedBorder': '#00000000',
       'tab.unfocusedActiveModifiedBorder': '#00000000',
       'tab.unfocusedInactiveModifiedBorder': '#00000000',
-      'tab.dragAndDropBorder': '#0f172a',
+      'tab.dragAndDropBorder': currentThemeCustomizations['tab.dragAndDropBorder'] || '#0f172a',
       'tab.hoverBackground': '#334155',
       'tab.hoverForeground': '#ffffff',
       'tab.hoverBorder': '#334155',
@@ -352,8 +352,19 @@ export async function enforceBrowserTabBar(): Promise<void> {
       }
     }
 
-    // Clean up any stale top-level list selection customizations if present
+    // Clean up any stale top-level list selection or tab customizations if present
     const staleKeys = [
+      'tab.activeBackground',
+      'tab.activeForeground',
+      'tab.activeBorder',
+      'tab.selectedBackground',
+      'tab.selectedForeground',
+      'tab.unfocusedActiveBackground',
+      'tab.unfocusedActiveForeground',
+      'tab.unfocusedSelectedBackground',
+      'tab.unfocusedSelectedForeground',
+      'tab.hoverBackground',
+      'tab.hoverForeground',
       'list.activeSelectionBackground',
       'list.activeSelectionForeground',
       'list.activeSelectionIconForeground',
@@ -655,16 +666,8 @@ export function resetLastPastelFilename(): void {
 /**
  * Applies the darker shade of the active document's color to the active tab,
  * keeping unselected tabs on the neutral browser backdrop and hover styling invariant.
- *
- * Guarded against unfocused windows to prevent multi-window race conditions in global settings.json.
  */
 export async function applyFilePastelHighlight(filename: string): Promise<void> {
-  // Guard: only the focused window should write global color customizations.
-  // When multiple windows are open, unfocused windows must not race to overwrite settings.json.
-  if (!vscode.window.state.focused) {
-    return;
-  }
-
   lastPastelFilename = filename;
 
   try {
@@ -696,6 +699,57 @@ export async function applyFilePastelHighlight(filename: string): Promise<void> 
     }
   } catch (err) {
     console.warn('Unable to update workbench.colorCustomizations for pastel file highlight:', err);
+  }
+}
+
+/**
+ * Applies the neutral obsidian black active tab styling when no file document is active
+ * (e.g. settings, welcome pages, or non-file tabs), ensuring tabs never display white text on white.
+ */
+export async function applyDefaultTabHighlight(): Promise<void> {
+  lastPastelFilename = '__default__';
+
+  try {
+    const workbenchConfig = vscode.workspace.getConfiguration('workbench');
+    const existingCustomizations = workbenchConfig.get<Record<string, unknown>>('colorCustomizations') || {};
+    const themeKey = `[${THEME_NAME}]`;
+    const currentThemeCustomizations = (existingCustomizations[themeKey] as Record<string, string>) || {};
+
+    const defaultColors: Record<string, string> = {
+      'tab.activeBackground': '#0f172a',
+      'tab.activeForeground': '#ffffff',
+      'tab.activeBorder': '#0f172a',
+      'tab.selectedBackground': '#0f172a',
+      'tab.selectedForeground': '#ffffff',
+      'tab.unfocusedActiveBackground': '#334155',
+      'tab.unfocusedActiveForeground': '#ffffff',
+      'tab.unfocusedActiveBorder': '#334155',
+      'tab.unfocusedSelectedBackground': '#334155',
+      'tab.unfocusedSelectedForeground': '#ffffff',
+      'tab.dragAndDropBorder': '#0f172a',
+    };
+
+    let hasChanges = false;
+    for (const [key, val] of Object.entries(defaultColors)) {
+      if (currentThemeCustomizations[key] !== val) {
+        hasChanges = true;
+        break;
+      }
+    }
+
+    if (hasChanges) {
+      const updatedThemeCustomizations = {
+        ...currentThemeCustomizations,
+        ...defaultColors,
+      };
+      const updatedCustomizations = {
+        ...existingCustomizations,
+        [themeKey]: updatedThemeCustomizations,
+      };
+      await workbenchConfig.update('colorCustomizations', updatedCustomizations, vscode.ConfigurationTarget.Global);
+    }
+  } catch (err) {
+    console.warn('Unable to update workbench.colorCustomizations for default tab highlight:', err);
   }
 }
 
@@ -790,6 +844,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     const targetUri = uri || getActiveDocumentUri();
     if (!targetUri || targetUri.scheme !== 'file') {
+      await applyDefaultTabHighlight();
+      updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled());
       return;
     }
 
