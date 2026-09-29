@@ -28,6 +28,7 @@ export type UriLike = vscode.Uri | { fsPath: string; path?: string };
 interface TabInputCandidate {
   uri?: UriLike;
   resource?: UriLike;
+  modified?: UriLike;
   original?: UriLike;
   viewType?: string;
 }
@@ -40,15 +41,24 @@ export function extractUriFromTab(tab: vscode.Tab): vscode.Uri | undefined {
   if (!input) {
     return undefined;
   }
-  const candidate = input.uri || input.resource || input.original;
+  const candidate = input.uri || input.resource || input.modified || input.original;
   if (!candidate) {
     return undefined;
   }
   if (candidate instanceof vscode.Uri) {
     return candidate;
   }
-  if ('fsPath' in candidate && typeof candidate.fsPath === 'string') {
-    return vscode.Uri.file(candidate.fsPath);
+  if (typeof candidate === 'object') {
+    if ('scheme' in candidate && typeof (candidate as any).path === 'string') {
+      try {
+        return vscode.Uri.from(candidate as any);
+      } catch {
+        // Fall through
+      }
+    }
+    if ('fsPath' in candidate && typeof candidate.fsPath === 'string') {
+      return vscode.Uri.file(candidate.fsPath);
+    }
   }
   return undefined;
 }
@@ -311,6 +321,15 @@ export async function applyCoworkTheme(enabled: boolean): Promise<void> {
       }
     }
 
+    const preferredLight = workbenchConfig.get<string>('preferredLightColorTheme');
+    if (preferredLight && preferredLight !== THEME_NAME) {
+      try {
+        await workbenchConfig.update('preferredLightColorTheme', THEME_NAME, vscode.ConfigurationTarget.Global);
+      } catch (err) {
+        console.warn('Unable to update workbench.preferredLightColorTheme:', err);
+      }
+    }
+
     if (currentIconTheme !== ICON_THEME_NAME) {
       try {
         await workbenchConfig.update('iconTheme', ICON_THEME_NAME, vscode.ConfigurationTarget.Global);
@@ -330,6 +349,15 @@ export async function applyCoworkTheme(enabled: boolean): Promise<void> {
         await workbenchConfig.update('colorTheme', previousTheme, vscode.ConfigurationTarget.Global);
       } catch (err) {
         console.warn('Unable to revert workbench.colorTheme:', err);
+      }
+    }
+
+    const preferredLight = workbenchConfig.get<string>('preferredLightColorTheme');
+    if (preferredLight === THEME_NAME) {
+      try {
+        await workbenchConfig.update('preferredLightColorTheme', previousTheme, vscode.ConfigurationTarget.Global);
+      } catch (err) {
+        console.warn('Unable to revert workbench.preferredLightColorTheme:', err);
       }
     }
 

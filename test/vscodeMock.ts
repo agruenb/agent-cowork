@@ -162,6 +162,13 @@ if (!(globalThis as any).__vscodeMockInstalled) {
                       def
                     );
                   }
+                  if (key === 'preferredLightColorTheme') {
+                    return (
+                      vscodeMockState.configUpdates['workbench.preferredLightColorTheme'] ||
+                      vscodeMockState.configUpdates['preferredLightColorTheme'] ||
+                      def
+                    );
+                  }
                   if (key === 'colorCustomizations') {
                     return (
                       vscodeMockState.configUpdates['workbench.colorCustomizations'] ||

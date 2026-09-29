@@ -850,7 +850,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
 
     // Apply darker shade of the active document's color to active tab
-    const filename = path.basename(targetUri.fsPath);
+    const normalizedFsPath = (targetUri.fsPath || '').replace(/\\/g, '/');
+    const filename = path.basename(normalizedFsPath) || targetUri.path.split('/').pop() || '';
     await applyFilePastelHighlight(filename);
 
     const activeHue = getFilenameHue(filename);

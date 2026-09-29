@@ -65,8 +65,18 @@ describe('Cowork View Manager', () => {
       const uri1 = { fsPath: '/path/file.md', path: '/path/file.md' };
       assert.strictEqual(extractUriFromTab({ input: { uri: uri1 } })?.fsPath, uri1.fsPath);
       assert.strictEqual(extractUriFromTab({ input: { resource: uri1 } })?.fsPath, uri1.fsPath);
+      assert.strictEqual(extractUriFromTab({ input: { modified: uri1 } })?.fsPath, uri1.fsPath);
       assert.strictEqual(extractUriFromTab({ input: { original: uri1 } })?.fsPath, uri1.fsPath);
       assert.strictEqual(extractUriFromTab({ input: null }), undefined);
+    });
+
+    it('extractUriFromTab retrieves URI from Windows-style paths and diff modified input', () => {
+      const uriWin = { fsPath: 'C:\\Users\\test\\file.md', path: 'C:/Users/test/file.md' };
+      assert.strictEqual(extractUriFromTab({ input: { modified: uriWin } })?.fsPath, uriWin.fsPath);
+      assert.strictEqual(
+        extractUriFromTab({ input: { uri: { fsPath: 'C:\\Users\\test\\file.md' } } })?.fsPath,
+        'C:\\Users\\test\\file.md'
+      );
     });
 
     it('isMarkdownTab detects markdown files from uri or label', () => {
@@ -319,6 +329,18 @@ describe('Cowork View Manager', () => {
 
       assert.strictEqual(vscodeMockState.configUpdates['colorTheme'], DEFAULT_FALLBACK_THEME);
       assert.strictEqual(vscodeMockState.configUpdates['iconTheme'], DEFAULT_FALLBACK_ICON_THEME);
+    });
+
+    it('updates and reverts preferredLightColorTheme when present', async () => {
+      const mockContext = createMockExtensionContext();
+      setCoworkManagerContext(mockContext);
+
+      vscodeMockState.configUpdates['preferredLightColorTheme'] = 'Default Light Modern';
+      await applyCoworkTheme(true);
+      assert.strictEqual(vscodeMockState.configUpdates['preferredLightColorTheme'], THEME_NAME);
+
+      await applyCoworkTheme(false);
+      assert.strictEqual(vscodeMockState.configUpdates['preferredLightColorTheme'], DEFAULT_FALLBACK_THEME);
     });
   });
 
