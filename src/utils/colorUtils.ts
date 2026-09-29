@@ -87,23 +87,20 @@ export function getPastelShade(hue: number): string {
 export function getFilePastelColors(filename: string): Record<string, string> {
   const activeHue = getFilenameHue(filename);
   const darkHex = getDarkShade(activeHue);
-  const unfocusedDark = hslToHex(activeHue, 55, 38);
-
   const textDarkHex = '#0f172a';
-  const textWhiteHex = '#ffffff';
 
   return {
-    // Active tab: Darker shade of the file's hue with white text
-    'tab.activeBackground': darkHex,
-    'tab.activeForeground': textWhiteHex,
-    'tab.activeBorder': darkHex,
-    'tab.selectedBackground': darkHex,
-    'tab.selectedForeground': textWhiteHex,
-    'tab.unfocusedActiveBackground': unfocusedDark,
-    'tab.unfocusedActiveForeground': textWhiteHex,
-    'tab.unfocusedActiveBorder': darkHex,
-    'tab.unfocusedSelectedBackground': unfocusedDark,
-    'tab.unfocusedSelectedForeground': textWhiteHex,
+    // Active tab: White editor background (#ffffff) with the file's hue color applied to the filename
+    'tab.activeBackground': '#ffffff',
+    'tab.activeForeground': darkHex,
+    'tab.activeBorder': '#ffffff',
+    'tab.selectedBackground': '#ffffff',
+    'tab.selectedForeground': darkHex,
+    'tab.unfocusedActiveBackground': '#ffffff',
+    'tab.unfocusedActiveForeground': darkHex,
+    'tab.unfocusedActiveBorder': '#ffffff',
+    'tab.unfocusedSelectedBackground': '#ffffff',
+    'tab.unfocusedSelectedForeground': darkHex,
     'tab.dragAndDropBorder': darkHex,
 
     // Unselected tabs: Clean neutral backdrop (#e2e8f0) with readable slate text
@@ -112,13 +109,13 @@ export function getFilePastelColors(filename: string): Record<string, string> {
     'tab.unfocusedInactiveBackground': '#e2e8f0',
     'tab.unfocusedInactiveForeground': '#64748b',
 
-    // Tab hover: Dark grey (#334155) with white text
-    'tab.hoverBackground': '#334155',
-    'tab.hoverForeground': textWhiteHex,
-    'tab.hoverBorder': '#334155',
-    'tab.unfocusedHoverBackground': '#334155',
-    'tab.unfocusedHoverForeground': textWhiteHex,
-    'tab.unfocusedHoverBorder': '#334155',
+    // Tab hover: Gentle light tone with obsidian text
+    'tab.hoverBackground': '#f1f5f9',
+    'tab.hoverForeground': textDarkHex,
+    'tab.hoverBorder': '#e2e8f0',
+    'tab.unfocusedHoverBackground': '#f1f5f9',
+    'tab.unfocusedHoverForeground': textDarkHex,
+    'tab.unfocusedHoverBorder': '#e2e8f0',
 
     // Tree view state: Invariant, subtle neutral styling (no jarring row highlights on open files)
     'list.activeSelectionBackground': '#e2e8f0',

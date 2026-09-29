@@ -40,13 +40,14 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       const themePath = path.join(__dirname, '..', 'themes', 'agent-cowork-light.json');
       const themeContent = JSON.parse(fs.readFileSync(themePath, 'utf8'));
 
-      assert.strictEqual(themeContent.colors['tab.activeBackground'], '#334155');
-      assert.strictEqual(themeContent.colors['tab.hoverBackground'], '#334155');
-      assert.strictEqual(themeContent.colors['tab.hoverForeground'], '#ffffff');
-      assert.strictEqual(themeContent.colors['tab.hoverBorder'], '#334155');
-      assert.strictEqual(themeContent.colors['tab.unfocusedHoverBackground'], '#334155');
-      assert.strictEqual(themeContent.colors['tab.unfocusedHoverForeground'], '#ffffff');
-      assert.strictEqual(themeContent.colors['tab.unfocusedHoverBorder'], '#334155');
+      assert.strictEqual(themeContent.colors['tab.activeBackground'], '#ffffff');
+      assert.strictEqual(themeContent.colors['tab.activeForeground'], '#0f172a');
+      assert.strictEqual(themeContent.colors['tab.hoverBackground'], '#f1f5f9');
+      assert.strictEqual(themeContent.colors['tab.hoverForeground'], '#0f172a');
+      assert.strictEqual(themeContent.colors['tab.hoverBorder'], '#e2e8f0');
+      assert.strictEqual(themeContent.colors['tab.unfocusedHoverBackground'], '#f1f5f9');
+      assert.strictEqual(themeContent.colors['tab.unfocusedHoverForeground'], '#0f172a');
+      assert.strictEqual(themeContent.colors['tab.unfocusedHoverBorder'], '#e2e8f0');
       assert.strictEqual(themeContent.colors['list.activeSelectionBackground'], '#e2e8f0');
       assert.strictEqual(themeContent.colors['list.inactiveSelectionBackground'], '#00000000');
       assert.strictEqual(themeContent.colors['list.activeSelectionForeground'], '#0f172a');
@@ -240,21 +241,21 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       assert.strictEqual(pastelGreen, hslToHex(160, 50, 92));
     });
 
-    it('getFilePastelColors maps active tab to the darker shade and leaves tree view selection invariant', () => {
+    it('getFilePastelColors maps active tab to white background and file hue to filename', () => {
       const colors = getFilePastelColors('project-plan.md');
       const expectedDark = getDarkShade(getFilenameHue('project-plan.md'));
 
-      assert.strictEqual(colors['tab.activeBackground'], expectedDark);
-      assert.strictEqual(colors['tab.selectedBackground'], expectedDark);
+      assert.strictEqual(colors['tab.activeBackground'], '#ffffff');
+      assert.strictEqual(colors['tab.selectedBackground'], '#ffffff');
       assert.strictEqual(colors['list.activeSelectionBackground'], '#e2e8f0');
       assert.strictEqual(colors['list.inactiveSelectionBackground'], '#00000000');
       assert.strictEqual(colors['list.focusBackground'], '#e2e8f0');
       assert.strictEqual(colors['list.activeSelectionForeground'], '#0f172a');
       assert.strictEqual(colors['list.inactiveSelectionForeground'], '#0f172a');
 
-      assert.strictEqual(colors['tab.activeForeground'], '#ffffff');
-      assert.strictEqual(colors['tab.selectedForeground'], '#ffffff');
-      assert.strictEqual(colors['tab.unfocusedSelectedForeground'], '#ffffff');
+      assert.strictEqual(colors['tab.activeForeground'], expectedDark);
+      assert.strictEqual(colors['tab.selectedForeground'], expectedDark);
+      assert.strictEqual(colors['tab.unfocusedSelectedForeground'], expectedDark);
     });
 
     it('getFilePastelColors keeps unselected tabs on neutral slate (#e2e8f0) with readable text', () => {
@@ -266,22 +267,21 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       assert.strictEqual(colors['tab.unfocusedInactiveForeground'], '#64748b');
     });
 
-    it('getFilePastelColors matches tab hover state to dark grey (#334155) with white text', () => {
+    it('getFilePastelColors matches tab hover state to gentle light tone (#f1f5f9) with obsidian text', () => {
       const colors = getFilePastelColors('activeDoc.md');
 
-      // Tab hover matches dark grey tone (#334155) with white text so text does not flicker
-      assert.strictEqual(colors['tab.hoverBackground'], '#334155');
-      assert.strictEqual(colors['tab.hoverForeground'], '#ffffff');
-      assert.strictEqual(colors['tab.hoverBorder'], '#334155');
-      assert.strictEqual(colors['tab.unfocusedHoverBackground'], '#334155');
-      assert.strictEqual(colors['tab.unfocusedHoverForeground'], '#ffffff');
-      assert.strictEqual(colors['tab.unfocusedHoverBorder'], '#334155');
+      assert.strictEqual(colors['tab.hoverBackground'], '#f1f5f9');
+      assert.strictEqual(colors['tab.hoverForeground'], '#0f172a');
+      assert.strictEqual(colors['tab.hoverBorder'], '#e2e8f0');
+      assert.strictEqual(colors['tab.unfocusedHoverBackground'], '#f1f5f9');
+      assert.strictEqual(colors['tab.unfocusedHoverForeground'], '#0f172a');
+      assert.strictEqual(colors['tab.unfocusedHoverBorder'], '#e2e8f0');
 
       assert.strictEqual(colors['list.hoverBackground'], '#e2e8f0');
       assert.strictEqual(colors['list.hoverForeground'], '#0f172a');
     });
 
-    it('applyFilePastelHighlight updates active tab highlight to the darker document color', async () => {
+    it('applyFilePastelHighlight updates active tab with white background and hue-tinted filename', async () => {
       await applyFilePastelHighlight('research.md');
 
       assert.strictEqual(getLastPastelFilename(), 'research.md');
@@ -295,24 +295,24 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
 
       const expectedDark = getDarkShade(getFilenameHue('research.md'));
 
-      // Active tab and selected tab must be the darker document color
-      assert.strictEqual(themeCustomizations['tab.activeBackground'], expectedDark);
-      assert.strictEqual(themeCustomizations['tab.selectedBackground'], expectedDark);
+      // Active tab and selected tab must be white editor background
+      assert.strictEqual(themeCustomizations['tab.activeBackground'], '#ffffff');
+      assert.strictEqual(themeCustomizations['tab.selectedBackground'], '#ffffff');
 
-      // High-contrast text on dark background
-      assert.strictEqual(themeCustomizations['tab.activeForeground'], '#ffffff');
-      assert.strictEqual(themeCustomizations['tab.selectedForeground'], '#ffffff');
+      // The document hue is applied directly to the active filename
+      assert.strictEqual(themeCustomizations['tab.activeForeground'], expectedDark);
+      assert.strictEqual(themeCustomizations['tab.selectedForeground'], expectedDark);
 
       // Unselected tabs remain neutral slate
       assert.strictEqual(themeCustomizations['tab.inactiveBackground'], '#e2e8f0');
       assert.strictEqual(themeCustomizations['tab.inactiveForeground'], '#475569');
 
-      // Tab hover is dark grey with crisp white text
-      assert.strictEqual(themeCustomizations['tab.hoverBackground'], '#334155');
-      assert.strictEqual(themeCustomizations['tab.hoverForeground'], '#ffffff');
-      assert.strictEqual(themeCustomizations['tab.hoverBorder'], '#334155');
-      assert.strictEqual(themeCustomizations['tab.unfocusedHoverBackground'], '#334155');
-      assert.strictEqual(themeCustomizations['tab.unfocusedHoverBorder'], '#334155');
+      // Tab hover is light tone with obsidian text
+      assert.strictEqual(themeCustomizations['tab.hoverBackground'], '#f1f5f9');
+      assert.strictEqual(themeCustomizations['tab.hoverForeground'], '#0f172a');
+      assert.strictEqual(themeCustomizations['tab.hoverBorder'], '#e2e8f0');
+      assert.strictEqual(themeCustomizations['tab.unfocusedHoverBackground'], '#f1f5f9');
+      assert.strictEqual(themeCustomizations['tab.unfocusedHoverBorder'], '#e2e8f0');
     });
 
     it('applyFilePastelHighlight updates highlights when switching to a different file', async () => {
@@ -321,13 +321,15 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
 
       const config = vscode.workspace.getConfiguration('workbench');
       let customizations = config.get<Record<string, any>>('colorCustomizations');
-      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], darkNotes);
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeForeground'], darkNotes);
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], '#ffffff');
 
       await applyFilePastelHighlight('budget.xlsx');
       const darkBudget = getDarkShade(getFilenameHue('budget.xlsx'));
 
       customizations = config.get<Record<string, any>>('colorCustomizations');
-      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], darkBudget);
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeForeground'], darkBudget);
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], '#ffffff');
     });
 
     it('applyFilePastelHighlight re-applies if colorCustomizations is modified by another window', async () => {
@@ -336,19 +338,21 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
 
       const config = vscode.workspace.getConfiguration('workbench');
       let customizations = config.get<Record<string, any>>('colorCustomizations');
-      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], darkProject);
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeForeground'], darkProject);
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], '#ffffff');
 
       // Simulate another window overwriting colorCustomizations
       await config.update('colorCustomizations', {
         '[Agent Cowork Light]': {
-          'tab.activeBackground': '#000000',
+          'tab.activeForeground': '#000000',
         },
       }, vscode.ConfigurationTarget.Global);
 
       // Call applyFilePastelHighlight again for project.md
       await applyFilePastelHighlight('project.md');
       customizations = config.get<Record<string, any>>('colorCustomizations');
-      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], darkProject);
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeForeground'], darkProject);
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], '#ffffff');
     });
 
     it('enforceBrowserTabBar removes stale top-level tab keys to prevent white-on-white fallback', async () => {
@@ -364,19 +368,19 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       const customizations = config.get<Record<string, any>>('colorCustomizations');
       assert.strictEqual(customizations['tab.activeBackground'], undefined);
       assert.strictEqual(customizations['tab.selectedBackground'], undefined);
-      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeForeground'], '#ffffff');
-      assert.ok(customizations['[Agent Cowork Light]']['tab.activeBackground'] !== '#ffffff');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], '#ffffff');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeForeground'], '#0f172a');
     });
 
-    it('applyDefaultTabHighlight applies high-contrast obsidian black tab styling when no document is active', async () => {
+    it('applyDefaultTabHighlight applies white background with obsidian tab text when no document is active', async () => {
       await applyDefaultTabHighlight();
 
       const config = vscode.workspace.getConfiguration('workbench');
       const customizations = config.get<Record<string, any>>('colorCustomizations');
-      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], '#0f172a');
-      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeForeground'], '#ffffff');
-      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.selectedBackground'], '#0f172a');
-      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.selectedForeground'], '#ffffff');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], '#ffffff');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeForeground'], '#0f172a');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.selectedBackground'], '#ffffff');
+      assert.strictEqual(customizations['[Agent Cowork Light]']['tab.selectedForeground'], '#0f172a');
     });
 
     it('applyFilenameTint applies document accents and CSS custom properties based on file hue', () => {
