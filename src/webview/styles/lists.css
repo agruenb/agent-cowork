@@ -220,7 +220,7 @@ ul.task-list .task-list {
   border-radius: 1px;
   z-index: 30;
   pointer-events: none;
-  transition: top 0.08s ease;
+  transition: top 0.08s ease, left 0.08s ease, width 0.08s ease;
 }
 
 /* Active dragged item placeholder styling */

@@ -1416,7 +1416,24 @@ export function handleWindowMessage(event: MessageEvent): void {
       if (message.filename) {
         applyFilenameTint(message.filename);
       }
-      setContentFormatted(message.text || '');
+      const normMsg = (message.text || '').replace(/\r\n/g, '\n');
+      const normCurrent = (state.currentMarkdown || '').replace(/\r\n/g, '\n');
+      const shouldSetContent =
+        !state.isInitialized ||
+        (!state.isCanvasDirty && !state.isInternalChange && normMsg !== normCurrent);
+
+      if (shouldSetContent) {
+        if (state.isRawMode && textarea) {
+          textarea.value = message.text || '';
+          state.currentMarkdown = message.text || '';
+          state.isInitialized = true;
+          persistWebviewState();
+          autoResizeRawTextarea();
+          updateRawLineNumbers();
+        } else {
+          setContentFormatted(message.text || '');
+        }
+      }
       state.isInitialized = true;
       persistWebviewState();
       if (state.isRawMode) {

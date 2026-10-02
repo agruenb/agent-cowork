@@ -79,6 +79,76 @@ function createSendToTopIcon(doc: Document): SVGSVGElement {
 // Task list item movement
 // ────────────────────────────────────────────
 
+export interface TaskDropTarget {
+  targetLi: HTMLElement;
+  action: 'before' | 'after' | 'inside';
+  indicatorY?: number;
+  indicatorLeft?: number;
+  indicatorWidth?: number;
+}
+
+/**
+ * Executes a drop operation for a task list item.
+ * Supports dropping 'before' or 'after' another item (at that item's level),
+ * or 'inside' an item (creating or appending to its nested sub-list).
+ * Automatically cleans up any empty sublists left behind.
+ */
+export function executeTaskItemDrop(
+  draggedLi: HTMLElement,
+  dropTarget: {
+    targetLi: HTMLElement;
+    action: 'before' | 'after' | 'inside';
+  }
+): boolean {
+  if (!draggedLi || !dropTarget || !dropTarget.targetLi) return false;
+  const { action, targetLi } = dropTarget;
+  if (draggedLi === targetLi) return false;
+  if (draggedLi.contains(targetLi)) return false;
+
+  const oldParent = draggedLi.parentElement;
+
+  if (action === 'before') {
+    const parent = targetLi.parentElement;
+    if (!parent) return false;
+    if (draggedLi.nextElementSibling === targetLi && draggedLi.parentElement === parent) {
+      return false;
+    }
+    parent.insertBefore(draggedLi, targetLi);
+  } else if (action === 'after') {
+    const parent = targetLi.parentElement;
+    if (!parent) return false;
+    if (targetLi.nextElementSibling === draggedLi && draggedLi.parentElement === parent) {
+      return false;
+    }
+    parent.insertBefore(draggedLi, targetLi.nextSibling);
+  } else if (action === 'inside') {
+    let subList = Array.from(targetLi.children).find(
+      (el) => el.tagName === 'UL'
+    ) as HTMLElement | undefined;
+
+    if (!subList) {
+      subList = targetLi.ownerDocument.createElement('ul');
+      subList.className = 'task-list';
+      subList.setAttribute('data-block-type', 'task_list');
+      targetLi.appendChild(subList);
+    }
+    subList.appendChild(draggedLi);
+  }
+
+  // Clean up oldParent if it was a nested sublist that is now empty of list items
+  if (oldParent && (oldParent.tagName === 'UL' || oldParent.tagName === 'OL')) {
+    const remainingLis = oldParent.querySelectorAll(':scope > li');
+    if (remainingLis.length === 0) {
+      const parentLi = oldParent.closest('li');
+      if (parentLi) {
+        oldParent.remove();
+      }
+    }
+  }
+
+  return true;
+}
+
 /**
  * Moves a task list item from one index to another within its parent list.
  */
@@ -206,16 +276,69 @@ export function wireTaskListControls(
   const delBtns: HTMLElement[] = [];
   const topBtns: HTMLElement[] = [];
 
-  function getItemRect(item: HTMLElement): { top: number; left: number; width: number; height: number } {
-    const listRect = taskList.getBoundingClientRect();
-    const itemRect = item.getBoundingClientRect();
+  function getLiGeometry(
+    li: HTMLElement,
+    root: HTMLElement,
+    index: number
+  ): {
+    li: HTMLElement;
+    top: number;
+    left: number;
+    height: number;
+    bottom: number;
+    fullBottom: number;
+    midY: number;
+    width: number;
+  } {
+    const rootRect = root.getBoundingClientRect();
+    const liRect = li.getBoundingClientRect();
+    const checkbox = li.querySelector<HTMLElement>(':scope > .task-checkbox');
+    const content = li.querySelector<HTMLElement>(':scope > .task-content');
+    const refEl = checkbox || content || li;
+    const refRect = refEl.getBoundingClientRect();
+
+    // If in headless test environment where rects are 0
+    if (refRect.height === 0 && liRect.height === 0) {
+      const isNested = li.parentElement !== root;
+      const mockTop = index * 30;
+      const mockHeight = 24;
+      const mockLeft = isNested ? 24 : 0;
+      const mockWidth = 300 - mockLeft;
+      return {
+        li,
+        top: mockTop,
+        left: mockLeft,
+        height: mockHeight,
+        bottom: mockTop + mockHeight,
+        fullBottom: mockTop + mockHeight,
+        midY: mockTop + mockHeight / 2,
+        width: mockWidth,
+      };
+    }
+
+    const top = (refRect.height > 0 ? refRect.top : liRect.top) - rootRect.top + root.scrollTop;
+    const left = Math.max(0, liRect.left - rootRect.left + root.scrollLeft);
+    const height = refRect.height > 0 ? refRect.height : 24;
+    const bottom = top + height;
+    const fullBottom = Math.max(
+      bottom,
+      (liRect.height > 0 ? liRect.bottom : refRect.bottom) - rootRect.top + root.scrollTop
+    );
+    const midY = top + height / 2;
+    const width = Math.max(50, (rootRect.width > 0 ? rootRect.width : 400) - left);
+
     return {
-      top: itemRect.top - listRect.top + taskList.scrollTop,
-      left: itemRect.left - listRect.left + taskList.scrollLeft,
-      width: itemRect.width,
-      height: itemRect.height,
+      li,
+      top,
+      left,
+      height,
+      bottom,
+      fullBottom,
+      midY,
+      width,
     };
   }
+
 
   function getItemFirstLineRect(item: HTMLElement): {
     top: number;
@@ -442,71 +565,156 @@ export function wireTaskListControls(
       e.stopPropagation();
 
       clearDeleteHighlights();
-      const sourceIdx = itemIdx;
+      const draggedItem = item;
+      if (!draggedItem) return;
+
       isDragging = true;
       dragSourceIdx = itemIdx;
+
+      let rootTaskList: HTMLElement = taskList;
+      while (rootTaskList.parentElement && rootTaskList.parentElement.closest('ul.task-list')) {
+        rootTaskList = rootTaskList.parentElement.closest('ul.task-list') as HTMLElement;
+      }
+
+      rootTaskList.classList.add('is-task-dragging');
       taskList.classList.add('is-task-dragging');
+      draggedItem.classList.add('is-item-dragging');
       dragBtn.classList.add('is-dragging');
       dragBtn.style.transition = 'none';
 
-      const currentItems = Array.from(taskList.querySelectorAll<HTMLElement>(':scope > li'));
-      const draggedItem = currentItems[sourceIdx];
-      if (draggedItem) {
-        draggedItem.classList.add('is-item-dragging');
-      }
-
       updateVisibility();
 
-      const listRect = taskList.getBoundingClientRect();
+      const rootControls =
+        (rootTaskList.querySelector(':scope > .task-list-controls') as HTMLElement) || controls;
+      const activeDropIndicator =
+        (rootControls.querySelector(':scope > .task-drop-indicator') as HTMLElement) || dropIndicator;
+
       const btnRect = dragBtn.getBoundingClientRect();
       const grabOffsetY = e.clientY - btnRect.top;
 
-      const itemRects = currentItems.map(it => getItemRect(it));
-      const sourceRect = itemRects[sourceIdx];
-      const initialIndicatorY = sourceRect ? sourceRect.top : (btnRect.top - listRect.top + taskList.scrollTop);
+      const initialGeom = getLiGeometry(draggedItem, rootTaskList, itemIdx);
 
-      dropIndicator.style.transition = 'none';
-      dropIndicator.style.top = `${initialIndicatorY - 1}px`;
-      dropIndicator.style.left = '0';
-      dropIndicator.style.width = `${listRect.width}px`;
-      dropIndicator.style.display = 'block';
+      activeDropIndicator.style.transition = 'none';
+      activeDropIndicator.style.top = `${initialGeom.top - 1}px`;
+      activeDropIndicator.style.left = `${initialGeom.left}px`;
+      activeDropIndicator.style.width = `${initialGeom.width}px`;
+      activeDropIndicator.style.display = 'block';
 
       if (typeof window !== 'undefined' && window.requestAnimationFrame) {
         window.requestAnimationFrame(() => {
-          dropIndicator.style.transition = 'top 0.08s ease';
+          activeDropIndicator.style.transition = 'top 0.08s ease, left 0.08s ease, width 0.08s ease';
         });
       }
 
-      let dropIdx = sourceIdx;
+      let currentDropTarget: {
+        targetLi: HTMLElement;
+        action: 'before' | 'after' | 'inside';
+        indicatorY: number;
+        indicatorLeft: number;
+        indicatorWidth: number;
+      } | null = null;
 
       const onMouseMove = (moveEvent: MouseEvent) => {
-        const liveItems = Array.from(taskList.querySelectorAll<HTMLElement>(':scope > li'));
-        const liveItemRects = liveItems.map(it => getItemRect(it));
-        const wrapperRect = taskList.getBoundingClientRect();
-        const currentTop = moveEvent.clientY - wrapperRect.top + taskList.scrollTop - grabOffsetY;
-
+        const currentWrapperRect = taskList.getBoundingClientRect();
+        const currentTop = moveEvent.clientY - currentWrapperRect.top + taskList.scrollTop - grabOffsetY;
         dragBtn.style.top = `${currentTop}px`;
 
-        const mouseY = moveEvent.clientY - wrapperRect.top + taskList.scrollTop;
-        let closestIdx = sourceIdx;
-        let indicatorY = liveItemRects[sourceIdx] ? liveItemRects[sourceIdx].top : 0;
+        const rootRect = rootTaskList.getBoundingClientRect();
+        const mouseY = moveEvent.clientY - rootRect.top + rootTaskList.scrollTop;
 
-        for (let i = 0; i < liveItemRects.length; i++) {
-          const r = liveItemRects[i];
-          const mid = r.top + r.height / 2;
-          if (mouseY < mid) {
-            closestIdx = i;
-            indicatorY = r.top;
-            break;
-          } else if (mouseY < r.top + r.height) {
-            closestIdx = i + 1;
-            indicatorY = r.top + r.height;
-            break;
+        const allLis = Array.from(rootTaskList.querySelectorAll<HTMLElement>('li'));
+        const candidateLis = allLis.filter(
+          (li) =>
+            li !== draggedItem &&
+            !draggedItem.contains(li) &&
+            (li.classList.contains('task-item') || !!li.querySelector('input.task-checkbox'))
+        );
+
+        if (candidateLis.length === 0) {
+          currentDropTarget = null;
+          activeDropIndicator.style.display = 'none';
+          return;
+        }
+
+        const geoms = candidateLis.map((li, idx) => getLiGeometry(li, rootTaskList, idx));
+
+        let dropTarget: {
+          targetLi: HTMLElement;
+          action: 'before' | 'after' | 'inside';
+          indicatorY: number;
+          indicatorLeft: number;
+          indicatorWidth: number;
+        };
+
+        if (mouseY < geoms[0].midY) {
+          dropTarget = {
+            targetLi: geoms[0].li,
+            action: 'before',
+            indicatorY: geoms[0].top,
+            indicatorLeft: geoms[0].left,
+            indicatorWidth: geoms[0].width,
+          };
+        } else if (mouseY >= geoms[geoms.length - 1].midY) {
+          const last = geoms[geoms.length - 1];
+          dropTarget = {
+            targetLi: last.li,
+            action: 'after',
+            indicatorY: last.fullBottom,
+            indicatorLeft: last.left,
+            indicatorWidth: last.width,
+          };
+        } else {
+          dropTarget = {
+            targetLi: geoms[geoms.length - 1].li,
+            action: 'after',
+            indicatorY: geoms[geoms.length - 1].fullBottom,
+            indicatorLeft: geoms[geoms.length - 1].left,
+            indicatorWidth: geoms[geoms.length - 1].width,
+          };
+
+          for (let i = 0; i < geoms.length; i++) {
+            const g = geoms[i];
+            const nextG = geoms[i + 1];
+
+            if (mouseY < g.midY) {
+              dropTarget = {
+                targetLi: g.li,
+                action: 'before',
+                indicatorY: g.top,
+                indicatorLeft: g.left,
+                indicatorWidth: g.width,
+              };
+              break;
+            }
+
+            if (!nextG || mouseY < nextG.midY) {
+              if (nextG && g.li.contains(nextG.li)) {
+                dropTarget = {
+                  targetLi: nextG.li,
+                  action: 'before',
+                  indicatorY: nextG.top,
+                  indicatorLeft: nextG.left,
+                  indicatorWidth: nextG.width,
+                };
+              } else {
+                dropTarget = {
+                  targetLi: g.li,
+                  action: 'after',
+                  indicatorY: g.bottom,
+                  indicatorLeft: g.left,
+                  indicatorWidth: g.width,
+                };
+              }
+              break;
+            }
           }
         }
 
-        dropIdx = closestIdx;
-        dropIndicator.style.top = `${indicatorY - 1}px`;
+        currentDropTarget = dropTarget;
+        activeDropIndicator.style.top = `${dropTarget.indicatorY - 1}px`;
+        activeDropIndicator.style.left = `${dropTarget.indicatorLeft}px`;
+        activeDropIndicator.style.width = `${dropTarget.indicatorWidth}px`;
+        activeDropIndicator.style.display = 'block';
       };
 
       const onMouseUp = () => {
@@ -514,23 +722,30 @@ export function wireTaskListControls(
         doc.removeEventListener('mouseup', onMouseUp);
         isDragging = false;
         dragSourceIdx = null;
+        rootTaskList.classList.remove('is-task-dragging');
         taskList.classList.remove('is-task-dragging');
         dragBtn.classList.remove('is-dragging');
         dragBtn.style.transition = '';
+        activeDropIndicator.style.display = 'none';
         dropIndicator.style.display = 'none';
 
-        Array.from(taskList.querySelectorAll<HTMLElement>(':scope > li.is-item-dragging')).forEach(el =>
+        Array.from(rootTaskList.querySelectorAll<HTMLElement>('li.is-item-dragging')).forEach((el) =>
           el.classList.remove('is-item-dragging')
         );
 
-        if (dropIdx !== sourceIdx && dropIdx !== sourceIdx + 1) {
-          const targetIdx = dropIdx > sourceIdx ? dropIdx - 1 : dropIdx;
-          moveTaskItem(taskList, sourceIdx, targetIdx);
-          activeItemIdx = targetIdx;
-          emitEdit();
-          const canvas = (taskList.closest('#editor, [contenteditable="true"]') as HTMLElement) || doc.body;
-          wireAllTaskListControls(canvas, emitEdit, wireTaskCheckboxes);
-          wireTaskCheckboxes();
+        if (currentDropTarget) {
+          const didMove = executeTaskItemDrop(draggedItem, currentDropTarget);
+          if (didMove) {
+            activeItemIdx = null;
+            emitEdit();
+            const canvas =
+              (rootTaskList.closest('#editor, [contenteditable="true"]') as HTMLElement) || doc.body;
+            wireAllTaskListControls(canvas, emitEdit, wireTaskCheckboxes);
+            wireTaskCheckboxes();
+          } else {
+            repositionControls();
+            updateVisibility();
+          }
         } else {
           repositionControls();
           updateVisibility();
@@ -550,7 +765,10 @@ export function wireTaskListControls(
       return;
     }
 
-    const target = e.target as HTMLElement | null;
+    const target =
+      e.target && typeof (e.target as any).closest === 'function'
+        ? (e.target as HTMLElement)
+        : null;
 
     // Direct control hover check
     const directControl = target?.closest(

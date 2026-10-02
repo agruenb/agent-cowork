@@ -1,10 +1,11 @@
 import assert from 'assert';
 import { JSDOM } from 'jsdom';
 import { state } from '../src/webview/editorState';
-import { setContentFormatted, wireTaskCheckboxes } from '../src/webview/markdownEditor';
+import { setContentFormatted, wireTaskCheckboxes, handleWindowMessage } from '../src/webview/markdownEditor';
 import { domToMarkdown } from '../src/markdown/serializer';
 import {
   moveTaskItem,
+  executeTaskItemDrop,
   sendCheckedToTop,
   wireTaskListControls,
   wireAllTaskListControls,
@@ -135,6 +136,91 @@ describe('Task List Interactions', () => {
 
       const md = domToMarkdown(editor).trim();
       assert.strictEqual(md, '- [ ] Pending\n- [ ] Later\n- [x] Done');
+    });
+  });
+
+  // ──────────────────────────────────────────────
+  // executeTaskItemDrop: multi-level reordering and sub-lists
+  // ──────────────────────────────────────────────
+
+  describe('executeTaskItemDrop', () => {
+    it('moves an item after the last item (dragging to end of list)', () => {
+      setContentFormatted('- [ ] Alpha\n- [ ] Beta\n- [ ] Charlie');
+      const items = editor.querySelectorAll('li.task-item');
+      const alpha = items[0] as HTMLElement;
+      const charlie = items[2] as HTMLElement;
+
+      const success = executeTaskItemDrop(alpha, { targetLi: charlie, action: 'after' });
+      assert.strictEqual(success, true);
+
+      const md = domToMarkdown(editor).trim();
+      assert.strictEqual(md, '- [ ] Beta\n- [ ] Charlie\n- [ ] Alpha');
+    });
+
+    it('moves an item before another item', () => {
+      setContentFormatted('- [ ] Alpha\n- [ ] Beta\n- [ ] Charlie');
+      const items = editor.querySelectorAll('li.task-item');
+      const charlie = items[2] as HTMLElement;
+      const beta = items[1] as HTMLElement;
+
+      const success = executeTaskItemDrop(charlie, { targetLi: beta, action: 'before' });
+      assert.strictEqual(success, true);
+
+      const md = domToMarkdown(editor).trim();
+      assert.strictEqual(md, '- [ ] Alpha\n- [ ] Charlie\n- [ ] Beta');
+    });
+
+    it('drags an item inside another item, creating a new sub-list', () => {
+      setContentFormatted('- [ ] Alpha\n- [ ] Beta');
+      const items = editor.querySelectorAll('li.task-item');
+      const alpha = items[0] as HTMLElement;
+      const beta = items[1] as HTMLElement;
+
+      const success = executeTaskItemDrop(beta, { targetLi: alpha, action: 'inside' });
+      assert.strictEqual(success, true);
+
+      const md = domToMarkdown(editor).trim();
+      assert.strictEqual(md, '- [ ] Alpha\n  - [ ] Beta');
+    });
+
+    it('drags an item inside another item with existing sub-list, appending to it', () => {
+      setContentFormatted('- [ ] Parent\n  - [ ] Sub 1\n- [ ] New Sub');
+      const items = editor.querySelectorAll('li.task-item');
+      const parent = items[0] as HTMLElement;
+      const newSub = items[2] as HTMLElement;
+
+      const success = executeTaskItemDrop(newSub, { targetLi: parent, action: 'inside' });
+      assert.strictEqual(success, true);
+
+      const md = domToMarkdown(editor).trim();
+      assert.strictEqual(md, '- [ ] Parent\n  - [ ] Sub 1\n  - [ ] New Sub');
+    });
+
+    it('drags a sub-item out of a sub-list into the parent list and removes empty sublist', () => {
+      setContentFormatted('- [ ] Parent\n  - [ ] Only Child\n- [ ] Sibling');
+      const items = editor.querySelectorAll('li.task-item');
+      const onlyChild = items[1] as HTMLElement;
+      const sibling = items[2] as HTMLElement;
+
+      const success = executeTaskItemDrop(onlyChild, { targetLi: sibling, action: 'after' });
+      assert.strictEqual(success, true);
+
+      const md = domToMarkdown(editor).trim();
+      assert.strictEqual(md, '- [ ] Parent\n- [ ] Sibling\n- [ ] Only Child');
+
+      // Parent should have no empty <ul> left
+      const parentLi = editor.querySelectorAll('li.task-item')[0];
+      assert.strictEqual(parentLi.querySelector('ul'), null, 'Empty nested ul must be cleaned up');
+    });
+
+    it('prevents dropping an item into itself or its own descendants', () => {
+      setContentFormatted('- [ ] Parent\n  - [ ] Child');
+      const items = editor.querySelectorAll('li.task-item');
+      const parent = items[0] as HTMLElement;
+      const child = items[1] as HTMLElement;
+
+      assert.strictEqual(executeTaskItemDrop(parent, { targetLi: parent, action: 'inside' }), false);
+      assert.strictEqual(executeTaskItemDrop(parent, { targetLi: child, action: 'inside' }), false);
     });
   });
 
@@ -610,6 +696,117 @@ describe('Task List Interactions', () => {
 
       parentDelBtn.dispatchEvent(new dom.window.MouseEvent('mouseleave', { bubbles: true }));
       assert.strictEqual(parentLi.classList.contains('is-delete-target'), false);
+    });
+
+    it('drags an item to the very end of the list when mouse moves below last item', () => {
+      setContentFormatted('- [ ] Alpha\n- [ ] Beta\n- [ ] Charlie');
+      const rootTaskList = editor.querySelector('ul.task-list')!;
+      let editEmitted = false;
+      wireTaskListControls(rootTaskList as HTMLElement, () => { editEmitted = true; }, () => {});
+
+      const dragBtn = rootTaskList.querySelectorAll<HTMLElement>('.task-item-drag-btn')[0];
+      assert.ok(dragBtn);
+
+      // Start dragging item 0 (Alpha)
+      dragBtn.dispatchEvent(new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        clientY: 10,
+        clientX: 0,
+      }));
+
+      // Move mouse well below the last item (Charlie)
+      document.dispatchEvent(new dom.window.MouseEvent('mousemove', {
+        bubbles: true,
+        clientY: 150,
+        clientX: 0,
+      }));
+
+      // Release mouse
+      document.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true }));
+
+      const md = domToMarkdown(editor).trim();
+      assert.strictEqual(md, '- [ ] Beta\n- [ ] Charlie\n- [ ] Alpha', 'Alpha should have moved to the very end');
+      assert.strictEqual(editEmitted, true);
+    });
+
+    it('does not indent an item when dragging in a flat list even if dragged to the right', () => {
+      setContentFormatted('- [ ] Alpha\n- [ ] Beta');
+      const rootTaskList = editor.querySelector('ul.task-list')!;
+      let editEmitted = false;
+      wireTaskListControls(rootTaskList as HTMLElement, () => { editEmitted = true; }, () => {});
+
+      const dragBtn = rootTaskList.querySelectorAll<HTMLElement>('.task-item-drag-btn')[1];
+      assert.ok(dragBtn);
+
+      // Start dragging Beta
+      dragBtn.dispatchEvent(new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        clientY: 30,
+        clientX: 0,
+      }));
+
+      // Move mouse over Alpha with cursor far to the right (clientX = 80)
+      document.dispatchEvent(new dom.window.MouseEvent('mousemove', {
+        bubbles: true,
+        clientY: 5,
+        clientX: 80,
+      }));
+
+      // Release mouse
+      document.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true }));
+
+      const md = domToMarkdown(editor).trim();
+      assert.strictEqual(md, '- [ ] Beta\n- [ ] Alpha', 'Should reorder as sibling without creating sublist');
+      assert.strictEqual(editEmitted, true);
+    });
+
+    it('drags an item into an existing indented sub-list', () => {
+      setContentFormatted('- [ ] Parent\n  - [ ] Child 1\n- [ ] Candidate');
+      const rootTaskList = editor.querySelector('ul.task-list')!;
+      let editEmitted = false;
+      wireTaskListControls(rootTaskList as HTMLElement, () => { editEmitted = true; }, () => {});
+
+      const dragBtn = rootTaskList.querySelectorAll<HTMLElement>('.task-item-drag-btn')[1]; // Candidate
+      assert.ok(dragBtn);
+
+      // Start dragging Candidate
+      dragBtn.dispatchEvent(new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        clientY: 60,
+        clientX: 0,
+      }));
+
+      // Move mouse over Child 1 (Candidate is index 2, Child 1 is index 1, top: 30, midY: 42)
+      document.dispatchEvent(new dom.window.MouseEvent('mousemove', {
+        bubbles: true,
+        clientY: 35,
+        clientX: 0,
+      }));
+
+      // Release mouse
+      document.dispatchEvent(new dom.window.MouseEvent('mouseup', { bubbles: true }));
+
+      const md = domToMarkdown(editor).trim();
+      assert.strictEqual(md, '- [ ] Parent\n  - [ ] Candidate\n  - [ ] Child 1');
+      assert.strictEqual(editEmitted, true);
+    });
+
+    it('preserves existing DOM nodes and cursor when init message has identical content to current markdown', () => {
+      setContentFormatted('- [ ] Item 1\n- [ ] Item 2');
+      const item1 = editor.querySelector('li.task-item')!;
+      assert.ok(item1);
+
+      // Simulate receiving init message with same text 1s later
+      handleWindowMessage({
+        data: {
+          type: 'init',
+          text: '- [ ] Item 1\n- [ ] Item 2',
+        },
+      } as MessageEvent);
+
+      // The exact same DOM node item1 must still be in the document (not destroyed by innerHTML reset)
+      const currentItem1 = editor.querySelector('li.task-item')!;
+      assert.strictEqual(currentItem1, item1, 'DOM node should be preserved without innerHTML replacement');
     });
   });
 });
