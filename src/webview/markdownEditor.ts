@@ -72,6 +72,21 @@ export function wireTaskCheckboxes(): void {
   const canvas = getEditorCanvas();
   const checkboxes = canvas ? canvas.querySelectorAll<HTMLInputElement>('.task-checkbox') : [];
   checkboxes.forEach((cb) => {
+    const li = cb.closest('li');
+    if (li) {
+      let contentSpan = li.querySelector<HTMLElement>(':scope > .task-content');
+      if (!contentSpan) {
+        contentSpan = document.createElement('span');
+        contentSpan.className = 'task-content';
+        contentSpan.innerHTML = '<br>';
+        cb.after(contentSpan);
+      } else if (
+        contentSpan.childNodes.length === 0 ||
+        ((contentSpan.textContent || '').trim().length === 0 && !contentSpan.querySelector('br'))
+      ) {
+        contentSpan.innerHTML = '<br>';
+      }
+    }
     cb.onchange = (e) => {
       const target = e.target as HTMLInputElement;
       const li = target.closest('li');
@@ -598,7 +613,13 @@ export function getCaretPositionForCoordinates(
   // If clientY is below the canvas:
   if (hasCanvasDimensions && clientY > canvasRect.bottom) {
     const lastBlock = blocks[blocks.length - 1];
-    return getLastCaretPosition(lastBlock);
+    const isTask =
+      lastBlock.classList.contains('task-item') ||
+      lastBlock.querySelector(':scope > input[type="checkbox"]');
+    const contentEl =
+      ((isTask ? lastBlock.querySelector('.task-content') : lastBlock) as HTMLElement) ||
+      lastBlock;
+    return getLastCaretPosition(contentEl);
   }
 
   // Find block at clientY:
@@ -699,6 +720,23 @@ export function getCaretPositionForCoordinates(
   // Fall back to native getCaretAtPoint
   const ptPos = getCaretAtPoint(doc, clientX, clientY, canvas);
   if (ptPos) {
+    if (ptPos.node.nodeType === 1) {
+      const el = ptPos.node as HTMLElement;
+      if (el.tagName === 'INPUT' && el.classList.contains('task-checkbox')) {
+        const span = el.parentElement?.querySelector<HTMLElement>('.task-content');
+        if (span) {
+          return getFirstCaretPosition(span);
+        }
+      } else if (
+        el.classList.contains('task-item') ||
+        el.querySelector(':scope > input[type="checkbox"]')
+      ) {
+        const span = el.querySelector<HTMLElement>('.task-content');
+        if (span) {
+          return getFirstCaretPosition(span);
+        }
+      }
+    }
     if (ptPos.offset === 1 && ptPos.node.nodeType === 3) {
       try {
         const r = doc.createRange();
@@ -743,6 +781,9 @@ export function getFirstCaretPosition(node: Node): { node: Node; offset: number 
   if (curr.nodeType === 3) {
     return { node: curr, offset: 0 };
   }
+  if (curr === node) {
+    return { node: curr, offset: 0 };
+  }
   if (curr.parentNode) {
     const idx = Array.prototype.indexOf.call(curr.parentNode.childNodes, curr);
     return { node: curr.parentNode, offset: idx >= 0 ? idx : 0 };
@@ -766,6 +807,9 @@ export function getLastCaretPosition(node: Node): { node: Node; offset: number }
   }
   if (curr.nodeType === 3) {
     return { node: curr, offset: (curr as Text).length };
+  }
+  if (curr === node) {
+    return { node: curr, offset: 0 };
   }
   if (curr.parentNode) {
     return { node: curr.parentNode, offset: curr.parentNode.childNodes.length };
@@ -915,8 +959,15 @@ export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElem
     if (doc.activeElement !== canvas && !canvas.contains(doc.activeElement)) {
       canvas.focus({ preventScroll: true });
     }
+    if (contentEl.childNodes.length === 0) {
+      contentEl.innerHTML = '<br>';
+    }
     const newRange = doc.createRange();
-    newRange.setStart(blockEl, 0);
+    if (contentEl.firstChild && contentEl.firstChild.nodeType === 3) {
+      newRange.setStart(contentEl.firstChild, 0);
+    } else {
+      newRange.setStart(contentEl, 0);
+    }
     newRange.collapse(true);
     if (sel) {
       sel.removeAllRanges();

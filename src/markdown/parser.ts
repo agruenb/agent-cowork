@@ -533,7 +533,8 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false, lang?: '
           if (item.children && item.children.length > 0) {
             childHtml = blocksToHtml(item.children, true, effectiveLang);
           }
-          return `<li class="task-item${checkedClass}" data-checked="${item.checked ? 'true' : 'false'}"><input type="checkbox" class="task-checkbox" ${checkedAttr} contenteditable="false"><span class="task-content">${parseInlineMarkdown(item.text)}</span>${childHtml}</li>`;
+          const inlineHtml = item.text && item.text.trim() ? parseInlineMarkdown(item.text) : '<br>';
+          return `<li class="task-item${checkedClass}" data-checked="${item.checked ? 'true' : 'false'}"><input type="checkbox" class="task-checkbox" ${checkedAttr} contenteditable="false"><span class="task-content">${inlineHtml}</span>${childHtml}</li>`;
         });
         htmlParts.push(`<ul class="${blockClass}" data-block-type="task_list">${itemHtmls.join('')}</ul>`);
         break;
@@ -546,7 +547,8 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false, lang?: '
           if (item.children && item.children.length > 0) {
             childHtml = blocksToHtml(item.children, true, effectiveLang);
           }
-          return `<li class="list-item">${parseInlineMarkdown(item.text)}${childHtml}</li>`;
+          const inlineHtml = item.text && item.text.trim() ? parseInlineMarkdown(item.text) : '<br>';
+          return `<li class="list-item">${inlineHtml}${childHtml}</li>`;
         });
         htmlParts.push(`<ul class="${blockClass}" data-block-type="unordered_list">${itemHtmls.join('')}</ul>`);
         break;
@@ -559,7 +561,8 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false, lang?: '
           if (item.children && item.children.length > 0) {
             childHtml = blocksToHtml(item.children, true, effectiveLang);
           }
-          return `<li class="list-item">${parseInlineMarkdown(item.text)}${childHtml}</li>`;
+          const inlineHtml = item.text && item.text.trim() ? parseInlineMarkdown(item.text) : '<br>';
+          return `<li class="list-item">${inlineHtml}${childHtml}</li>`;
         });
         htmlParts.push(`<ol class="${blockClass}" data-block-type="ordered_list">${itemHtmls.join('')}</ol>`);
         break;

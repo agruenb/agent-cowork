@@ -262,4 +262,58 @@ describe('User Interactions - List Item Click Caret Placement', () => {
     assert.strictEqual(sel.anchorNode, li.firstChild);
     assert.strictEqual(sel.anchorOffset, 15); // End of "Immediate caret"
   });
+
+  it('clicking an empty task list item places cursor inside task-content after checkbox, not before it', () => {
+    setContentFormatted('- [x] First item\n- [ ] ');
+    const lis = editor.querySelectorAll('li.task-item');
+    assert.strictEqual(lis.length, 2);
+    const emptyLi = lis[1];
+    const contentSpan = emptyLi.querySelector<HTMLElement>('.task-content')!;
+    assert.ok(contentSpan, 'Must have .task-content span');
+    assert.ok(contentSpan.querySelector('br'), 'Empty .task-content must contain <br>');
+
+    const event = new dom.window.MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 50,
+      clientY: 40,
+    });
+    Object.defineProperty(event, 'target', { value: emptyLi });
+
+    handleListItemClickOutsideText(event, editor);
+
+    const sel = window.getSelection()!;
+    // Cursor must NOT be at emptyLi offset 0 (in front of the checkbox)
+    assert.notStrictEqual(sel.anchorNode, emptyLi, 'Cursor must not be placed on li before checkbox');
+    assert.ok(
+      sel.anchorNode === contentSpan || contentSpan.contains(sel.anchorNode),
+      'Cursor must be inside .task-content'
+    );
+  });
+
+  it('clicking below canvas when last item is empty task list item places cursor inside task-content', () => {
+    setContentFormatted('- [x] First item\n- [ ] ');
+    const lis = editor.querySelectorAll('li.task-item');
+    const emptyLi = lis[1];
+    const contentSpan = emptyLi.querySelector<HTMLElement>('.task-content')!;
+    assert.ok(contentSpan);
+
+    const event = new dom.window.MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 100,
+      clientY: 200, // Below all blocks
+    });
+    Object.defineProperty(event, 'target', { value: editor });
+
+    handleListItemClickOutsideText(event, editor);
+
+    const sel = window.getSelection()!;
+    assert.notStrictEqual(sel.anchorNode, emptyLi, 'Cursor must not be placed on li before checkbox');
+    assert.ok(
+      sel.anchorNode === contentSpan || contentSpan.contains(sel.anchorNode),
+      'Cursor must be inside .task-content'
+    );
+  });
 });
+
