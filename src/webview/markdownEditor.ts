@@ -838,12 +838,44 @@ export function getCaretAtPoint(
   return null;
 }
 
+let isScrollbarDragging = false;
+let justFinishedScrollbarDrag = false;
+let scrollbarDragTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Detects whether a mouse event occurred on the vertical scrollbar of the viewport.
+ * Handles both classic scrollbars (where offsetWidth > clientWidth) and overlay scrollbars (e.g. macOS,
+ * where offsetWidth === clientWidth but scrollHeight > clientHeight and interaction is near the right edge).
+ */
+export function isMouseEventOnScrollbar(e: MouseEvent, viewport: HTMLElement | null): boolean {
+  if (!viewport) return false;
+  // If clicked an element inside the viewport rather than the viewport itself, it's not the viewport scrollbar
+  if (e.target !== viewport) return false;
+
+  const vRect = viewport.getBoundingClientRect();
+  const classicScrollbarWidth = viewport.offsetWidth - viewport.clientWidth;
+  if (classicScrollbarWidth > 0) {
+    return e.clientX >= vRect.left + viewport.clientWidth;
+  }
+
+  // On macOS overlay scrollbars: check if container is scrollable and click is near the right boundary (<= 20px)
+  if (viewport.scrollHeight > viewport.clientHeight) {
+    const rightEdge = vRect.right > 0 ? vRect.right : (vRect.left + viewport.clientWidth);
+    if (rightEdge > 0 && e.clientX >= rightEdge - 20) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /**
  * Places caret at the end of a line's text when the user clicks or starts dragging
  * in the empty line area to the right of the text (in list items, paragraphs, headings, blockquotes, etc.).
  * When the user drags, handles drag selection smoothly.
  */
 export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElement): boolean {
+  if (isScrollbarDragging) return false;
   if (e.button !== 0 || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return false;
 
   const target = e.target as HTMLElement | null;
@@ -862,21 +894,12 @@ export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElem
     return false;
   }
 
-  // Only adjust when selection is collapsed (or on mousedown)
-  if (e.type !== 'mousedown' && sel && !sel.isCollapsed) return false;
-
   const viewport = (doc.querySelector('.document-viewport') as HTMLElement | null) || null;
   const container = (doc.querySelector('.document-container') as HTMLElement | null) || null;
 
   // Don't interfere if user clicked the scrollbar in the viewport
-  if (viewport && target === viewport) {
-    const hasScrollbar = viewport.offsetWidth > viewport.clientWidth && viewport.clientWidth > 0;
-    if (hasScrollbar) {
-      const vRect = viewport.getBoundingClientRect();
-      if (e.clientX >= vRect.left + viewport.clientWidth) {
-        return false;
-      }
-    }
+  if (isMouseEventOnScrollbar(e, viewport)) {
+    return false;
   }
 
   const prevScrollTop = viewport ? viewport.scrollTop : null;
@@ -1678,6 +1701,7 @@ export function wireDragSelection(
   const onDocMouseDown = (e: MouseEvent) => {
     if (e.button !== 0) return;
     if (state.isRawMode) return;
+    if (isMouseEventOnScrollbar(e, viewport || null)) return;
     const targetNode = e.target as Node | null;
     const target = targetNode?.nodeType === 1 ? (targetNode as HTMLElement) : targetNode?.parentElement;
     if (!target) return;
@@ -1794,7 +1818,7 @@ export function wireDragSelection(
   };
 
   const onDocMouseMove = (e: MouseEvent) => {
-    if (!isEditorMouseDown || e.buttons !== 1) {
+    if (isScrollbarDragging || !isEditorMouseDown || e.buttons !== 1) {
       if (e.buttons !== 1) {
         isEditorMouseDown = false;
       }
@@ -2071,33 +2095,33 @@ export function initMarkdownEditor(): void {
   const viewport = (doc?.querySelector('.document-viewport') as HTMLElement | null) || null;
   const container = (doc?.querySelector('.document-container') as HTMLElement | null) || null;
 
-  // Preserve scroll position during clicks when viewport is scrolled
-  let lastScrollTop: number | null = null;
-  const onViewportScrollGuard = (e: MouseEvent) => {
-    if (!viewport) return;
-    const vRect = viewport.getBoundingClientRect();
-    if (e.clientX >= vRect.left + viewport.clientWidth) {
-      return; // Scrollbar interaction
-    }
-    lastScrollTop = viewport.scrollTop;
-  };
-
-  const onViewportScrollRestore = (e: MouseEvent) => {
-    if (!viewport || lastScrollTop === null) return;
-    const vRect = viewport.getBoundingClientRect();
-    if (e.clientX >= vRect.left + viewport.clientWidth) {
-      return; // Scrollbar interaction
-    }
-    if (viewport.scrollTop !== lastScrollTop) {
-      viewport.scrollTop = lastScrollTop;
+  // Track scrollbar dragging to prevent caret repositioning or selection changes while scrolling
+  const onViewportMouseDownCapture = (e: MouseEvent) => {
+    if (isMouseEventOnScrollbar(e, viewport)) {
+      isScrollbarDragging = true;
     }
   };
 
-  viewport?.addEventListener('mousedown', onViewportScrollGuard as EventListener, true);
-  viewport?.addEventListener('mouseup', onViewportScrollRestore as EventListener, true);
-  viewport?.addEventListener('click', onViewportScrollRestore as EventListener, true);
+  const onWindowMouseUpCapture = () => {
+    if (isScrollbarDragging) {
+      isScrollbarDragging = false;
+      justFinishedScrollbarDrag = true;
+      if (scrollbarDragTimer) clearTimeout(scrollbarDragTimer);
+      scrollbarDragTimer = setTimeout(() => {
+        justFinishedScrollbarDrag = false;
+      }, 100);
+    }
+  };
+
+  viewport?.addEventListener('mousedown', onViewportMouseDownCapture as EventListener, true);
+  const win = doc?.defaultView || (typeof window !== 'undefined' ? window : null);
+  win?.addEventListener('mouseup', onWindowMouseUpCapture as EventListener, true);
+  doc?.addEventListener('mouseup', onWindowMouseUpCapture as EventListener, true);
 
   const onViewportMouseDown = (e: Event) => {
+    if (isScrollbarDragging || isMouseEventOnScrollbar(e as MouseEvent, viewport)) {
+      return;
+    }
     if (!state.isRawMode && (e.target === viewport || e.target === container)) {
       handleLineClickOrDragOutsideText(e as MouseEvent, canvas);
     }
@@ -2106,6 +2130,9 @@ export function initMarkdownEditor(): void {
   container?.addEventListener('mousedown', onViewportMouseDown);
 
   const onViewportClick = (e: Event) => {
+    if (justFinishedScrollbarDrag || isMouseEventOnScrollbar(e as MouseEvent, viewport)) {
+      return;
+    }
     if (e.target === viewport || e.target === container) {
       if (state.isRawMode) {
         textarea.focus({ preventScroll: true });

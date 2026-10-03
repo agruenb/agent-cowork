@@ -10,6 +10,7 @@
   color: var(--text);
   cursor: text;
   padding-bottom: 60px;
+  overflow-anchor: none;
 }
 
 .editor-canvas:empty::before {

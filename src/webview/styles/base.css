@@ -59,6 +59,7 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  overflow-anchor: none;
   padding: 32px 64px max(240px, 35vh) 64px;
   box-sizing: border-box;
 }

@@ -5,6 +5,8 @@ import {
   handleLineClickOrDragOutsideText,
   getCaretPositionForCoordinates,
   wireDragSelection,
+  isMouseEventOnScrollbar,
+  initMarkdownEditor,
 } from '../src/webview/markdownEditor';
 
 describe('User Interactions - Drag Selection Behind Text Lines', () => {
@@ -851,6 +853,130 @@ describe('User Interactions - Drag Selection Behind Text Lines', () => {
       const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
       assert.strictEqual(handled, false);
       assert.strictEqual(viewport.scrollTop, 200);
+    });
+
+    it('clicking on macOS overlay scrollbar is ignored so scrolling works', () => {
+      setContentFormatted('Content text');
+      const viewport = document.querySelector('.document-viewport') as HTMLElement;
+      viewport.scrollTop = 200;
+
+      // Mock macOS overlay scrollbar: offsetWidth === clientWidth, but scrollHeight > clientHeight
+      Object.defineProperty(viewport, 'offsetWidth', { value: 800, configurable: true });
+      Object.defineProperty(viewport, 'clientWidth', { value: 800, configurable: true });
+      Object.defineProperty(viewport, 'scrollHeight', { value: 2000, configurable: true });
+      Object.defineProperty(viewport, 'clientHeight', { value: 600, configurable: true });
+      viewport.getBoundingClientRect = () =>
+        ({ left: 0, right: 800, top: 0, bottom: 600, width: 800, height: 600 } as DOMRect);
+
+      // Click at clientX = 790 (within 20px of rightEdge 800)
+      const mousedownEvent = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 790,
+        clientY: 300,
+        button: 0,
+      });
+      Object.defineProperty(mousedownEvent, 'target', { value: viewport });
+
+      const handled = handleLineClickOrDragOutsideText(mousedownEvent, editor);
+      assert.strictEqual(handled, false);
+      assert.strictEqual(viewport.scrollTop, 200);
+    });
+
+    it('isMouseEventOnScrollbar accurately detects classic and overlay scrollbars', () => {
+      const viewport = document.querySelector('.document-viewport') as HTMLElement;
+
+      // Case 1: Classic scrollbar
+      Object.defineProperty(viewport, 'offsetWidth', { value: 800, configurable: true });
+      Object.defineProperty(viewport, 'clientWidth', { value: 785, configurable: true });
+      viewport.getBoundingClientRect = () =>
+        ({ left: 0, right: 800, top: 0, bottom: 600, width: 800, height: 600 } as DOMRect);
+
+      const evInsideClassic = { clientX: 790, clientY: 200, target: viewport } as MouseEvent;
+      const evOutsideClassic = { clientX: 700, clientY: 200, target: viewport } as MouseEvent;
+      const evTargetChild = { clientX: 790, clientY: 200, target: editor } as MouseEvent;
+
+      assert.strictEqual(isMouseEventOnScrollbar(evInsideClassic, viewport), true);
+      assert.strictEqual(isMouseEventOnScrollbar(evOutsideClassic, viewport), false);
+      assert.strictEqual(isMouseEventOnScrollbar(evTargetChild, viewport), false);
+
+      // Case 2: macOS overlay scrollbar
+      Object.defineProperty(viewport, 'offsetWidth', { value: 800, configurable: true });
+      Object.defineProperty(viewport, 'clientWidth', { value: 800, configurable: true });
+      Object.defineProperty(viewport, 'scrollHeight', { value: 2000, configurable: true });
+      Object.defineProperty(viewport, 'clientHeight', { value: 600, configurable: true });
+
+      const evInsideOverlay = { clientX: 785, clientY: 200, target: viewport } as MouseEvent;
+      const evOutsideOverlay = { clientX: 750, clientY: 200, target: viewport } as MouseEvent;
+
+      assert.strictEqual(isMouseEventOnScrollbar(evInsideOverlay, viewport), true);
+      assert.strictEqual(isMouseEventOnScrollbar(evOutsideOverlay, viewport), false);
+
+      // Case 3: Not scrollable
+      Object.defineProperty(viewport, 'scrollHeight', { value: 500, configurable: true });
+      Object.defineProperty(viewport, 'clientHeight', { value: 600, configurable: true });
+      assert.strictEqual(isMouseEventOnScrollbar(evInsideOverlay, viewport), false);
+    });
+
+    it('dragging viewport scrollbar maintains scrolled position and does not jump back to cursor', () => {
+      setContentFormatted('Line 1\n\nLine 2\n\nLine 3');
+      initMarkdownEditor();
+
+      const viewport = document.querySelector('.document-viewport') as HTMLElement;
+      viewport.scrollTop = 0;
+
+      // Mock scrollable dimensions
+      Object.defineProperty(viewport, 'offsetWidth', { value: 800, configurable: true });
+      Object.defineProperty(viewport, 'clientWidth', { value: 785, configurable: true });
+      Object.defineProperty(viewport, 'scrollHeight', { value: 3000, configurable: true });
+      Object.defineProperty(viewport, 'clientHeight', { value: 600, configurable: true });
+      viewport.getBoundingClientRect = () =>
+        ({ left: 0, right: 800, top: 0, bottom: 600, width: 800, height: 600 } as DOMRect);
+
+      // Place cursor in first paragraph
+      const p = editor.querySelector('p.editor-block')!;
+      const sel = window.getSelection()!;
+      const range = document.createRange();
+      range.setStart(p.firstChild || p, 0);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+
+      // 1. Mousedown on the scrollbar (clientX = 790 >= 785)
+      const mousedownEv = new dom.window.MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 790,
+        clientY: 100,
+        button: 0,
+      });
+      viewport.dispatchEvent(mousedownEv);
+
+      // 2. Drag the scrollbar down: scrollTop changes to 800
+      viewport.scrollTop = 800;
+
+      // 3. Mouseup anywhere (even if mouse drifted into the content area, e.g. clientX = 500)
+      const mouseupEv = new dom.window.MouseEvent('mouseup', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 500,
+        clientY: 350,
+        button: 0,
+      });
+      window.dispatchEvent(mouseupEv);
+
+      // 4. Click event following the mouseup
+      const clickEv = new dom.window.MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 500,
+        clientY: 350,
+        button: 0,
+      });
+      viewport.dispatchEvent(clickEv);
+
+      // Verify that viewport.scrollTop did NOT jump back to 0 (where the cursor was)
+      assert.strictEqual(viewport.scrollTop, 800);
     });
   });
 
