@@ -383,7 +383,14 @@ export function wireToolbar(hooks: ToolbarHooks): void {
   document.querySelector('.toolbar')?.addEventListener('mousedown', (e) => {
     const target = e.target as HTMLElement;
     const btn = target.closest('button, .tb-btn');
-    if (btn && btn.id !== 'btn-toggle-raw' && btn.id !== 'btn-cowork' && btn.id !== 'btn-toggle-toolbar') {
+    if (
+      btn &&
+      btn.id !== 'btn-toggle-raw' &&
+      btn.id !== 'btn-cowork' &&
+      btn.id !== 'btn-toggle-toolbar' &&
+      btn.id !== 'btn-ai-accept' &&
+      btn.id !== 'btn-ai-reject'
+    ) {
       e.preventDefault();
     }
   });
@@ -405,6 +412,15 @@ export function wireToolbar(hooks: ToolbarHooks): void {
     } else {
       handleCodeButtonClick(canvas, () => insertCodeBlock(), () => emitCanvasEdit());
     }
+  });
+
+  // AI Edits Accept & Reject buttons
+  document.getElementById('btn-ai-accept')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'acceptAiEdits' });
+  });
+
+  document.getElementById('btn-ai-reject')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'rejectAiEdits' });
   });
 
   // Heading select

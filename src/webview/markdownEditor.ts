@@ -51,7 +51,12 @@ import {
   flushPendingEdit,
   getDocumentViewport,
   persistWebviewState,
+  getAiEditsPanel,
+  getAiStatAdd,
+  getAiStatDel,
+  getRawDiffContainer,
 } from './editorState';
+import { formatMarkdownDiff, formatRawDiff } from '../markdown/diffEngine';
 import { updateRawLineNumbers } from './rawLineNumbers';
 import {
   syncBlockLineAttributes,
@@ -160,6 +165,8 @@ export function setContentFormatted(markdown: string): boolean {
   state.isInitialized = true;
   persistWebviewState();
   if (canvas) {
+    canvas.setAttribute('contenteditable', 'true');
+    canvas.classList.remove('is-review-mode');
     canvas.innerHTML = html;
     syncBlockLineAttributes(canvas, markdown);
   }
@@ -169,6 +176,122 @@ export function setContentFormatted(markdown: string): boolean {
   if (canvas) wireCodeBlockCopyButtons(canvas);
   state.isCanvasDirty = false;
   return true;
+}
+
+/**
+ * Displays the inline diff inside the raw mode diff container, hiding the raw textarea and gutter.
+ */
+export function showRawDiffView(originalText: string, currentText: string): void {
+  const rawDiff = getRawDiffContainer();
+  const textarea = getRawTextarea();
+  const gutter = getRawGutter();
+  if (rawDiff) {
+    rawDiff.innerHTML = formatRawDiff(originalText, currentText);
+    rawDiff.style.display = 'flex';
+  }
+  if (textarea) textarea.style.display = 'none';
+  if (gutter) gutter.style.display = 'none';
+}
+
+/**
+ * Hides the raw mode diff container and restores the editable textarea and line numbers gutter.
+ */
+export function hideRawDiffView(): void {
+  const rawDiff = getRawDiffContainer();
+  if (rawDiff) {
+    rawDiff.style.display = 'none';
+    rawDiff.innerHTML = '';
+  }
+  const textarea = getRawTextarea();
+  const gutter = getRawGutter();
+  if (textarea) {
+    textarea.style.display = 'block';
+    textarea.value = state.currentMarkdown;
+    autoResizeRawTextarea();
+  }
+  if (gutter) {
+    gutter.style.display = 'block';
+    updateRawLineNumbers();
+  }
+}
+
+/**
+ * Renders visual diffs when changes are made by an AI Agent.
+ * Switches canvas to Safe Review Mode (view-only) and shows the toolbar AI edits panel.
+ */
+export function displayAiDiff(originalText: string, currentText: string): void {
+  const canvas = getEditorCanvas();
+  const panel = getAiEditsPanel();
+  const statAdd = getAiStatAdd();
+  const statDel = getAiStatDel();
+
+  const { html, stats } = formatMarkdownDiff(originalText, currentText);
+
+  if (!stats.hasChanges) {
+    clearAiDiff(currentText);
+    return;
+  }
+
+  state.isReviewMode = true;
+  state.aiOriginalText = originalText;
+  state.currentMarkdown = currentText;
+  state.isCanvasDirty = false;
+
+  if (panel) {
+    panel.style.display = 'flex';
+  }
+  if (statAdd) {
+    statAdd.textContent = `+${stats.additions}`;
+  }
+  if (statDel) {
+    statDel.textContent = `-${stats.deletions}`;
+  }
+
+  if (state.isRawMode) {
+    showRawDiffView(originalText, currentText);
+  } else if (canvas) {
+    canvas.setAttribute('contenteditable', 'false');
+    canvas.classList.add('is-review-mode');
+    canvas.innerHTML = html;
+    wireCodeBlockCopyButtons(canvas);
+  }
+}
+
+/**
+ * Clears active AI diffs, hides the toolbar panel, and restores full editable mode.
+ */
+export function clearAiDiff(cleanText?: string): void {
+  const canvas = getEditorCanvas();
+  const panel = getAiEditsPanel();
+
+  state.isReviewMode = false;
+  state.aiOriginalText = '';
+
+  if (panel) {
+    panel.style.display = 'none';
+  }
+
+  if (canvas) {
+    canvas.setAttribute('contenteditable', 'true');
+    canvas.classList.remove('is-review-mode');
+  }
+
+  hideRawDiffView();
+
+  if (cleanText !== undefined) {
+    state.currentMarkdown = cleanText;
+  }
+
+  if (state.isRawMode) {
+    const textarea = getRawTextarea();
+    if (textarea) {
+      textarea.value = state.currentMarkdown;
+      autoResizeRawTextarea();
+      updateRawLineNumbers();
+    }
+  } else {
+    setContentFormatted(state.currentMarkdown);
+  }
 }
 
 /**
@@ -185,6 +308,19 @@ export function toggleRawMode(): void {
   if (state.isRawMode) {
     // Switch to Raw Mode
     flushPendingEdit();
+    if (state.isReviewMode) {
+      state.isCanvasDirty = false;
+      if (canvas) canvas.style.display = 'none';
+      const wrapper = getRawWrapper();
+      if (wrapper) wrapper.style.display = 'flex';
+      showRawDiffView(state.aiOriginalText || '', state.currentMarkdown);
+      if (toggleBtn) {
+        toggleBtn.classList.add('is-active');
+        toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
+      }
+      return;
+    }
+
     if (state.isCanvasDirty) {
       const md = getMarkdownFromCanvas();
       if (md !== null) {
@@ -231,6 +367,19 @@ export function toggleRawMode(): void {
     }
   } else {
     // Switch to Formatted Mode
+    if (state.isReviewMode) {
+      hideRawDiffView();
+      const wrapper = getRawWrapper();
+      if (wrapper) wrapper.style.display = 'none';
+      if (canvas) canvas.style.display = 'block';
+      if (toggleBtn) {
+        toggleBtn.classList.remove('is-active');
+        toggleBtn.textContent = '</> Raw';
+      }
+      displayAiDiff(state.aiOriginalText || '', state.currentMarkdown);
+      return;
+    }
+
     const gutter = getRawGutter();
     // Capture visible line while Raw view is still visible
     const target = textarea && viewport
@@ -294,6 +443,16 @@ export function toggleRawMode(): void {
 export function handleRawKeyDown(e: KeyboardEvent): void {
   const textarea = getRawTextarea();
   if (!textarea) return;
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    console.log('Agent Cowork: Raw textarea received keydown for undo/redo (meta/ctrl+z):', {
+      key: e.key,
+      metaKey: e.metaKey,
+      ctrlKey: e.ctrlKey,
+      shiftKey: e.shiftKey,
+    });
+  }
+
   if (e.key === 'Tab') {
     e.preventDefault();
     const result = e.shiftKey
@@ -310,6 +469,15 @@ export function handleRawKeyDown(e: KeyboardEvent): void {
 export function handleCanvasKeyDown(e: KeyboardEvent): void {
   const canvas = getEditorCanvas();
   if (!canvas) return;
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    console.log('Agent Cowork: Canvas received keydown for undo/redo (meta/ctrl+z):', {
+      key: e.key,
+      metaKey: e.metaKey,
+      ctrlKey: e.ctrlKey,
+      shiftKey: e.shiftKey,
+    });
+  }
 
   const target = e.target as HTMLElement | null;
   const langInput = target?.closest<HTMLInputElement>('input.code-lang-input');
@@ -1312,6 +1480,22 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
       collapseBtn.setAttribute('aria-label', title);
     }
 
+    // AI Edits panel buttons
+    const btnAiAccept = document.getElementById('btn-ai-accept');
+    if (btnAiAccept) {
+      btnAiAccept.title = tWebview('KI-Änderungen übernehmen');
+      btnAiAccept.textContent = '✓ ' + tWebview('Übernehmen');
+    }
+    const btnAiReject = document.getElementById('btn-ai-reject');
+    if (btnAiReject) {
+      btnAiReject.title = tWebview('KI-Änderungen verwerfen');
+      btnAiReject.textContent = '✕ ' + tWebview('Verwerfen');
+    }
+    const aiStatsLabel = document.querySelector('#ai-edits-stats > span:first-child');
+    if (aiStatsLabel) {
+      aiStatsLabel.textContent = `🤖 ${tWebview('KI-Änderungen')}:`;
+    }
+
     // Error banner dismiss
     const dismissBtn = getErrorBannerDismiss();
     if (dismissBtn) {
@@ -1436,25 +1620,36 @@ export function handleWindowMessage(event: MessageEvent): void {
         state.activeLanguage = message.language;
         setWebviewLanguage(message.language);
       }
+      const fileChanged = Boolean(
+        message.filename && state.activeFilename && message.filename !== state.activeFilename
+      );
       if (message.filename) {
+        state.activeFilename = message.filename;
         applyFilenameTint(message.filename);
       }
       const normMsg = (message.text || '').replace(/\r\n/g, '\n');
       const normCurrent = (state.currentMarkdown || '').replace(/\r\n/g, '\n');
       const shouldSetContent =
         !state.isInitialized ||
+        fileChanged ||
         (!state.isCanvasDirty && !state.isInternalChange && normMsg !== normCurrent);
 
-      if (shouldSetContent) {
-        if (state.isRawMode && textarea) {
-          textarea.value = message.text || '';
-          state.currentMarkdown = message.text || '';
-          state.isInitialized = true;
-          persistWebviewState();
-          autoResizeRawTextarea();
-          updateRawLineNumbers();
-        } else {
-          setContentFormatted(message.text || '');
+      if (message.originalText && message.originalText !== message.text) {
+        displayAiDiff(message.originalText, message.text);
+      } else {
+        if (state.isReviewMode) {
+          clearAiDiff(message.text || '');
+        } else if (shouldSetContent) {
+          if (state.isRawMode && textarea) {
+            textarea.value = message.text || '';
+            state.currentMarkdown = message.text || '';
+            state.isInitialized = true;
+            persistWebviewState();
+            autoResizeRawTextarea();
+            updateRawLineNumbers();
+          } else {
+            setContentFormatted(message.text || '');
+          }
         }
       }
       state.isInitialized = true;
@@ -1480,8 +1675,9 @@ export function handleWindowMessage(event: MessageEvent): void {
       break;
     }
     case 'update': {
-      // Only update if not our own recent keystroke
-      if (!state.isInternalChange && message.text !== state.currentMarkdown) {
+      if (state.isReviewMode) {
+        clearAiDiff(message.text);
+      } else if (!state.isInternalChange && message.text !== state.currentMarkdown) {
         if (state.isRawMode && textarea) {
           textarea.value = message.text || '';
           state.currentMarkdown = message.text || '';
@@ -1493,6 +1689,16 @@ export function handleWindowMessage(event: MessageEvent): void {
           setContentFormatted(message.text || '');
         }
       }
+      break;
+    }
+    case 'aiDiff': {
+      if (typeof message.originalText === 'string' && typeof message.currentText === 'string') {
+        displayAiDiff(message.originalText, message.currentText);
+      }
+      break;
+    }
+    case 'clearAiDiff': {
+      clearAiDiff(message.text);
       break;
     }
     case 'focus': {
@@ -1870,31 +2076,54 @@ export function initMarkdownEditor(): void {
   try {
     const saved = vscode.getState() as Record<string, unknown> | undefined;
     if (saved && typeof saved.markdown === 'string') {
-      if (typeof saved.activeFilename === 'string') {
-        state.activeFilename = saved.activeFilename;
-        applyFilenameTint(saved.activeFilename);
-      }
-      if (saved.activeLanguage === 'en' || saved.activeLanguage === 'de') {
-        state.activeLanguage = saved.activeLanguage;
-        setWebviewLanguage(saved.activeLanguage);
-      }
-      if (saved.isRawMode === true && !state.isRawMode) {
-        state.isRawMode = true;
-        if (canvas) canvas.style.display = 'none';
-        const wrapper = getRawWrapper();
-        if (wrapper) wrapper.style.display = 'flex';
-        const gutter = getRawGutter();
-        if (gutter) gutter.style.display = 'block';
-        if (textarea) textarea.style.display = 'block';
-        const toggleBtn = getRawToggleBtn();
-        if (toggleBtn) {
-          toggleBtn.classList.add('is-active');
-          toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
+      let fileMatches = true;
+      try {
+        const dataEl = document.getElementById('agent-cowork-init-data');
+        if (dataEl && dataEl.textContent) {
+          const initData = JSON.parse(dataEl.textContent);
+          if (initData.filename && saved.activeFilename && initData.filename !== saved.activeFilename) {
+            fileMatches = false;
+          }
         }
+      } catch {
+        // ignore
       }
-      setContentFormatted(saved.markdown);
-      state.isInitialized = true;
-      restored = true;
+
+      if (fileMatches) {
+        if (typeof saved.activeFilename === 'string') {
+          state.activeFilename = saved.activeFilename;
+          applyFilenameTint(saved.activeFilename);
+        }
+        if (saved.activeLanguage === 'en' || saved.activeLanguage === 'de') {
+          state.activeLanguage = saved.activeLanguage;
+          setWebviewLanguage(saved.activeLanguage);
+        }
+        if (saved.isRawMode === true && !state.isRawMode) {
+          state.isRawMode = true;
+          if (canvas) canvas.style.display = 'none';
+          const wrapper = getRawWrapper();
+          if (wrapper) wrapper.style.display = 'flex';
+          const gutter = getRawGutter();
+          if (gutter) gutter.style.display = 'block';
+          if (textarea) textarea.style.display = 'block';
+          const toggleBtn = getRawToggleBtn();
+          if (toggleBtn) {
+            toggleBtn.classList.add('is-active');
+            toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
+          }
+        }
+        if (
+          saved.isReviewMode === true &&
+          typeof saved.aiOriginalText === 'string' &&
+          saved.aiOriginalText !== saved.markdown
+        ) {
+          displayAiDiff(saved.aiOriginalText, saved.markdown);
+        } else {
+          setContentFormatted(saved.markdown);
+        }
+        state.isInitialized = true;
+        restored = true;
+      }
     }
   } catch (err) {
     console.warn('Agent Cowork: Failed to restore state from vscode.getState():', err);
@@ -1918,7 +2147,11 @@ export function initMarkdownEditor(): void {
           applyFilenameTint(initData.filename);
         }
         if (typeof initData.text === 'string') {
-          setContentFormatted(initData.text);
+          if (typeof initData.originalText === 'string' && initData.originalText !== initData.text) {
+            displayAiDiff(initData.originalText, initData.text);
+          } else {
+            setContentFormatted(initData.text);
+          }
           state.isInitialized = true;
           restored = true;
           persistWebviewState();
@@ -2019,6 +2252,21 @@ export function initMarkdownEditor(): void {
   canvas.addEventListener('auxclick', (e: MouseEvent) => {
     handleLinkClick(e);
   });
+
+  const handleBeforeInput = (e: InputEvent) => {
+    if (e.inputType === 'historyUndo') {
+      e.preventDefault();
+      console.log('Agent Cowork: Intercepted beforeinput historyUndo, dispatching to VS Code document undo');
+      vscode.postMessage({ type: 'undo' });
+    } else if (e.inputType === 'historyRedo') {
+      e.preventDefault();
+      console.log('Agent Cowork: Intercepted beforeinput historyRedo, dispatching to VS Code document redo');
+      vscode.postMessage({ type: 'redo' });
+    }
+  };
+
+  canvas.addEventListener('beforeinput', handleBeforeInput as EventListener);
+  textarea.addEventListener('beforeinput', handleBeforeInput as EventListener);
 
   canvas.addEventListener('paste', (e: ClipboardEvent) => {
     handleCanvasPaste(e, canvas);

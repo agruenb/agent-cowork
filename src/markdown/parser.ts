@@ -58,6 +58,35 @@ export function parseInlineMarkdown(text: string): string {
   return result;
 }
 
+/**
+ * Checks whether a markdown line is a table delimiter row (e.g. |---|---| or ---|---).
+ */
+export function isTableDelimiterRow(line: string): boolean {
+  if (!line) return false;
+  const trimmed = line.trim();
+  if (!trimmed.includes('-')) return false;
+  const stripped = trimmed.replace(/^\|/, '').replace(/\|$/, '').trim();
+  if (!stripped) return false;
+  const cells = stripped.split('|');
+  return (
+    cells.length >= 1 &&
+    cells.every((c) => {
+      const t = c.trim();
+      return t.length > 0 && /^:?-+:?$/.test(t);
+    })
+  );
+}
+
+/**
+ * Splits a markdown table row into individual cell strings.
+ * Respects escaped pipes (\|).
+ */
+export function parseTableRow(line: string): string[] {
+  const trimmed = line.trim();
+  const stripped = trimmed.replace(/^\|/, '').replace(/\|$/, '');
+  return stripped.split(/(?<!\\)\|/).map((c) => c.replace(/\\\|/g, '|').trim());
+}
+
 export interface MarkdownListItem {
   text: string;
   checked?: boolean;
@@ -225,23 +254,25 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
       continue;
     }
 
-    // Table: starts with | and contains |
-    if (trimmed.startsWith('|') && trimmed.includes('|') && i + 1 < lines.length && lines[i + 1].trim().startsWith('|') && /\|[\s-:]+\|/.test(lines[i + 1].trim())) {
+    // Table: starts with pipe-separated cells and followed by delimiter row
+    if (
+      trimmed.includes('|') &&
+      i + 1 < lines.length &&
+      isTableDelimiterRow(lines[i + 1])
+    ) {
       const startLine = i + 1;
-      const parseRow = (r: string) =>
-        r
-          .trim()
-          .replace(/^\|/, '')
-          .replace(/\|$/, '')
-          .split('|')
-          .map((c) => c.trim());
-
-      const headers = parseRow(lines[i]);
+      const headers = parseTableRow(lines[i]);
       i += 2; // skip header and delimiter line
       const rows: string[][] = [];
 
-      while (i < lines.length && lines[i].trim().startsWith('|')) {
-        rows.push(parseRow(lines[i]));
+      while (
+        i < lines.length &&
+        lines[i].includes('|') &&
+        !isTableDelimiterRow(lines[i]) &&
+        !lines[i].trim().startsWith('```') &&
+        !lines[i].trim().startsWith('#')
+      ) {
+        rows.push(parseTableRow(lines[i]));
         i++;
       }
 

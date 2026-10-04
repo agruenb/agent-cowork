@@ -86,6 +86,11 @@ const enTranslations: Record<string, string> = {
   'Geöffnet': 'Open',
   'Überspringen': 'Skip',
   'Löschen': 'Delete',
+  'KI-Änderungen': 'AI Edits',
+  'KI-Änderungen übernehmen': 'Accept AI changes',
+  'KI-Änderungen verwerfen': 'Reject AI changes',
+  'Übernehmen': 'Accept',
+  'Verwerfen': 'Reject',
   'Fehler beim Umbenennen: {0}': 'Error renaming: {0}',
   'Keine Datei oder Ordner zum Duplizieren ausgewählt.':
     'No file or folder selected for duplicating.',

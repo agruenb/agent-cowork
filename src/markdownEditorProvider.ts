@@ -1,8 +1,149 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { execFile } from 'child_process';
 import { hasVisibleContent } from './utils/markdownContent';
 import { t, getEffectiveLanguage } from './i18n';
 import { openCoworkTreeView } from './coworkViewManager';
+
+/**
+ * Checks whether a document is a chat-editing snapshot document for the target document.
+ */
+export function isChatSnapshotDocumentFor(doc: vscode.TextDocument, target: vscode.TextDocument): boolean {
+  const scheme = doc.uri.scheme;
+  const isChatScheme =
+    scheme === 'chat-editing-snapshot-text-model' ||
+    scheme === 'chatEditing' ||
+    scheme === 'chat-editing-text-model';
+  if (!isChatScheme) {
+    return false;
+  }
+  const docPath = doc.uri.fsPath || doc.uri.path;
+  const targetPath = target.uri.fsPath || target.uri.path;
+  if (!docPath || !targetPath) {
+    return false;
+  }
+  return doc.uri.path === target.uri.path || doc.uri.fsPath === target.uri.fsPath;
+}
+
+/**
+ * Retrieves the Git HEAD content for a document URI if tracked in Git.
+ */
+export function getGitHeadContent(uri: vscode.Uri): Promise<string | null> {
+  return new Promise((resolve) => {
+    const fsPath = uri.fsPath;
+    const dir = path.dirname(fsPath);
+
+    execFile(
+      'git',
+      ['rev-parse', '--show-toplevel'],
+      { cwd: dir, timeout: 2000 },
+      (err, toplevel) => {
+        if (err || !toplevel) {
+          resolve(null);
+          return;
+        }
+        const gitRoot = toplevel.trim();
+        const relPath = path.relative(gitRoot, fsPath);
+        const gitRelPath = relPath.split(path.sep).join('/');
+
+        execFile(
+          'git',
+          ['show', `HEAD:${gitRelPath}`],
+          { cwd: gitRoot, timeout: 3000, maxBuffer: 10 * 1024 * 1024 },
+          (err2, stdout) => {
+            if (err2 || stdout === undefined) {
+              resolve(null);
+              return;
+            }
+            resolve(stdout);
+          }
+        );
+      }
+    );
+  });
+}
+
+/**
+ * Helper to extract an epoch counter from a snapshot URI query if present.
+ */
+export function getSnapshotEpoch(doc: vscode.TextDocument): number | null {
+  try {
+    if (doc.uri && (doc.uri as any).query) {
+      const q = typeof (doc.uri as any).query === 'string'
+        ? JSON.parse((doc.uri as any).query)
+        : (doc.uri as any).query;
+      if (typeof q?.undoStop === 'string') {
+        const match = q.undoStop.match(/__epoch_(\d+)/);
+        if (match) {
+          return parseInt(match[1], 10);
+        }
+      }
+      if (typeof q?.epoch === 'number') {
+        return q.epoch;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+/**
+ * Resolves the baseline pre-edit content for a document from active chat editing snapshots.
+ * Returns the snapshot content if different from the current document text, or null.
+ */
+export async function getOriginalContent(document: vscode.TextDocument): Promise<string | null> {
+  const normDoc = document.getText().replace(/\r\n/g, '\n');
+  const docs = vscode.workspace.textDocuments || [];
+
+  // 1. Check for active chat editing session model (scheme: 'chat-editing-text-model')
+  // This is VS Code's ChatEditingModifiedDocumentEntry originalModel.
+  const sessionDoc = docs.find(
+    (doc) => doc.uri.scheme === 'chat-editing-text-model' && isChatSnapshotDocumentFor(doc, document)
+  );
+
+  if (sessionDoc) {
+    const normSession = sessionDoc.getText().replace(/\r\n/g, '\n');
+    if (normSession === normDoc) {
+      // The active chat editing session accepted the edits (keep() updated originalModel to currentText)
+      return null;
+    }
+    // Active session with pending edits: return the session's baseline text
+    return sessionDoc.getText();
+  }
+
+  // 2. Check for other chat snapshot documents (e.g. 'chat-editing-snapshot-text-model' or 'chatEditing')
+  const snapshotDocs = docs.filter(
+    (doc) => isChatSnapshotDocumentFor(doc, document)
+  );
+
+  if (snapshotDocs.length === 0) {
+    return null;
+  }
+
+  // Find snapshots whose content differs from current document text
+  const differingSnapshots = snapshotDocs.filter(
+    (doc) => doc.getText().replace(/\r\n/g, '\n') !== normDoc
+  );
+
+  if (differingSnapshots.length === 0) {
+    return null;
+  }
+
+  // If there are multiple differing snapshots (e.g. multi-turn checkpoints),
+  // pick the OLDEST snapshot (the initial session baseline).
+  let oldestDoc = differingSnapshots[0];
+  let minEpoch = getSnapshotEpoch(oldestDoc);
+
+  for (let i = 1; i < differingSnapshots.length; i++) {
+    const doc = differingSnapshots[i];
+    const epoch = getSnapshotEpoch(doc);
+    if (epoch !== null && (minEpoch === null || epoch < minEpoch)) {
+      minEpoch = epoch;
+      oldestDoc = doc;
+    }
+  }
+
+  return oldestDoc.getText();
+}
 
 /**
  * Provider for the built-in formatted and editable Markdown editor in Agent Cowork.
@@ -83,29 +224,54 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // Register panel for dynamic language configuration updates
     MarkdownEditorProvider.activePanels.add(webviewPanel);
 
-    // Load initial HTML content with document content pre-embedded
-    webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview, document);
+    const initialCurrentText = document.getText();
+    const initialSnapshot = await getOriginalContent(document);
+    let baseline = initialSnapshot ?? initialCurrentText;
+    let lastSyncedText = initialCurrentText;
+    let reviewActive = Boolean(initialSnapshot && initialSnapshot !== initialCurrentText);
 
-    let isInternalEdit = false;
+    // Load initial HTML content with document content
+    webviewPanel.webview.html = this.getHtmlForWebview(
+      webviewPanel.webview,
+      document
+    );
+
     let initFallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Send document text and effective language to the editor webview.
     // Called whenever the webview signals it is ready (including after being
     // recreated when the panel is moved to a new VS Code window).
-    const sendInitialContent = () => {
+    const sendInitialContent = async () => {
       // Cancel any pending fallback timer to avoid double-sends
       if (initFallbackTimer) {
         clearTimeout(initFallbackTimer);
         initFallbackTimer = null;
       }
       const filename = document.uri.path.split('/').pop() || '';
+      const docCurrentText = document.getText();
+
       webviewPanel.webview.postMessage({
         type: 'init',
-        text: document.getText(),
+        text: docCurrentText,
         language: getEffectiveLanguage(),
         filename,
         treeViewVisible: MarkdownEditorProvider.isTreeViewVisible(),
       });
+
+      const normDoc = docCurrentText.replace(/\r\n/g, '\n');
+      const normBaseline = baseline.replace(/\r\n/g, '\n');
+      if (reviewActive && normBaseline !== normDoc) {
+        webviewPanel.webview.postMessage({
+          type: 'aiDiff',
+          originalText: baseline,
+          currentText: docCurrentText,
+        });
+      } else {
+        webviewPanel.webview.postMessage({
+          type: 'clearAiDiff',
+          text: docCurrentText,
+        });
+      }
     };
 
     // Wait for the webview to signal it is ready before sending initial content.
@@ -118,20 +284,96 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       sendInitialContent();
     }, 1500);
 
+    const reevaluateDiff = async () => {
+      if (!reviewActive) {
+        return;
+      }
+      const snapshotText = await getOriginalContent(document);
+      const docCurrentText = document.getText();
+      const normDoc = docCurrentText.replace(/\r\n/g, '\n');
+      const normSnap = snapshotText ? snapshotText.replace(/\r\n/g, '\n') : null;
+      if (!normSnap || normSnap === normDoc) {
+        reviewActive = false;
+        baseline = docCurrentText;
+        webviewPanel.webview.postMessage({
+          type: 'clearAiDiff',
+          text: docCurrentText,
+        });
+      }
+    };
+
     // Listen to changes in the underlying VS Code TextDocument
     // (e.g. background edits from AI Agents, git pulls, or text editor saves)
-    const changeDocumentSubscription = vscode.workspace.onDidChangeTextDocument((e) => {
-      if (e.document.uri.toString() === document.uri.toString()) {
-        if (e.contentChanges.length === 0) {
-          return;
+    const changeDocumentSubscription = vscode.workspace.onDidChangeTextDocument(async (e) => {
+      if (isChatSnapshotDocumentFor(e.document, document)) {
+        await reevaluateDiff();
+        return;
+      }
+
+      if (e.document.uri.toString() !== document.uri.toString()) {
+        return;
+      }
+      if (e.contentChanges.length === 0) {
+        return;
+      }
+
+      const text = document.getText();
+      if (text === lastSyncedText) {
+        return;
+      }
+
+      const isUndoRedo =
+        e.reason === vscode.TextDocumentChangeReason.Undo ||
+        e.reason === vscode.TextDocumentChangeReason.Redo;
+
+      if (reviewActive) {
+        const normDoc = text.replace(/\r\n/g, '\n');
+        const normBaseline = baseline.replace(/\r\n/g, '\n');
+        if (normDoc === normBaseline) {
+          reviewActive = false;
+          webviewPanel.webview.postMessage({
+            type: 'clearAiDiff',
+            text,
+          });
+        } else {
+          webviewPanel.webview.postMessage({
+            type: 'aiDiff',
+            originalText: baseline,
+            currentText: text,
+          });
         }
-        if (isInternalEdit) {
-          return;
+      } else {
+        const chatSnapshot = !isUndoRedo ? await getOriginalContent(document) : null;
+        if (!isUndoRedo && chatSnapshot !== null) {
+          reviewActive = true;
+          baseline = chatSnapshot;
+          webviewPanel.webview.postMessage({
+            type: 'aiDiff',
+            originalText: baseline,
+            currentText: text,
+          });
+        } else {
+          baseline = text;
+          webviewPanel.webview.postMessage({
+            type: 'update',
+            text,
+          });
         }
-        webviewPanel.webview.postMessage({
-          type: 'update',
-          text: document.getText(),
-        });
+      }
+      lastSyncedText = text;
+    });
+
+    const closeDocumentSubscription = vscode.workspace.onDidCloseTextDocument(async (closedDoc) => {
+      if (isChatSnapshotDocumentFor(closedDoc, document)) {
+        await reevaluateDiff();
+      }
+    });
+
+    const saveDocumentSubscription = vscode.workspace.onDidSaveTextDocument(async (savedDoc) => {
+      if (savedDoc.uri.toString() === document.uri.toString()) {
+        if (reviewActive) {
+          await reevaluateDiff();
+        }
       }
     });
 
@@ -178,7 +420,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             return;
           }
 
-          isInternalEdit = true;
+          lastSyncedText = normalizedIncoming;
+          if (!reviewActive) {
+            baseline = normalizedIncoming;
+          }
+
           try {
             const edit = new vscode.WorkspaceEdit();
             const fullRange = new vscode.Range(
@@ -217,11 +463,17 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 }
               }, 1000);
             }
-          } finally {
-            setTimeout(() => {
-              isInternalEdit = false;
-            }, 60);
+          } catch (err) {
+            console.error('Agent Cowork: Failed to apply edit:', err);
           }
+          break;
+        }
+        case 'undo': {
+          await vscode.commands.executeCommand('undo');
+          break;
+        }
+        case 'redo': {
+          await vscode.commands.executeCommand('redo');
           break;
         }
         case 'parseError': {
@@ -278,6 +530,100 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           });
           break;
         }
+        case 'acceptAiEdits': {
+          const currentText = document.getText();
+          baseline = currentText;
+          lastSyncedText = currentText;
+          reviewActive = false;
+
+          const availableCommands = new Set(await vscode.commands.getCommands(true));
+          const candidateCommands = [
+            'chatEditing.acceptFile',
+            'interactiveEditor.accept',
+            'antigravity.agent.accept',
+            'antigravity.chat.accept',
+            'chatEditing.acceptAllFiles',
+          ];
+          for (const cmd of availableCommands) {
+            if (/chatEditing\.accept/i.test(cmd) && !candidateCommands.includes(cmd)) {
+              candidateCommands.push(cmd);
+            }
+          }
+
+          for (const cmd of candidateCommands) {
+            if (availableCommands.has(cmd)) {
+              try {
+                await vscode.commands.executeCommand(cmd, document.uri);
+                console.log(`Agent Cowork: Executed chat accept command '${cmd}'`);
+                break;
+              } catch (err) {
+                console.warn(`Agent Cowork: Error executing '${cmd}':`, err);
+              }
+            }
+          }
+
+          const config = vscode.workspace.getConfiguration('agentCowork');
+          if (config.get<boolean>('autoSave', true) && document.isDirty) {
+            await document.save();
+          }
+
+          webviewPanel.webview.postMessage({
+            type: 'clearAiDiff',
+            text: currentText,
+          });
+          break;
+        }
+        case 'rejectAiEdits': {
+          const targetRevertText = baseline;
+          reviewActive = false;
+
+          const availableCommands = new Set(await vscode.commands.getCommands(true));
+          const candidateCommands = [
+            'chatEditing.discardFile',
+            'interactiveEditor.discard',
+            'antigravity.agent.discard',
+            'antigravity.chat.discard',
+            'chatEditing.discardAllFiles',
+          ];
+          for (const cmd of availableCommands) {
+            if (/chatEditing\.discard/i.test(cmd) && !candidateCommands.includes(cmd)) {
+              candidateCommands.push(cmd);
+            }
+          }
+
+          for (const cmd of candidateCommands) {
+            if (availableCommands.has(cmd)) {
+              try {
+                await vscode.commands.executeCommand(cmd, document.uri);
+                console.log(`Agent Cowork: Executed chat discard command '${cmd}'`);
+                break;
+              } catch (err) {
+                console.warn(`Agent Cowork: Error executing '${cmd}':`, err);
+              }
+            }
+          }
+
+          if (document.getText() !== targetRevertText) {
+            lastSyncedText = targetRevertText;
+            const edit = new vscode.WorkspaceEdit();
+            const fullRange = new vscode.Range(
+              0,
+              0,
+              document.lineCount,
+              document.lineCount > 0 ? document.lineAt(document.lineCount - 1).range.end.character : 0
+            );
+            edit.replace(document.uri, fullRange, targetRevertText);
+            await vscode.workspace.applyEdit(edit);
+          } else {
+            lastSyncedText = targetRevertText;
+          }
+
+          webviewPanel.webview.postMessage({
+            type: 'clearAiDiff',
+            text: targetRevertText,
+          });
+          break;
+        }
       }
     });
 
@@ -290,10 +636,15 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         clearTimeout(autoSaveTimer);
       }
       changeDocumentSubscription.dispose();
+      closeDocumentSubscription.dispose();
+      saveDocumentSubscription.dispose();
     });
   }
 
-  private getHtmlForWebview(webview: vscode.Webview, document?: vscode.TextDocument): string {
+  private getHtmlForWebview(
+    webview: vscode.Webview,
+    document?: vscode.TextDocument
+  ): string {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'markdownEditor.js')
     );
@@ -394,6 +745,17 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
       <div class="toolbar-spacer"></div>
 
+      <!-- AI Edits Panel (shown when AI makes changes) -->
+      <div id="ai-edits-panel" class="ai-edits-panel" style="display: none;">
+        <span id="ai-edits-stats" class="ai-edits-stats">
+          <span>🤖 ${t('KI-Änderungen')}:</span>
+          <span id="ai-stat-add" class="ai-stat-add">+0</span>
+          <span id="ai-stat-del" class="ai-stat-del">-0</span>
+        </span>
+        <button id="btn-ai-accept" class="btn-ai-action btn-ai-accept" tabindex="-1" title="${t('KI-Änderungen übernehmen')}">✓ ${t('Übernehmen')}</button>
+        <button id="btn-ai-reject" class="btn-ai-action btn-ai-reject" tabindex="-1" title="${t('KI-Änderungen verwerfen')}">✕ ${t('Verwerfen')}</button>
+      </div>
+
       <!-- Discreet / un-prominent Raw Markdown source toggle -->
       <button id="btn-toggle-raw" class="raw-toggle-btn" tabindex="-1" title="${t('Markdown-Quelltext anzeigen oder bearbeiten')}">&lt;/&gt; Raw</button>
 
@@ -433,6 +795,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           <div id="raw-gutter" class="raw-gutter" aria-hidden="true"></div>
           <textarea id="raw-textarea" class="raw-textarea" spellcheck="false" placeholder="${t('Markdown eingeben...')}"></textarea>
           <div id="raw-mirror" class="raw-mirror" aria-hidden="true"></div>
+          <div id="raw-diff" class="raw-diff-container" style="display: none;"></div>
         </div>
       </div>
     </div>

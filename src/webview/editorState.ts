@@ -36,6 +36,10 @@ export const rawMirror = (typeof document !== 'undefined'
   ? document.getElementById('raw-mirror')
   : null) as HTMLElement | null;
 
+export const rawDiffContainer = (typeof document !== 'undefined'
+  ? document.getElementById('raw-diff')
+  : null) as HTMLElement | null;
+
 export const rawToggleBtn = (typeof document !== 'undefined'
   ? document.getElementById('btn-toggle-raw')
   : null) as HTMLButtonElement;
@@ -86,6 +90,10 @@ export function getRawGutter(): HTMLElement | null {
 
 export function getRawMirror(): HTMLElement | null {
   return (rawMirror?.isConnected ? rawMirror : (typeof document !== 'undefined' ? document.getElementById('raw-mirror') : null)) as HTMLElement | null;
+}
+
+export function getRawDiffContainer(): HTMLElement | null {
+  return (rawDiffContainer?.isConnected ? rawDiffContainer : (typeof document !== 'undefined' ? document.getElementById('raw-diff') : null)) as HTMLElement | null;
 }
 
 export function getRawToggleBtn(): HTMLButtonElement {
@@ -145,6 +153,26 @@ export function autoResizeRawTextarea(): void {
   }
 }
 
+export function getAiEditsPanel(): HTMLElement | null {
+  return typeof document !== 'undefined' ? document.getElementById('ai-edits-panel') : null;
+}
+
+export function getAiStatAdd(): HTMLElement | null {
+  return typeof document !== 'undefined' ? document.getElementById('ai-stat-add') : null;
+}
+
+export function getAiStatDel(): HTMLElement | null {
+  return typeof document !== 'undefined' ? document.getElementById('ai-stat-del') : null;
+}
+
+export function getBtnAiAccept(): HTMLButtonElement | null {
+  return typeof document !== 'undefined' ? (document.getElementById('btn-ai-accept') as HTMLButtonElement) : null;
+}
+
+export function getBtnAiReject(): HTMLButtonElement | null {
+  return typeof document !== 'undefined' ? (document.getElementById('btn-ai-reject') as HTMLButtonElement) : null;
+}
+
 // Editor State
 export interface EditorState {
   isRawMode: boolean;
@@ -156,6 +184,8 @@ export interface EditorState {
   isInitialized: boolean;
   activeFilename?: string;
   activeLanguage?: string;
+  isReviewMode?: boolean;
+  aiOriginalText?: string;
 }
 
 export const state: EditorState = {
@@ -166,6 +196,8 @@ export const state: EditorState = {
   hasParseError: false,
   isCanvasDirty: false,
   isInitialized: false,
+  isReviewMode: false,
+  aiOriginalText: '',
 };
 
 /**
@@ -182,6 +214,8 @@ export function persistWebviewState(): void {
       isRawMode: state.isRawMode,
       activeFilename: state.activeFilename,
       activeLanguage: state.activeLanguage,
+      isReviewMode: state.isReviewMode,
+      aiOriginalText: state.aiOriginalText,
     });
   } catch {
     // Ignore in environments where getState/setState is not supported
@@ -249,7 +283,7 @@ export function hasVisibleContent(markdown: string): boolean {
  * Returns null if serialization failed or produced an anomaly.
  */
 export function getMarkdownFromCanvas(): string | null {
-  if (state.hasParseError) {
+  if (state.hasParseError || state.isReviewMode) {
     return null;
   }
   const canvas = getEditorCanvas();
@@ -340,8 +374,7 @@ export function flushPendingEdit(): void {
  * Serializes the canvas and emits an edit if serialization succeeded.
  */
 export function emitCanvasEdit(): void {
-  if (!state.isInitialized) {
-    console.warn('Agent Cowork: Suppressing canvas edit before editor is initialized.');
+  if (!state.isInitialized || state.isReviewMode) {
     return;
   }
   state.isCanvasDirty = true;

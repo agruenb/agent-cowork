@@ -20,6 +20,13 @@ export interface VscodeMockState {
   warningMessages?: { msg: string; items: any[] }[];
   warningAnswer?: any;
   errorMessages?: string[];
+  textDocuments?: any[];
+  appliedEdits?: any[];
+  availableCommands?: string[];
+  commandHandlers?: Record<string, (...args: any[]) => any>;
+  documentChangeListeners?: ((e: any) => any)[];
+  documentCloseListeners?: ((doc: any) => any)[];
+  documentSaveListeners?: ((doc: any) => any)[];
 }
 
 export const vscodeMockState: VscodeMockState = {
@@ -41,6 +48,13 @@ export const vscodeMockState: VscodeMockState = {
   warningMessages: [],
   warningAnswer: undefined,
   errorMessages: [],
+  textDocuments: [],
+  appliedEdits: [],
+  availableCommands: [],
+  commandHandlers: {},
+  documentChangeListeners: [],
+  documentCloseListeners: [],
+  documentSaveListeners: [],
 };
 
 export function resetVscodeMock(): void {
@@ -62,6 +76,13 @@ export function resetVscodeMock(): void {
   vscodeMockState.warningMessages = [];
   vscodeMockState.warningAnswer = undefined;
   vscodeMockState.errorMessages = [];
+  vscodeMockState.textDocuments = [];
+  vscodeMockState.appliedEdits = [];
+  vscodeMockState.availableCommands = [];
+  vscodeMockState.commandHandlers = {};
+  vscodeMockState.documentChangeListeners = [];
+  vscodeMockState.documentCloseListeners = [];
+  vscodeMockState.documentSaveListeners = [];
 }
 
 // Hook Module._resolveFilename and Module._load once
@@ -108,10 +129,28 @@ if (!(globalThis as any).__vscodeMockInstalled) {
     }
   }
 
+  let mockVscodeInstance: any = null;
   const origLoad = (Module as any)._load;
   (Module as any)._load = function (request: string, parent: any, isMain: boolean) {
     if (request === 'vscode') {
-      return {
+      if (mockVscodeInstance) {
+        return mockVscodeInstance;
+      }
+      mockVscodeInstance = {
+        EndOfLine: {
+          LF: 1,
+          CRLF: 2,
+        },
+        TextDocumentChangeReason: {
+          Undo: 1,
+          Redo: 2,
+        },
+        WorkspaceEdit: class {
+          public entries: { uri: any; range: any; newText: string }[] = [];
+          replace(uri: any, range: any, newText: string) {
+            this.entries.push({ uri, range, newText });
+          }
+        },
         Uri: MockUri,
         Range: class {
           constructor(
@@ -181,6 +220,9 @@ if (!(globalThis as any).__vscodeMockInstalled) {
           get workspaceFolders() {
             return vscodeMockState.workspaceFolders;
           },
+          get textDocuments() {
+            return vscodeMockState.textDocuments || [];
+          },
           getWorkspaceFolder: (uri: any) => {
             return vscodeMockState.workspaceFolders.find((f: any) => {
               const root = f.uri.fsPath.replace(/\\/g, '/');
@@ -189,6 +231,53 @@ if (!(globalThis as any).__vscodeMockInstalled) {
             });
           },
           onDidChangeWorkspaceFolders: () => ({ dispose: () => {} }),
+          onDidChangeTextDocument: (listener: (e: any) => any) => {
+            vscodeMockState.documentChangeListeners = vscodeMockState.documentChangeListeners || [];
+            vscodeMockState.documentChangeListeners.push(listener);
+            return {
+              dispose: () => {
+                const idx = vscodeMockState.documentChangeListeners?.indexOf(listener) ?? -1;
+                if (idx !== -1) vscodeMockState.documentChangeListeners?.splice(idx, 1);
+              },
+            };
+          },
+          onDidCloseTextDocument: (listener: (doc: any) => any) => {
+            vscodeMockState.documentCloseListeners = vscodeMockState.documentCloseListeners || [];
+            vscodeMockState.documentCloseListeners.push(listener);
+            return {
+              dispose: () => {
+                const idx = vscodeMockState.documentCloseListeners?.indexOf(listener) ?? -1;
+                if (idx !== -1) vscodeMockState.documentCloseListeners?.splice(idx, 1);
+              },
+            };
+          },
+          onDidSaveTextDocument: (listener: (doc: any) => any) => {
+            vscodeMockState.documentSaveListeners = vscodeMockState.documentSaveListeners || [];
+            vscodeMockState.documentSaveListeners.push(listener);
+            return {
+              dispose: () => {
+                const idx = vscodeMockState.documentSaveListeners?.indexOf(listener) ?? -1;
+                if (idx !== -1) vscodeMockState.documentSaveListeners?.splice(idx, 1);
+              },
+            };
+          },
+          applyEdit: async (edit: any) => {
+            vscodeMockState.appliedEdits = vscodeMockState.appliedEdits || [];
+            vscodeMockState.appliedEdits.push(edit);
+            if (edit && edit.entries) {
+              for (const entry of edit.entries) {
+                if (entry.uri && vscodeMockState.textDocuments) {
+                  const doc = vscodeMockState.textDocuments.find(
+                    (d: any) => d.uri && d.uri.toString() === entry.uri.toString()
+                  );
+                  if (doc && typeof doc._setText === 'function') {
+                    doc._setText(entry.newText);
+                  }
+                }
+              }
+            }
+            return true;
+          },
           getConfiguration: (section: string) => {
             if (section === 'agentCowork') {
               return {
@@ -358,6 +447,9 @@ if (!(globalThis as any).__vscodeMockInstalled) {
               },
             };
           },
+          registerCustomEditorProvider: (viewType: string, provider: any, options?: any) => {
+            return { dispose: () => {} };
+          },
           state: { focused: true },
         },
         StatusBarAlignment: {
@@ -369,10 +461,16 @@ if (!(globalThis as any).__vscodeMockInstalled) {
           Workspace: 2,
         },
         commands: {
+          getCommands: async (filter?: boolean) => {
+            return vscodeMockState.availableCommands || [];
+          },
           executeCommand: async (cmd: string, ...args: any[]) => {
             vscodeMockState.executedCommands.push({ command: cmd, args });
             if (cmd === 'setContext') {
               vscodeMockState.contexts[args[0]] = args[1];
+            }
+            if (vscodeMockState.commandHandlers && typeof vscodeMockState.commandHandlers[cmd] === 'function') {
+              return await vscodeMockState.commandHandlers[cmd](...args);
             }
             return undefined;
           },
@@ -381,6 +479,21 @@ if (!(globalThis as any).__vscodeMockInstalled) {
     }
     return origLoad.apply(this, arguments);
   };
+}
+
+export async function fireDidChangeTextDocument(e: any): Promise<void> {
+  const listeners = [...(vscodeMockState.documentChangeListeners || [])];
+  await Promise.all(listeners.map((listener) => listener(e)));
+}
+
+export async function fireDidCloseTextDocument(doc: any): Promise<void> {
+  const listeners = [...(vscodeMockState.documentCloseListeners || [])];
+  await Promise.all(listeners.map((listener) => listener(doc)));
+}
+
+export async function fireDidSaveTextDocument(doc: any): Promise<void> {
+  const listeners = [...(vscodeMockState.documentSaveListeners || [])];
+  await Promise.all(listeners.map((listener) => listener(doc)));
 }
 
 export function createMockExtensionContext(): any {
