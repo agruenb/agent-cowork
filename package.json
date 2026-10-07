@@ -61,6 +61,11 @@
         "label": "Agent Cowork Light",
         "uiTheme": "vs",
         "path": "./themes/agent-cowork-light.json"
+      },
+      {
+        "label": "Agent Cowork Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/agent-cowork-dark.json"
       }
     ],
     "iconThemes": [
@@ -179,6 +184,12 @@
         "category": "%command.category%",
         "title": "%command.toggleCoworkView.title%",
         "icon": "$(folder-library)"
+      },
+      {
+        "command": "agent-cowork.toggleDarkMode",
+        "category": "%command.category%",
+        "title": "%command.toggleDarkMode.title%",
+        "icon": "$(color-mode)"
       },
       {
         "command": "agent-cowork.openCoworkTreeView",
@@ -301,6 +312,11 @@
           "type": "boolean",
           "default": true,
           "description": "%config.coworkView%"
+        },
+        "agentCowork.darkMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.darkMode%"
         },
         "agentCowork.showWelcomeOnStartup": {
           "type": "boolean",

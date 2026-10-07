@@ -1,28 +1,143 @@
 :root {
+  /* Primary & Accents (Light Mode defaults) */
   --primary: #0f172a;
   --primary-hover: #1e293b;
   --primary-light: #f1f5f9;
   --primary-light-trans: #f1f5f950;
+  --table-row-hover-bg: var(--primary-light-trans, #f1f5f950);
   --primary-border: #cbd5e1;
   --primary-dark: #020617;
   --primary-selection: rgba(15, 23, 42, 0.15);
+  --primary-contrast: #ffffff;
+
+  /* Surfaces & Typography */
   --bg: var(--vscode-editor-background, #ffffff);
   --card-bg: var(--vscode-sideBar-background, #f8fafc);
+  --card-header-bg: #f1f5f9;
+  --table-bg: #ffffff;
+  --table-header-bg: #f8fafc;
   --card-border: var(--vscode-sideBar-border, #e2e8f0);
+  --border-muted: #cbd5e1;
   --text: var(--vscode-foreground, #1e293b);
   --text-muted: var(--vscode-descriptionForeground, #64748b);
+  --input-bg: #ffffff;
+
+  /* Toolbar */
+  --toolbar-bg: #ffffff;
+  --toolbar-border: rgba(15, 23, 42, 0.12);
+  --toolbar-tint-bg: hsl(var(--file-tint-hue, 0) 50% 92%);
+  --toolbar-btn-hover-bg: rgba(255, 255, 255, 0.75);
+  --toolbar-btn-hover-fg: #0f172a;
+  --toolbar-btn-active-bg: #ffffff;
+  --toolbar-btn-active-fg: #0f172a;
+
+  /* Headings */
+  --heading-1: #0f172a;
+  --heading-2: #1e293b;
+  --heading-3: #334155;
+  --heading-4: #475569;
+
+  /* Inline Code */
+  --inline-code-bg: #f1f5f9;
+  --inline-code-fg: #0f172a;
+  --inline-code-hover-bg: #e2e8f0;
+
+  /* Diff Colors */
+  --diff-add-bg: rgba(34, 197, 94, 0.16);
+  --diff-add-fg: #15803d;
+  --diff-add-border: #22c55e;
+  --diff-del-bg: rgba(239, 68, 68, 0.16);
+  --diff-del-fg: #b91c1c;
+  --diff-del-border: #ef4444;
+
   --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --mono-font: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 }
 
-html.has-file-tint {
+body.vscode-dark,
+body.vscode-high-contrast,
+html.is-dark,
+:root[data-theme="dark"] {
+  /* Primary & Accents (Dark Mode defaults) */
+  --primary: #38bdf8;
+  --primary-hover: #7dd3fc;
+  --primary-light: #1e293b;
+  --primary-light-trans: rgba(56, 189, 248, 0.15);
+  --table-row-hover-bg: rgba(255, 255, 255, 0.035);
+  --primary-border: #334155;
+  --primary-dark: #020617;
+  --primary-selection: rgba(56, 189, 248, 0.25);
+  --primary-contrast: #0f172a;
+
+  /* Surfaces & Typography */
+  --bg: var(--vscode-editor-background, #0f172a);
+  --card-bg: var(--vscode-sideBar-background, #0b1120);
+  --card-header-bg: #1e293b;
+  --table-bg: var(--card-bg, #0b1120);
+  --table-header-bg: var(--card-header-bg, #1e293b);
+  --card-border: var(--vscode-sideBar-border, #1e293b);
+  --border-muted: #334155;
+  --text: var(--vscode-foreground, #e2e8f0);
+  --text-muted: var(--vscode-descriptionForeground, #94a3b8);
+  --input-bg: #0f172a;
+
+  /* Toolbar */
+  --toolbar-bg: #0b1120;
+  --toolbar-border: rgba(255, 255, 255, 0.12);
+  --toolbar-tint-bg: hsl(var(--file-tint-hue, 0) 35% 18%);
+  --toolbar-btn-hover-bg: rgba(255, 255, 255, 0.1);
+  --toolbar-btn-hover-fg: #f8fafc;
+  --toolbar-btn-active-bg: #1e293b;
+  --toolbar-btn-active-fg: #f8fafc;
+
+  /* Headings */
+  --heading-1: #f8fafc;
+  --heading-2: #f1f5f9;
+  --heading-3: #e2e8f0;
+  --heading-4: #cbd5e1;
+
+  /* Inline Code */
+  --inline-code-bg: #1e293b;
+  --inline-code-fg: #e2e8f0;
+  --inline-code-hover-bg: #334155;
+
+  /* Diff Colors */
+  --diff-add-bg: rgba(34, 197, 94, 0.2);
+  --diff-add-fg: #4ade80;
+  --diff-add-border: #22c55e;
+  --diff-del-bg: rgba(239, 68, 68, 0.2);
+  --diff-del-fg: #f87171;
+  --diff-del-border: #ef4444;
+}
+
+html.has-file-tint,
+body.has-file-tint {
   --primary: hsl(var(--file-tint-hue, 160) 68% 36%);
   --primary-hover: hsl(var(--file-tint-hue, 160) 74% 28%);
   --primary-light: hsl(var(--file-tint-hue, 160) 55% 95%);
   --primary-light-trans: hsla(var(--file-tint-hue, 160), 55%, 95%, 0.35);
+  --table-row-hover-bg: hsla(var(--file-tint-hue, 160), 55%, 95%, 0.35);
   --primary-border: hsl(var(--file-tint-hue, 160) 50% 80%);
   --primary-dark: hsl(var(--file-tint-hue, 160) 80% 20%);
   --primary-selection: hsla(var(--file-tint-hue, 160), 65%, 45%, 0.22);
+  --primary-contrast: #ffffff;
+}
+
+html.vscode-dark.has-file-tint,
+body.vscode-dark.has-file-tint,
+body.vscode-high-contrast.has-file-tint,
+html.is-dark.has-file-tint,
+body.is-dark.has-file-tint,
+:root[data-theme="dark"].has-file-tint {
+  --primary: hsl(var(--file-tint-hue, 160) 75% 68%);
+  --primary-hover: hsl(var(--file-tint-hue, 160) 80% 75%);
+  --primary-light: hsl(var(--file-tint-hue, 160) 35% 18%);
+  --primary-light-trans: hsla(var(--file-tint-hue, 160), 35%, 18%, 0.45);
+  --table-row-hover-bg: hsla(var(--file-tint-hue, 160), 50%, 60%, 0.07);
+  --primary-border: hsl(var(--file-tint-hue, 160) 40% 32%);
+  --primary-dark: hsl(var(--file-tint-hue, 160) 30% 12%);
+  --primary-selection: hsla(var(--file-tint-hue, 160), 70%, 60%, 0.25);
+  --primary-contrast: #0f172a;
 }
 
 ::selection {
@@ -108,7 +223,7 @@ body {
 }
 
 .show-cowork-tree-btn:hover {
-  background-color: #ffffff;
+  background-color: var(--primary-light, #ffffff);
   color: var(--primary, #0f172a);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06);
 }

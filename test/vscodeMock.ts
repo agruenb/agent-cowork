@@ -5,6 +5,7 @@ export interface VscodeMockState {
   languageSetting: string;
   envLanguage: string;
   coworkViewSetting: boolean;
+  darkModeSetting: boolean;
   configUpdates: Record<string, any>;
   closedTabs: any[];
   tabGroups: any[];
@@ -33,6 +34,7 @@ export const vscodeMockState: VscodeMockState = {
   languageSetting: 'auto',
   envLanguage: 'en',
   coworkViewSetting: true,
+  darkModeSetting: false,
   configUpdates: {},
   closedTabs: [],
   tabGroups: [],
@@ -61,6 +63,7 @@ export function resetVscodeMock(): void {
   vscodeMockState.languageSetting = 'auto';
   vscodeMockState.envLanguage = 'en';
   vscodeMockState.coworkViewSetting = true;
+  vscodeMockState.darkModeSetting = false;
   vscodeMockState.configUpdates = {};
   vscodeMockState.closedTabs = [];
   vscodeMockState.tabGroups = [];
@@ -288,12 +291,18 @@ if (!(globalThis as any).__vscodeMockInstalled) {
                   if (key === 'coworkView') {
                     return vscodeMockState.coworkViewSetting;
                   }
+                  if (key === 'darkMode') {
+                    return vscodeMockState.darkModeSetting;
+                  }
                   return defaultValue;
                 },
                 update: async (key: string, val: any) => {
                   vscodeMockState.configUpdates[`agentCowork.${key}`] = val;
                   if (key === 'coworkView') {
                     vscodeMockState.coworkViewSetting = val;
+                  }
+                  if (key === 'darkMode') {
+                    vscodeMockState.darkModeSetting = val;
                   }
                 },
               };

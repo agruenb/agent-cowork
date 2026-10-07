@@ -111,6 +111,22 @@ export function getCoworkStatusBarTooltip(enabled: boolean): string {
 }
 
 /**
+ * Returns formatted text label for the Dark Mode status bar button.
+ */
+export function getDarkModeStatusBarText(isDark: boolean): string {
+  return isDark ? `$(color-mode) ${t('Dunkel')}` : `$(color-mode) ${t('Hell')}`;
+}
+
+/**
+ * Returns tooltip description for the Dark Mode status bar button.
+ */
+export function getDarkModeStatusBarTooltip(isDark: boolean): string {
+  return isDark
+    ? t('Dunkelmodus umschalten (Derzeit: Aktiviert - Klicken für Hellmodus)')
+    : t('Dunkelmodus umschalten (Derzeit: Deaktiviert - Klicken für Dunkelmodus)');
+}
+
+/**
  * Updates an existing status bar item's text, tooltip, and optional accent color based on enabled state.
  */
 export function updateCoworkStatusBarItem(
@@ -128,6 +144,17 @@ export function updateCoworkStatusBarItem(
 }
 
 /**
+ * Updates an existing dark mode status bar item's text and tooltip.
+ */
+export function updateDarkModeStatusBarItem(
+  statusBarItem: vscode.StatusBarItem,
+  isDark: boolean
+): void {
+  statusBarItem.text = getDarkModeStatusBarText(isDark);
+  statusBarItem.tooltip = getDarkModeStatusBarTooltip(isDark);
+}
+
+/**
  * Creates the Cowork toggle button in the bottom status bar.
  */
 export function createCoworkStatusBarItem(): vscode.StatusBarItem {
@@ -138,6 +165,20 @@ export function createCoworkStatusBarItem(): vscode.StatusBarItem {
   );
   statusBarItem.name = t('Agent Cowork Ansicht');
   statusBarItem.command = 'agent-cowork.toggleCoworkView';
+  return statusBarItem;
+}
+
+/**
+ * Creates the Dark Mode toggle button in the bottom status bar.
+ */
+export function createDarkModeStatusBarItem(): vscode.StatusBarItem {
+  const statusBarItem = vscode.window.createStatusBarItem(
+    'agentCowork.toggleDarkMode',
+    vscode.StatusBarAlignment.Right,
+    99
+  );
+  statusBarItem.name = t('Agent Cowork Dunkelmodus');
+  statusBarItem.command = 'agent-cowork.toggleDarkMode';
   return statusBarItem;
 }
 
@@ -162,6 +203,30 @@ export async function setCoworkViewConfig(enabled: boolean): Promise<void> {
     await config.update('coworkView', enabled, vscode.ConfigurationTarget.Global);
   } catch (err) {
     console.warn('Unable to update agentCowork.coworkView:', err);
+  }
+}
+
+/**
+ * Reads whether Dark Mode is enabled from configuration.
+ */
+export function isDarkModeEnabled(): boolean {
+  try {
+    const config = vscode.workspace.getConfiguration('agentCowork');
+    return config.get<boolean>('darkMode', false);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Updates Dark Mode enabled setting in global configuration.
+ */
+export async function setDarkModeConfig(enabled: boolean): Promise<void> {
+  try {
+    const config = vscode.workspace.getConfiguration('agentCowork');
+    await config.update('darkMode', enabled, vscode.ConfigurationTarget.Global);
+  } catch (err) {
+    console.warn('Unable to update agentCowork.darkMode:', err);
   }
 }
 
@@ -282,8 +347,10 @@ export async function switchOpenMarkdownTabs(targetMode: 'cowork' | 'default'): 
 }
 
 export const THEME_NAME = 'Agent Cowork Light';
+export const DARK_THEME_NAME = 'Agent Cowork Dark';
 export const ICON_THEME_NAME = 'agent-cowork-icons';
 export const DEFAULT_FALLBACK_THEME = 'Default Light Modern';
+export const DEFAULT_FALLBACK_DARK_THEME = 'Default Dark Modern';
 export const DEFAULT_FALLBACK_ICON_THEME = 'vs-seti';
 
 let extensionContext: vscode.ExtensionContext | undefined;
@@ -293,7 +360,7 @@ export function setCoworkManagerContext(ctx: vscode.ExtensionContext): void {
 }
 
 /**
- * Applies or reverts the Cowork color theme and file icon theme.
+ * Applies or reverts the Cowork color theme (Light or Dark) and file icon theme.
  */
 export async function applyCoworkTheme(enabled: boolean): Promise<void> {
   const workbenchConfig = vscode.workspace.getConfiguration('workbench');
@@ -301,8 +368,15 @@ export async function applyCoworkTheme(enabled: boolean): Promise<void> {
   const currentIconTheme = workbenchConfig.get<string>('iconTheme');
 
   if (enabled) {
+    const isDark = isDarkModeEnabled();
+    const targetTheme = isDark ? DARK_THEME_NAME : THEME_NAME;
+
     // Save current theme if it is not already our theme
-    if (currentColorTheme && currentColorTheme !== THEME_NAME) {
+    if (
+      currentColorTheme &&
+      currentColorTheme !== THEME_NAME &&
+      currentColorTheme !== DARK_THEME_NAME
+    ) {
       if (extensionContext) {
         await extensionContext.globalState.update('previousColorTheme', currentColorTheme);
       }
@@ -313,20 +387,31 @@ export async function applyCoworkTheme(enabled: boolean): Promise<void> {
       }
     }
 
-    if (currentColorTheme !== THEME_NAME) {
+    if (currentColorTheme !== targetTheme) {
       try {
-        await workbenchConfig.update('colorTheme', THEME_NAME, vscode.ConfigurationTarget.Global);
+        await workbenchConfig.update('colorTheme', targetTheme, vscode.ConfigurationTarget.Global);
       } catch (err) {
         console.warn('Unable to update workbench.colorTheme:', err);
       }
     }
 
-    const preferredLight = workbenchConfig.get<string>('preferredLightColorTheme');
-    if (preferredLight && preferredLight !== THEME_NAME) {
-      try {
-        await workbenchConfig.update('preferredLightColorTheme', THEME_NAME, vscode.ConfigurationTarget.Global);
-      } catch (err) {
-        console.warn('Unable to update workbench.preferredLightColorTheme:', err);
+    if (isDark) {
+      const preferredDark = workbenchConfig.get<string>('preferredDarkColorTheme');
+      if (preferredDark && preferredDark !== DARK_THEME_NAME) {
+        try {
+          await workbenchConfig.update('preferredDarkColorTheme', DARK_THEME_NAME, vscode.ConfigurationTarget.Global);
+        } catch (err) {
+          console.warn('Unable to update workbench.preferredDarkColorTheme:', err);
+        }
+      }
+    } else {
+      const preferredLight = workbenchConfig.get<string>('preferredLightColorTheme');
+      if (preferredLight && preferredLight !== THEME_NAME) {
+        try {
+          await workbenchConfig.update('preferredLightColorTheme', THEME_NAME, vscode.ConfigurationTarget.Global);
+        } catch (err) {
+          console.warn('Unable to update workbench.preferredLightColorTheme:', err);
+        }
       }
     }
 
@@ -339,12 +424,14 @@ export async function applyCoworkTheme(enabled: boolean): Promise<void> {
     }
   } else {
     // Revert to saved or standard default theme
+    const isDark = isDarkModeEnabled();
+    const fallbackTheme = isDark ? DEFAULT_FALLBACK_DARK_THEME : DEFAULT_FALLBACK_THEME;
     const previousTheme =
-      extensionContext?.globalState.get<string>('previousColorTheme') || DEFAULT_FALLBACK_THEME;
+      extensionContext?.globalState.get<string>('previousColorTheme') || fallbackTheme;
     const previousIconTheme =
       extensionContext?.globalState.get<string>('previousIconTheme') || DEFAULT_FALLBACK_ICON_THEME;
 
-    if (currentColorTheme === THEME_NAME) {
+    if (currentColorTheme === THEME_NAME || currentColorTheme === DARK_THEME_NAME) {
       try {
         await workbenchConfig.update('colorTheme', previousTheme, vscode.ConfigurationTarget.Global);
       } catch (err) {
@@ -361,6 +448,15 @@ export async function applyCoworkTheme(enabled: boolean): Promise<void> {
       }
     }
 
+    const preferredDark = workbenchConfig.get<string>('preferredDarkColorTheme');
+    if (preferredDark === DARK_THEME_NAME) {
+      try {
+        await workbenchConfig.update('preferredDarkColorTheme', previousTheme, vscode.ConfigurationTarget.Global);
+      } catch (err) {
+        console.warn('Unable to revert workbench.preferredDarkColorTheme:', err);
+      }
+    }
+
     if (currentIconTheme === ICON_THEME_NAME) {
       try {
         await workbenchConfig.update('iconTheme', previousIconTheme, vscode.ConfigurationTarget.Global);
@@ -369,6 +465,39 @@ export async function applyCoworkTheme(enabled: boolean): Promise<void> {
       }
     }
   }
+}
+
+/**
+ * Toggles Dark Mode on or off.
+ */
+export async function toggleDarkMode(
+  darkModeStatusBarItem?: vscode.StatusBarItem,
+  coworkStatusBarItem?: vscode.StatusBarItem
+): Promise<boolean> {
+  const currentState = isDarkModeEnabled();
+  const newState = !currentState;
+
+  await setDarkModeConfig(newState);
+
+  if (isCoworkViewEnabled()) {
+    await applyCoworkTheme(true);
+  }
+
+  if (darkModeStatusBarItem) {
+    updateDarkModeStatusBarItem(darkModeStatusBarItem, newState);
+  }
+
+  if (coworkStatusBarItem) {
+    updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled());
+  }
+
+  if (newState) {
+    vscode.window.showInformationMessage(t('Dunkelmodus aktiviert!'));
+  } else {
+    vscode.window.showInformationMessage(t('Dunkelmodus deaktiviert. Hellmodus aktiv.'));
+  }
+
+  return newState;
 }
 
 /**
@@ -499,7 +628,10 @@ export async function applyCoworkView(enabled: boolean): Promise<void> {
 /**
  * Toggles the Cowork View on or off.
  */
-export async function toggleCoworkView(statusBarItem?: vscode.StatusBarItem): Promise<boolean> {
+export async function toggleCoworkView(
+  statusBarItem?: vscode.StatusBarItem,
+  darkModeStatusBarItem?: vscode.StatusBarItem
+): Promise<boolean> {
   const currentState = isCoworkViewEnabled();
   const newState = !currentState;
 
@@ -508,6 +640,14 @@ export async function toggleCoworkView(statusBarItem?: vscode.StatusBarItem): Pr
 
   if (statusBarItem) {
     updateCoworkStatusBarItem(statusBarItem, newState);
+  }
+
+  if (darkModeStatusBarItem) {
+    if (newState) {
+      darkModeStatusBarItem.show();
+    } else {
+      darkModeStatusBarItem.hide();
+    }
   }
 
   if (newState) {

@@ -160,7 +160,10 @@ const enTranslations: Record<string, string> = {
   'Markdown eingeben...': 'Enter Markdown...',
   'Cowork: An': 'Cowork: On',
   'Cowork: Aus': 'Cowork: Off',
+  'Dunkel': 'Dark',
+  'Hell': 'Light',
   'Agent Cowork Ansicht': 'Agent Cowork View',
+  'Agent Cowork Dunkelmodus': 'Agent Cowork Dark Mode',
   'Arbeitsordner anzeigen': 'Show workspace folder',
   'Cowork-Ansicht umschalten': 'Toggle Cowork View',
   'Cowork-Ansicht umschalten (Derzeit: Aktiviert - Klicken zum Deaktivieren)':
@@ -171,6 +174,13 @@ const enTranslations: Record<string, string> = {
     'Cowork view activated! Custom folder and document views active.',
   'Cowork-Ansicht deaktiviert. Standard-Ansicht wiederhergestellt.':
     'Cowork view deactivated. Standard view restored.',
+  'Dunkelmodus umschalten': 'Toggle Dark Mode',
+  'Dunkelmodus umschalten (Derzeit: Aktiviert - Klicken für Hellmodus)':
+    'Toggle Dark Mode (Currently: Enabled - Click for light mode)',
+  'Dunkelmodus umschalten (Derzeit: Deaktiviert - Klicken für Dunkelmodus)':
+    'Toggle Dark Mode (Currently: Disabled - Click for dark mode)',
+  'Dunkelmodus aktiviert!': 'Dark mode activated!',
+  'Dunkelmodus deaktiviert. Hellmodus aktiv.': 'Dark mode deactivated. Light mode active.',
   'Agent Cowork: Die verlinkte Datei existiert nicht: {0}':
     'Agent Cowork: The linked file does not exist: {0}',
   'Datei erstellen': 'Create File',

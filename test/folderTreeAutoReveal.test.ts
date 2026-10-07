@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { JSDOM } from 'jsdom';
 import { vscodeMockState, resetVscodeMock } from './vscodeMock';
-import { applyFilenameTint } from '../src/webview/markdownEditor';
+import { applyFilenameTint, isWebviewDarkMode } from '../src/webview/markdownEditor';
 
 const vscode = require('vscode');
 const { FolderTreeProvider, FolderItem } = require('../src/folderTreeProvider');
@@ -21,6 +21,7 @@ const {
 const {
   getFilenameHue,
   getDarkShade,
+  getLightShade,
   getPastelShade,
   hslToHex,
   getFilePastelColors,
@@ -355,11 +356,13 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], '#ffffff');
     });
 
-    it('enforceBrowserTabBar removes stale top-level tab keys to prevent white-on-white fallback', async () => {
+    it('enforceBrowserTabBar removes stale top-level tab and statusBar keys to prevent white-on-white fallback', async () => {
       const config = vscode.workspace.getConfiguration('workbench');
       await config.update('colorCustomizations', {
         'tab.activeBackground': '#ffffff',
         'tab.selectedBackground': '#ffffff',
+        'statusBar.background': '#ffffff',
+        'statusBar.foreground': '#000000',
         '[Agent Cowork Light]': {},
       }, vscode.ConfigurationTarget.Global);
 
@@ -368,6 +371,8 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       const customizations = config.get<Record<string, any>>('colorCustomizations');
       assert.strictEqual(customizations['tab.activeBackground'], undefined);
       assert.strictEqual(customizations['tab.selectedBackground'], undefined);
+      assert.strictEqual(customizations['statusBar.background'], undefined);
+      assert.strictEqual(customizations['statusBar.foreground'], undefined);
       assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeBackground'], '#ffffff');
       assert.strictEqual(customizations['[Agent Cowork Light]']['tab.activeForeground'], '#0f172a');
     });
@@ -383,7 +388,7 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
       assert.strictEqual(customizations['[Agent Cowork Light]']['tab.selectedForeground'], '#0f172a');
     });
 
-    it('applyFilenameTint applies document accents and CSS custom properties based on file hue', () => {
+    it('applyFilenameTint applies document accents and CSS custom properties based on file hue to both html and body', () => {
       const dom = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>');
       const originalDoc = (global as any).document;
       try {
@@ -392,26 +397,73 @@ describe('Folder Tree Auto-Reveal and Highlighting', () => {
         applyFilenameTint('overview.md');
 
         const docEl = dom.window.document.documentElement;
+        const bodyEl = dom.window.document.body;
         assert.ok(docEl.classList.contains('has-file-tint'));
+        assert.ok(bodyEl.classList.contains('has-file-tint'));
 
         const hue = docEl.style.getPropertyValue('--file-tint-hue');
         assert.strictEqual(hue, String(getFilenameHue('overview.md')));
+        assert.strictEqual(bodyEl.style.getPropertyValue('--file-tint-hue'), String(getFilenameHue('overview.md')));
 
         const primary = docEl.style.getPropertyValue('--primary');
         assert.match(primary, /^#[0-9a-f]{6}$/i);
         assert.strictEqual(primary, getDarkShade(Number(hue)));
+        assert.strictEqual(bodyEl.style.getPropertyValue('--primary'), getDarkShade(Number(hue)));
 
         const primaryHover = docEl.style.getPropertyValue('--primary-hover');
         assert.match(primaryHover, /^#[0-9a-f]{6}$/i);
+        assert.strictEqual(bodyEl.style.getPropertyValue('--primary-hover'), primaryHover);
 
         const primaryLight = docEl.style.getPropertyValue('--primary-light');
         assert.match(primaryLight, /^#[0-9a-f]{6}$/i);
+        assert.strictEqual(bodyEl.style.getPropertyValue('--primary-light'), primaryLight);
 
         const primaryDark = docEl.style.getPropertyValue('--primary-dark');
         assert.match(primaryDark, /^#[0-9a-f]{6}$/i);
+        assert.strictEqual(bodyEl.style.getPropertyValue('--primary-dark'), primaryDark);
 
         const primarySelection = docEl.style.getPropertyValue('--primary-selection');
         assert.ok(primarySelection.startsWith('hsla('));
+        assert.ok(bodyEl.style.getPropertyValue('--primary-selection').startsWith('hsla('));
+      } finally {
+        (global as any).document = originalDoc;
+      }
+    });
+
+    it('applyFilenameTint applies dark mode shades when vscode-dark is present on body', () => {
+      const dom = new JSDOM('<!DOCTYPE html><html><head></head><body class="vscode-dark"></body></html>');
+      const originalDoc = (global as any).document;
+      try {
+        (global as any).document = dom.window.document;
+
+        assert.strictEqual(isWebviewDarkMode(), true);
+        applyFilenameTint('overview.md');
+
+        const bodyEl = dom.window.document.body;
+        const hue = getFilenameHue('overview.md');
+        const primary = bodyEl.style.getPropertyValue('--primary');
+        assert.strictEqual(primary, getLightShade(hue));
+        assert.ok(dom.window.document.documentElement.classList.contains('is-dark'));
+      } finally {
+        (global as any).document = originalDoc;
+      }
+    });
+
+    it('isWebviewDarkMode does not latch into dark mode when documentElement has is-dark but body is light', () => {
+      const dom = new JSDOM('<!DOCTYPE html><html class="is-dark"><head></head><body class="vscode-light"></body></html>');
+      const originalDoc = (global as any).document;
+      try {
+        (global as any).document = dom.window.document;
+
+        assert.strictEqual(isWebviewDarkMode(), false);
+        applyFilenameTint('overview.md');
+
+        const bodyEl = dom.window.document.body;
+        const hue = getFilenameHue('overview.md');
+        const primary = bodyEl.style.getPropertyValue('--primary');
+        assert.strictEqual(primary, getDarkShade(hue));
+        assert.strictEqual(bodyEl.classList.contains('is-dark'), false);
+        assert.strictEqual(dom.window.document.documentElement.classList.contains('is-dark'), false);
       } finally {
         (global as any).document = originalDoc;
       }

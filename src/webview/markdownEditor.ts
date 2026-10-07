@@ -5,8 +5,8 @@ import {
   isCodeEditorHtml,
   getInlinePasteHtml,
 } from '../markdown/pasteHandler';
-import { findTopBlock, getActiveListItem, isBlockEmpty } from './toolbarOperations';
-import { getFilenameHue, getDarkShade, hslToHex } from '../utils/colorUtils';
+import { getFilenameHue, getWebviewTintShades } from '../utils/colorUtils';
+import { getActiveListItem, findTopBlock, isBlockEmpty } from './toolbarOperations';
 import {
   indentListItem,
   outdentListItem,
@@ -1531,6 +1531,20 @@ export function setCoworkTreeButtonVisible(visible: boolean): void {
 // -------------------------------------------------------------
 
 /**
+ * Checks whether the webview is running under VS Code dark mode.
+ */
+export function isWebviewDarkMode(): boolean {
+  if (typeof document === 'undefined') return false;
+  return (
+    document.body?.classList.contains('vscode-dark') ||
+    document.body?.classList.contains('vscode-high-contrast') ||
+    document.body?.dataset?.vscodeThemeKind === 'vscode-dark' ||
+    document.body?.dataset?.vscodeThemeKind === 'vscode-high-contrast' ||
+    document.documentElement?.getAttribute('data-theme') === 'dark'
+  );
+}
+
+/**
  * Applies document accents and toolbar background tint based on the filename.
  * Derives a deterministic hue so each file gets its unique coordinated color palette,
  * automatically adapting links, blockquotes, checkboxes, table focus, and selections.
@@ -1539,31 +1553,25 @@ export function applyFilenameTint(filename: string): void {
   state.activeFilename = filename;
   persistWebviewState();
   const hue = getFilenameHue(filename);
-  const darkShade = getDarkShade(hue);
+  const isDark = isWebviewDarkMode();
+  const shades = getWebviewTintShades(hue, isDark);
 
-  let hoverL = 26;
-  const hoverS = 75;
-  if (40 <= hue && hue <= 80) {
-    hoverL = 22;
-  } else if (200 <= hue && hue <= 280) {
-    hoverL = 32;
+  const targets = [document.documentElement, document.body].filter(Boolean) as HTMLElement[];
+  for (const target of targets) {
+    target.style.setProperty('--file-tint-hue', String(hue));
+    target.style.setProperty('--primary', shades.primary);
+    target.style.setProperty('--primary-hover', shades.primaryHover);
+    target.style.setProperty('--primary-light', shades.primaryLight);
+    target.style.setProperty('--primary-light-trans', shades.primaryLightTrans);
+    target.style.setProperty('--primary-border', shades.primaryBorder);
+    target.style.setProperty('--primary-dark', shades.primaryDark);
+    target.style.setProperty('--primary-selection', shades.primarySelection);
+    target.style.setProperty('--primary-contrast', shades.primaryContrast);
+    if (!target.classList.contains('has-file-tint')) {
+      target.classList.add('has-file-tint');
+    }
   }
-  const hoverShade = hslToHex(hue, hoverS, hoverL);
-  const lightShade = hslToHex(hue, 55, 95);
-  const lightTransShade = `hsla(${hue}, 55%, 95%, 0.35)`;
-  const borderShade = hslToHex(hue, 50, 80);
-  const deepDarkShade = hslToHex(hue, 80, 18);
-  const selectionShade = `hsla(${hue}, 65%, 45%, 0.22)`;
-
-  document.documentElement.style.setProperty('--file-tint-hue', String(hue));
-  document.documentElement.style.setProperty('--primary', darkShade);
-  document.documentElement.style.setProperty('--primary-hover', hoverShade);
-  document.documentElement.style.setProperty('--primary-light', lightShade);
-  document.documentElement.style.setProperty('--primary-light-trans', lightTransShade);
-  document.documentElement.style.setProperty('--primary-border', borderShade);
-  document.documentElement.style.setProperty('--primary-dark', deepDarkShade);
-  document.documentElement.style.setProperty('--primary-selection', selectionShade);
-  document.documentElement.classList.add('has-file-tint');
+  document.documentElement.classList.toggle('is-dark', isDark);
 }
 
 /**
@@ -2430,6 +2438,24 @@ export function initMarkdownEditor(): void {
     btnShowCoworkTree.addEventListener('click', () => {
       vscode.postMessage({ type: 'openCoworkView' });
     });
+  }
+
+  // Observe theme changes on body to dynamically refresh filename tint
+  if (typeof MutationObserver !== 'undefined' && doc?.body) {
+    let lastIsDark = isWebviewDarkMode();
+    const themeObserver = new MutationObserver(() => {
+      const isDark = isWebviewDarkMode();
+      if (isDark === lastIsDark) {
+        return;
+      }
+      lastIsDark = isDark;
+      if (state.activeFilename) {
+        applyFilenameTint(state.activeFilename);
+      } else {
+        doc.documentElement.classList.toggle('is-dark', isDark);
+      }
+    });
+    themeObserver.observe(doc.body, { attributes: true, attributeFilter: ['class', 'data-vscode-theme-kind'] });
   }
 }
 

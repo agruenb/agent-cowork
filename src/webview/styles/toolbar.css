@@ -7,8 +7,8 @@
   align-items: center;
   gap: 6px;
   padding: 5px 24px 5px 12px;
-  background-color: #ffffff;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  background-color: var(--toolbar-bg, #ffffff);
+  border-bottom: 1px solid var(--toolbar-border, rgba(15, 23, 42, 0.12));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   z-index: 50;
   flex-wrap: wrap;
@@ -17,9 +17,11 @@
 
 /* Filename-based pastel background tint applied to the document toolbar */
 html.has-file-tint .toolbar,
-html.has-file-tint .toolbar.is-collapsed {
-  background-color: hsl(var(--file-tint-hue, 0) 50% 92%);
-  border-bottom-color: rgba(15, 23, 42, 0.15);
+body.has-file-tint .toolbar,
+html.has-file-tint .toolbar.is-collapsed,
+body.has-file-tint .toolbar.is-collapsed {
+  background-color: var(--toolbar-tint-bg, hsl(var(--file-tint-hue, 0) 50% 92%));
+  border-bottom-color: var(--toolbar-border, rgba(15, 23, 42, 0.15));
 }
 
 .toolbar-group {
@@ -102,7 +104,7 @@ html.has-file-tint .toolbar.is-collapsed {
 .toolbar-separator {
   width: 1px;
   height: 48px;
-  background-color: rgba(15, 23, 42, 0.16);
+  background-color: var(--border-muted, rgba(15, 23, 42, 0.16));
   margin: 0 4px;
   align-self: center;
 }
@@ -132,25 +134,25 @@ html.has-file-tint .toolbar.is-collapsed {
 .tb-btn:hover,
 .tb-btn-compact:hover,
 .tb-btn-stacked:hover {
-  background-color: rgba(255, 255, 255, 0.75);
-  color: #0f172a;
-  border-color: rgba(15, 23, 42, 0.18);
+  background-color: var(--toolbar-btn-hover-bg, rgba(255, 255, 255, 0.75));
+  color: var(--toolbar-btn-hover-fg, #0f172a);
+  border-color: var(--border-muted, rgba(15, 23, 42, 0.18));
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .tb-btn:active,
 .tb-btn-compact:active,
 .tb-btn-stacked:active {
-  background-color: rgba(15, 23, 42, 0.12);
+  background-color: var(--primary-light-trans, rgba(15, 23, 42, 0.12));
   transform: scale(0.97);
 }
 
 .tb-btn.is-active,
 .tb-btn-compact.is-active,
 .tb-btn-stacked.is-active {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border-color: rgba(15, 23, 42, 0.28) !important;
+  background-color: var(--toolbar-btn-active-bg, #ffffff) !important;
+  color: var(--toolbar-btn-active-fg, #0f172a) !important;
+  border-color: var(--primary-border, rgba(15, 23, 42, 0.28)) !important;
   font-weight: 700 !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
@@ -160,9 +162,9 @@ html.has-file-tint .toolbar.is-collapsed {
   padding: 0 8px;
   font-size: 12px;
   font-weight: 500;
-  color: #0f172a;
-  background-color: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.18);
+  color: var(--text, #0f172a);
+  background-color: var(--input-bg, #ffffff);
+  border: 1px solid var(--border-muted, rgba(15, 23, 42, 0.18));
   border-radius: 6px;
   outline: none;
   cursor: pointer;
@@ -172,8 +174,8 @@ html.has-file-tint .toolbar.is-collapsed {
 
 .tb-select:hover,
 .tb-select:focus {
-  border-color: #0f172a;
-  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.1);
+  border-color: var(--primary, #0f172a);
+  box-shadow: 0 0 0 2px var(--primary-selection, rgba(15, 23, 42, 0.1));
 }
 
 /* Subtle, un-prominent Raw Markdown toggle button */
@@ -181,10 +183,10 @@ html.has-file-tint .toolbar.is-collapsed {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background-color: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(15, 23, 42, 0.18);
+  background-color: var(--card-bg, rgba(255, 255, 255, 0.65));
+  border: 1px solid var(--border-muted, rgba(15, 23, 42, 0.18));
   border-radius: 6px;
-  color: #1e293b;
+  color: var(--text, #1e293b);
   font-size: 12px;
   font-weight: 600;
   padding: 4px 10px;
@@ -195,21 +197,21 @@ html.has-file-tint .toolbar.is-collapsed {
 }
 
 .raw-toggle-btn:hover {
-  background-color: #ffffff;
-  color: #0f172a;
-  border-color: rgba(15, 23, 42, 0.32);
+  background-color: var(--toolbar-btn-hover-bg, #ffffff);
+  color: var(--toolbar-btn-hover-fg, #0f172a);
+  border-color: var(--border-muted, rgba(15, 23, 42, 0.32));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .raw-toggle-btn:active {
   transform: scale(0.97);
-  background-color: rgba(15, 23, 42, 0.12);
+  background-color: var(--primary-light-trans, rgba(15, 23, 42, 0.12));
 }
 
 .raw-toggle-btn.is-active {
-  background-color: #0f172a;
-  border-color: #0f172a;
-  color: #ffffff;
+  background-color: var(--primary, #0f172a);
+  border-color: var(--primary, #0f172a);
+  color: var(--primary-contrast, #ffffff);
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
@@ -221,7 +223,7 @@ html.has-file-tint .toolbar.is-collapsed {
   justify-content: center;
   gap: 5px;
   background-color: var(--primary);
-  color: #ffffff;
+  color: var(--primary-contrast, #ffffff);
   border: 1px solid var(--primary);
   border-radius: 6px;
   font-size: 13px;
@@ -272,7 +274,7 @@ html.has-file-tint .toolbar.is-collapsed {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 3px;
-  color: #334155;
+  color: var(--text-muted, #334155);
   width: 18px;
   height: 14px;
   cursor: pointer;
@@ -285,13 +287,13 @@ html.has-file-tint .toolbar.is-collapsed {
 
 .toolbar-toggle-btn:hover {
   opacity: 1;
-  background-color: rgba(15, 23, 42, 0.08);
-  color: #0f172a;
-  border-color: rgba(15, 23, 42, 0.16);
+  background-color: var(--primary-light-trans, rgba(15, 23, 42, 0.08));
+  color: var(--text, #0f172a);
+  border-color: var(--border-muted, rgba(15, 23, 42, 0.16));
 }
 
 .toolbar-toggle-btn:active {
-  background-color: rgba(15, 23, 42, 0.16);
+  background-color: var(--primary-light-trans, rgba(15, 23, 42, 0.16));
 }
 
 .tb-collapse-icon {
@@ -305,8 +307,8 @@ html.has-file-tint .toolbar.is-collapsed {
   min-height: 14px;
   height: 14px;
   box-shadow: none;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
-  background-color: #f1f5f9;
+  border-bottom: 1px solid var(--toolbar-border, rgba(15, 23, 42, 0.12));
+  background-color: var(--toolbar-bg, #f1f5f9);
   flex-wrap: nowrap;
   cursor: pointer;
 }
@@ -325,7 +327,7 @@ html.has-file-tint .toolbar.is-collapsed {
 
 .toolbar.is-collapsed #btn-toggle-toolbar:hover {
   opacity: 1;
-  background-color: rgba(15, 23, 42, 0.1);
+  background-color: var(--primary-light-trans, rgba(15, 23, 42, 0.1));
 }
 
 .toolbar.is-collapsed .tb-collapse-icon {
@@ -340,7 +342,7 @@ html.has-file-tint .toolbar.is-collapsed {
   justify-content: center;
   gap: 5px;
   background-color: var(--primary);
-  color: #ffffff;
+  color: var(--primary-contrast, #ffffff);
   border: 1px solid var(--primary);
   border-radius: 6px;
   font-size: 12px;

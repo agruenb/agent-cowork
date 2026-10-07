@@ -17,16 +17,27 @@ import { t } from './i18n';
 import {
   createCoworkStatusBarItem,
   updateCoworkStatusBarItem,
+  createDarkModeStatusBarItem,
+  updateDarkModeStatusBarItem,
   isCoworkViewEnabled,
+  isDarkModeEnabled,
   toggleCoworkView,
+  toggleDarkMode,
   openCoworkTreeView,
   applyCoworkView,
   applyCoworkTheme,
   setCoworkManagerContext,
   extractUriFromTab,
   THEME_NAME,
+  DARK_THEME_NAME,
 } from './coworkViewManager';
-import { getFilePastelColors, getFilenameHue, getDarkShade } from './utils/colorUtils';
+import {
+  getFilePastelColors,
+  getFilenameHue,
+  getDarkShade,
+  getLightShade,
+  getDefaultTabColors,
+} from './utils/colorUtils';
 
 /**
  * Enforces the light theme with green accents and custom file icon theme.
@@ -276,10 +287,12 @@ export async function enforceBrowserTabBar(): Promise<void> {
   // Ensure harmonious, clearly visible browser-style tab colors are applied immediately
   try {
     const existingCustomizations = workbenchConfig.get<Record<string, unknown>>('colorCustomizations') || {};
-    const themeKey = `[${THEME_NAME}]`;
-    const currentThemeCustomizations = (existingCustomizations[themeKey] as Record<string, string>) || {};
+    const lightThemeKey = `[${THEME_NAME}]`;
+    const darkThemeKey = `[${DARK_THEME_NAME}]`;
+    const currentLightCustomizations = (existingCustomizations[lightThemeKey] as Record<string, string>) || {};
+    const currentDarkCustomizations = (existingCustomizations[darkThemeKey] as Record<string, string>) || {};
 
-    const activeFg = currentThemeCustomizations['tab.activeForeground'];
+    const activeFg = currentLightCustomizations['tab.activeForeground'];
     const activeText = (activeFg && activeFg !== '#ffffff') ? activeFg : '#0f172a';
 
     const browserTabColors: Record<string, string> = {
@@ -310,7 +323,7 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'tab.inactiveModifiedBorder': '#00000000',
       'tab.unfocusedActiveModifiedBorder': '#00000000',
       'tab.unfocusedInactiveModifiedBorder': '#00000000',
-      'tab.dragAndDropBorder': currentThemeCustomizations['tab.dragAndDropBorder'] || '#0f172a',
+      'tab.dragAndDropBorder': currentLightCustomizations['tab.dragAndDropBorder'] || '#0f172a',
       'tab.hoverBackground': '#f1f5f9',
       'tab.hoverForeground': '#0f172a',
       'tab.hoverBorder': '#e2e8f0',
@@ -347,11 +360,73 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'statusBarItem.remoteForeground': '#0f172a',
     };
 
+    const browserTabDarkColors: Record<string, string> = {
+      'editorGroupHeader.tabsBackground': '#020617',
+      'editorGroupHeader.tabsBorder': '#00000000',
+      'editorGroupHeader.border': '#00000000',
+      'editorGroup.border': '#1e293b',
+      'tab.activeBackground': '#0f172a',
+      'tab.activeForeground': '#f8fafc',
+      'tab.activeBorder': '#0f172a',
+      'tab.selectedBackground': '#0f172a',
+      'tab.selectedForeground': '#f8fafc',
+      'tab.activeBorderTop': '#00000000',
+      'tab.selectedBorderTop': '#00000000',
+      'tab.inactiveBackground': '#020617',
+      'tab.inactiveForeground': '#94a3b8',
+      'tab.border': '#00000000',
+      'tab.unfocusedActiveBackground': '#0f172a',
+      'tab.unfocusedActiveForeground': '#f8fafc',
+      'tab.unfocusedActiveBorder': '#0f172a',
+      'tab.unfocusedActiveBorderTop': '#00000000',
+      'tab.unfocusedSelectedBackground': '#0f172a',
+      'tab.unfocusedSelectedForeground': '#f8fafc',
+      'tab.unfocusedInactiveBackground': '#020617',
+      'tab.unfocusedInactiveForeground': '#64748b',
+      'tab.lastPinnedBorder': '#00000000',
+      'tab.activeModifiedBorder': '#00000000',
+      'tab.inactiveModifiedBorder': '#00000000',
+      'tab.unfocusedActiveModifiedBorder': '#00000000',
+      'tab.unfocusedInactiveModifiedBorder': '#00000000',
+      'tab.dragAndDropBorder': '#38bdf8',
+      'tab.hoverBackground': '#1e293b',
+      'tab.hoverForeground': '#f8fafc',
+      'tab.hoverBorder': '#334155',
+      'tab.unfocusedHoverBackground': '#1e293b',
+      'tab.unfocusedHoverForeground': '#f8fafc',
+      'tab.unfocusedHoverBorder': '#334155',
+      'list.activeSelectionBackground': '#1e293b',
+      'list.activeSelectionForeground': '#f8fafc',
+      'list.activeSelectionIconForeground': '#f8fafc',
+      'list.inactiveSelectionBackground': '#00000000',
+      'list.inactiveSelectionForeground': '#f8fafc',
+      'list.inactiveSelectionIconForeground': '#f8fafc',
+      'list.focusBackground': '#1e293b',
+      'list.focusForeground': '#f8fafc',
+      'list.focusOutline': '#00000000',
+      'list.focusAndSelectionOutline': '#00000000',
+      'list.hoverBackground': '#1e293b',
+      'list.hoverForeground': '#f8fafc',
+      'list.highlightForeground': '#38bdf8',
+      'list.focusHighlightForeground': '#38bdf8',
+      'statusBar.background': '#020617',
+      'statusBar.foreground': '#94a3b8',
+      'statusBar.border': '#1e293b',
+    };
+
     let hasChanges = false;
     for (const [key, val] of Object.entries(browserTabColors)) {
-      if (currentThemeCustomizations[key] !== val) {
+      if (currentLightCustomizations[key] !== val) {
         hasChanges = true;
         break;
+      }
+    }
+    if (!hasChanges) {
+      for (const [key, val] of Object.entries(browserTabDarkColors)) {
+        if (currentDarkCustomizations[key] !== val) {
+          hasChanges = true;
+          break;
+        }
       }
     }
 
@@ -376,6 +451,20 @@ export async function enforceBrowserTabBar(): Promise<void> {
       'list.inactiveSelectionIconForeground',
       'list.focusBackground',
       'list.focusForeground',
+      'statusBar.background',
+      'statusBar.foreground',
+      'statusBar.border',
+      'statusBar.debuggingBackground',
+      'statusBar.debuggingForeground',
+      'statusBar.debuggingBorder',
+      'statusBar.noFolderBackground',
+      'statusBar.noFolderForeground',
+      'statusBar.noFolderBorder',
+      'statusBarItem.hoverBackground',
+      'statusBarItem.hoverForeground',
+      'statusBarItem.activeBackground',
+      'statusBarItem.remoteBackground',
+      'statusBarItem.remoteForeground',
     ];
     for (const key of staleKeys) {
       if (key in existingCustomizations) {
@@ -385,13 +474,16 @@ export async function enforceBrowserTabBar(): Promise<void> {
     }
 
     if (hasChanges) {
-      const updatedThemeCustomizations = {
-        ...currentThemeCustomizations,
-        ...browserTabColors,
-      };
       const updatedCustomizations = {
         ...existingCustomizations,
-        [themeKey]: updatedThemeCustomizations,
+        [lightThemeKey]: {
+          ...currentLightCustomizations,
+          ...browserTabColors,
+        },
+        [darkThemeKey]: {
+          ...currentDarkCustomizations,
+          ...browserTabDarkColors,
+        },
       };
       await workbenchConfig.update('colorCustomizations', updatedCustomizations, vscode.ConfigurationTarget.Global);
     }
@@ -676,27 +768,41 @@ export async function applyFilePastelHighlight(filename: string): Promise<void> 
   try {
     const workbenchConfig = vscode.workspace.getConfiguration('workbench');
     const existingCustomizations = workbenchConfig.get<Record<string, unknown>>('colorCustomizations') || {};
-    const themeKey = `[${THEME_NAME}]`;
-    const currentThemeCustomizations = (existingCustomizations[themeKey] as Record<string, string>) || {};
+    const lightThemeKey = `[${THEME_NAME}]`;
+    const darkThemeKey = `[${DARK_THEME_NAME}]`;
+    const currentLightCustomizations = (existingCustomizations[lightThemeKey] as Record<string, string>) || {};
+    const currentDarkCustomizations = (existingCustomizations[darkThemeKey] as Record<string, string>) || {};
 
-    const fileColors = getFilePastelColors(filename);
+    const lightColors = getFilePastelColors(filename, false);
+    const darkColors = getFilePastelColors(filename, true);
 
     let hasChanges = false;
-    for (const [key, val] of Object.entries(fileColors)) {
-      if (currentThemeCustomizations[key] !== val) {
+    for (const [key, val] of Object.entries(lightColors)) {
+      if (currentLightCustomizations[key] !== val) {
         hasChanges = true;
         break;
       }
     }
+    if (!hasChanges) {
+      for (const [key, val] of Object.entries(darkColors)) {
+        if (currentDarkCustomizations[key] !== val) {
+          hasChanges = true;
+          break;
+        }
+      }
+    }
 
     if (hasChanges) {
-      const updatedThemeCustomizations = {
-        ...currentThemeCustomizations,
-        ...fileColors,
-      };
       const updatedCustomizations = {
         ...existingCustomizations,
-        [themeKey]: updatedThemeCustomizations,
+        [lightThemeKey]: {
+          ...currentLightCustomizations,
+          ...lightColors,
+        },
+        [darkThemeKey]: {
+          ...currentDarkCustomizations,
+          ...darkColors,
+        },
       };
       await workbenchConfig.update('colorCustomizations', updatedCustomizations, vscode.ConfigurationTarget.Global);
     }
@@ -706,7 +812,7 @@ export async function applyFilePastelHighlight(filename: string): Promise<void> 
 }
 
 /**
- * Applies the neutral obsidian black active tab styling when no file document is active
+ * Applies neutral active tab styling when no file document is active
  * (e.g. settings, welcome pages, or non-file tabs), ensuring tabs never display white text on white.
  */
 export async function applyDefaultTabHighlight(): Promise<void> {
@@ -715,39 +821,41 @@ export async function applyDefaultTabHighlight(): Promise<void> {
   try {
     const workbenchConfig = vscode.workspace.getConfiguration('workbench');
     const existingCustomizations = workbenchConfig.get<Record<string, unknown>>('colorCustomizations') || {};
-    const themeKey = `[${THEME_NAME}]`;
-    const currentThemeCustomizations = (existingCustomizations[themeKey] as Record<string, string>) || {};
+    const lightThemeKey = `[${THEME_NAME}]`;
+    const darkThemeKey = `[${DARK_THEME_NAME}]`;
+    const currentLightCustomizations = (existingCustomizations[lightThemeKey] as Record<string, string>) || {};
+    const currentDarkCustomizations = (existingCustomizations[darkThemeKey] as Record<string, string>) || {};
 
-    const defaultColors: Record<string, string> = {
-      'tab.activeBackground': '#ffffff',
-      'tab.activeForeground': '#0f172a',
-      'tab.activeBorder': '#ffffff',
-      'tab.selectedBackground': '#ffffff',
-      'tab.selectedForeground': '#0f172a',
-      'tab.unfocusedActiveBackground': '#ffffff',
-      'tab.unfocusedActiveForeground': '#0f172a',
-      'tab.unfocusedActiveBorder': '#ffffff',
-      'tab.unfocusedSelectedBackground': '#ffffff',
-      'tab.unfocusedSelectedForeground': '#0f172a',
-      'tab.dragAndDropBorder': '#0f172a',
-    };
+    const defaultLightColors = getDefaultTabColors(false);
+    const defaultDarkColors = getDefaultTabColors(true);
 
     let hasChanges = false;
-    for (const [key, val] of Object.entries(defaultColors)) {
-      if (currentThemeCustomizations[key] !== val) {
+    for (const [key, val] of Object.entries(defaultLightColors)) {
+      if (currentLightCustomizations[key] !== val) {
         hasChanges = true;
         break;
       }
     }
+    if (!hasChanges) {
+      for (const [key, val] of Object.entries(defaultDarkColors)) {
+        if (currentDarkCustomizations[key] !== val) {
+          hasChanges = true;
+          break;
+        }
+      }
+    }
 
     if (hasChanges) {
-      const updatedThemeCustomizations = {
-        ...currentThemeCustomizations,
-        ...defaultColors,
-      };
       const updatedCustomizations = {
         ...existingCustomizations,
-        [themeKey]: updatedThemeCustomizations,
+        [lightThemeKey]: {
+          ...currentLightCustomizations,
+          ...defaultLightColors,
+        },
+        [darkThemeKey]: {
+          ...currentDarkCustomizations,
+          ...defaultDarkColors,
+        },
       };
       await workbenchConfig.update('colorCustomizations', updatedCustomizations, vscode.ConfigurationTarget.Global);
     }
@@ -796,6 +904,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkActive);
   coworkStatusBarItem.show();
   context.subscriptions.push(coworkStatusBarItem);
+
+  // Initialize dark mode status bar toggle button in the bottom bar
+  const darkModeStatusBarItem = createDarkModeStatusBarItem();
+  updateDarkModeStatusBarItem(darkModeStatusBarItem, isDarkModeEnabled());
+  if (isCoworkActive) {
+    darkModeStatusBarItem.show();
+  } else {
+    darkModeStatusBarItem.hide();
+  }
+  context.subscriptions.push(darkModeStatusBarItem);
 
   // Apply Cowork view layout or standard layout
   if (isCoworkActive) {
@@ -858,8 +976,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await applyFilePastelHighlight(filename);
 
     const activeHue = getFilenameHue(filename);
-    const darkHex = getDarkShade(activeHue);
-    updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled(), darkHex);
+    const isDark = isDarkModeEnabled();
+    const accentHex = isDark ? getLightShade(activeHue) : getDarkShade(activeHue);
+    updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled(), accentHex);
   }
 
   function queueAutoReveal(uri?: vscode.Uri, delayMs: number = 80, force: boolean = false): void {
@@ -1065,9 +1184,36 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const toggleCoworkViewCmd = vscode.commands.registerCommand(
     'agent-cowork.toggleCoworkView',
     async () => {
-      await toggleCoworkView(coworkStatusBarItem);
+      await toggleCoworkView(coworkStatusBarItem, darkModeStatusBarItem);
       const activeUri = getActiveDocumentUri();
-      const accent = activeUri ? getDarkShade(getFilenameHue(path.basename(activeUri.fsPath))) : undefined;
+      const isDark = isDarkModeEnabled();
+      const accent = activeUri
+        ? (isDark
+            ? getLightShade(getFilenameHue(path.basename(activeUri.fsPath)))
+            : getDarkShade(getFilenameHue(path.basename(activeUri.fsPath))))
+        : undefined;
+      updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled(), accent);
+    }
+  );
+
+  // Register toggleDarkMode command
+  const toggleDarkModeCmd = vscode.commands.registerCommand(
+    'agent-cowork.toggleDarkMode',
+    async () => {
+      await toggleDarkMode(darkModeStatusBarItem, coworkStatusBarItem);
+      const activeUri = getActiveDocumentUri();
+      let activeHue = 0;
+      if (activeUri && activeUri.scheme === 'file') {
+        const filename = path.basename(activeUri.fsPath);
+        activeHue = getFilenameHue(filename);
+        await applyFilePastelHighlight(filename);
+      } else {
+        await applyDefaultTabHighlight();
+      }
+      const isDark = isDarkModeEnabled();
+      const accent = activeUri && activeUri.scheme === 'file'
+        ? (isDark ? getLightShade(activeHue) : getDarkShade(activeHue))
+        : undefined;
       updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled(), accent);
     }
   );
@@ -1086,6 +1232,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     applyThemeCmd,
     simplifyLayoutCmd,
     toggleCoworkViewCmd,
+    toggleDarkModeCmd,
     openCoworkTreeViewCmd,
     openWorkspaceFolderCmd,
     refreshFolderViewCmd,
@@ -1105,10 +1252,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   // Listen to configuration changes (e.g. language change in editor settings)
-  const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
+  const configWatcher = vscode.workspace.onDidChangeConfiguration(async (e) => {
     if (e.affectsConfiguration('agentCowork.coworkView')) {
       const active = isCoworkViewEnabled();
       updateCoworkStatusBarItem(coworkStatusBarItem, active);
+      if (active) {
+        darkModeStatusBarItem.show();
+      } else {
+        darkModeStatusBarItem.hide();
+      }
+    }
+    if (e.affectsConfiguration('agentCowork.darkMode')) {
+      const isDark = isDarkModeEnabled();
+      updateDarkModeStatusBarItem(darkModeStatusBarItem, isDark);
+      if (isCoworkViewEnabled()) {
+        await applyCoworkTheme(true);
+        const activeUri = getActiveDocumentUri();
+        let activeHue = 0;
+        if (activeUri && activeUri.scheme === 'file') {
+          const filename = path.basename(activeUri.fsPath);
+          activeHue = getFilenameHue(filename);
+          await applyFilePastelHighlight(filename);
+        } else {
+          await applyDefaultTabHighlight();
+        }
+        const accent = activeUri && activeUri.scheme === 'file'
+          ? (isDark ? getLightShade(activeHue) : getDarkShade(activeHue))
+          : undefined;
+        updateCoworkStatusBarItem(coworkStatusBarItem, isCoworkViewEnabled(), accent);
+      }
     }
     if (e.affectsConfiguration('agentCowork.language')) {
       MarkdownEditorProvider.notifyLanguageChanged();

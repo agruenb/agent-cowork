@@ -125,7 +125,24 @@ export class WelcomePanel {
       --card-border: var(--vscode-sideBar-border, #e2e8f0);
       --text: var(--vscode-foreground, #1e293b);
       --text-muted: var(--vscode-descriptionForeground, #64748b);
+      --hero-bg: linear-gradient(180deg, var(--primary-light) 0%, rgba(255,255,255,0) 100%);
+      --btn-fg: #ffffff;
       --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body.vscode-dark,
+    body.vscode-high-contrast {
+      --primary: #38bdf8;
+      --primary-hover: #7dd3fc;
+      --primary-light: #1e293b;
+      --primary-border: #334155;
+      --bg: var(--vscode-editor-background, #0f172a);
+      --card-bg: var(--vscode-sideBar-background, #0b1120);
+      --card-border: var(--vscode-sideBar-border, #1e293b);
+      --text: var(--vscode-foreground, #e2e8f0);
+      --text-muted: var(--vscode-descriptionForeground, #94a3b8);
+      --hero-bg: linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0) 100%);
+      --btn-fg: #0f172a;
     }
 
     * {
@@ -153,7 +170,7 @@ export class WelcomePanel {
       text-align: center;
       margin-bottom: 36px;
       padding: 24px 16px;
-      background: linear-gradient(180deg, var(--primary-light) 0%, rgba(255,255,255,0) 100%);
+      background: var(--hero-bg);
       border-radius: 16px;
       border: 1px solid var(--primary-border);
     }
@@ -166,17 +183,18 @@ export class WelcomePanel {
       font-weight: 600;
       letter-spacing: 0.5px;
       text-transform: uppercase;
-      background-color: #f1f5f9;
-      color: #0f172a;
+      background-color: var(--primary-light);
+      color: var(--text);
       padding: 4px 12px;
       border-radius: 9999px;
       margin-bottom: 14px;
+      border: 1px solid var(--primary-border);
     }
 
     .hero h1 {
       font-size: 32px;
       font-weight: 700;
-      color: #0f172a;
+      color: var(--text);
       margin-bottom: 8px;
     }
 
@@ -216,7 +234,7 @@ export class WelcomePanel {
 
     .card:hover {
       border-color: var(--primary);
-      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
       transform: translateY(-2px);
     }
 
@@ -230,8 +248,9 @@ export class WelcomePanel {
     .card-icon {
       width: 48px;
       height: 48px;
-      background-color: #f1f5f9;
+      background-color: var(--primary-light);
       color: var(--primary);
+      border: 1px solid var(--primary-border);
       border-radius: 10px;
       display: flex;
       align-items: center;
@@ -262,19 +281,19 @@ export class WelcomePanel {
       gap: 8px;
       padding: 10px 20px;
       background-color: var(--primary);
-      color: #ffffff;
+      color: var(--btn-fg);
       font-size: 14px;
       font-weight: 600;
       border-radius: 8px;
       border: none;
       cursor: pointer;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
       transition: background-color 0.2s ease, box-shadow 0.2s ease;
     }
 
     .card:hover .card-action-btn {
       background-color: var(--primary-hover);
-      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     }
 
     .tips-box {
@@ -288,7 +307,7 @@ export class WelcomePanel {
     .tips-box h4 {
       font-size: 14px;
       font-weight: 600;
-      color: #0f172a;
+      color: var(--text);
       margin-bottom: 10px;
     }
 
