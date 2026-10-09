@@ -21,6 +21,7 @@ import { getBlockDeleteBtnHtml } from '../markdown/parser';
 import { handleCodeButtonClick } from './inlineCode';
 import { getCodeBlockCopyBtnHtml } from './codeCopy';
 import { tWebview, getWebviewLanguage } from './i18n';
+import { updateFindWidgetPosition } from './findReplace';
 
 export interface ToolbarHooks {
   toggleRawMode: () => void;
@@ -364,6 +365,8 @@ export function setToolbarCollapsed(collapsed: boolean): void {
   } catch {
     // Ignore in environments where getState/setState is not supported
   }
+
+  updateFindWidgetPosition();
 }
 
 /**
@@ -389,7 +392,8 @@ export function wireToolbar(hooks: ToolbarHooks): void {
       btn.id !== 'btn-cowork' &&
       btn.id !== 'btn-toggle-toolbar' &&
       btn.id !== 'btn-ai-accept' &&
-      btn.id !== 'btn-ai-reject'
+      btn.id !== 'btn-ai-reject' &&
+      btn.id !== 'btn-toolbar-find'
     ) {
       e.preventDefault();
     }

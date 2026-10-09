@@ -543,8 +543,110 @@ export function toggleListBlock(
     return;
   }
 
-  // Not inside a list item: handle text-based blocks as expected for a text editor
+  // Check if selection or focus is inside a table cell (th or td)
   const anchorNode = sel && sel.rangeCount > 0 ? sel.anchorNode : null;
+  const focusNode = sel && sel.rangeCount > 0 ? sel.focusNode : null;
+  const tableCell =
+    findAncestor(anchorNode, canvas, (el) => el.tagName === 'TD' || el.tagName === 'TH') ||
+    (anchorNode && anchorNode.nodeType === 1 && ((anchorNode as HTMLElement).tagName === 'TD' || (anchorNode as HTMLElement).tagName === 'TH') ? (anchorNode as HTMLElement) : null) ||
+    findAncestor(focusNode, canvas, (el) => el.tagName === 'TD' || el.tagName === 'TH') ||
+    (canvas.querySelector<HTMLElement>('td.is-focused-cell, th.is-focused-cell'));
+
+  if (tableCell && canvas.contains(tableCell)) {
+    const isCurrentlyCheckboxCell =
+      tableCell.classList.contains('table-checkbox-cell') ||
+      tableCell.querySelector(':scope > input[type="checkbox"]') !== null;
+
+    if (type === 'task') {
+      if (isCurrentlyCheckboxCell) {
+        // Toggle OFF: convert back to regular table cell
+        tableCell.classList.remove('table-checkbox-cell', 'is-checked');
+        tableCell.removeAttribute('data-checked');
+        tableCell.innerHTML = '<br>';
+
+        tableCell.focus();
+        if (sel) {
+          const range = doc.createRange();
+          range.selectNodeContents(tableCell);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        onMutated?.();
+        return;
+      }
+
+      // Toggle ON: convert to checkbox cell
+      tableCell.classList.add('table-checkbox-cell');
+      const text = (tableCell.textContent || '').trim();
+      const isChecked = /\[[xX]\]/.test(text);
+      tableCell.setAttribute('data-checked', isChecked ? 'true' : 'false');
+      if (isChecked) {
+        tableCell.classList.add('is-checked');
+      } else {
+        tableCell.classList.remove('is-checked');
+      }
+
+      tableCell.innerHTML = '';
+      const cb = doc.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'table-cell-checkbox';
+      cb.checked = isChecked;
+      cb.contentEditable = 'false';
+      tableCell.appendChild(cb);
+
+      tableCell.focus();
+      if (sel) {
+        const range = doc.createRange();
+        range.selectNodeContents(tableCell);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+
+      onMutated?.();
+      return;
+    }
+
+    // Bullet or ordered in a table cell: keep table intact and avoid breaking table structure
+    if (isCurrentlyCheckboxCell) {
+      tableCell.classList.remove('table-checkbox-cell', 'is-checked');
+      tableCell.removeAttribute('data-checked');
+      tableCell.innerHTML = '';
+    }
+
+    const currentText = (tableCell.textContent || '').replace(/\u200B/g, '').trim();
+    if (type === 'bullet') {
+      if (currentText.startsWith('• ') || currentText.startsWith('- ')) {
+        tableCell.textContent = currentText.replace(/^([•-]\s*)/, '');
+      } else {
+        tableCell.textContent = currentText ? `• ${currentText}` : '• ';
+      }
+    } else if (type === 'ordered') {
+      if (/^\d+[.)]\s*/.test(currentText)) {
+        tableCell.textContent = currentText.replace(/^\d+[.)]\s*/, '');
+      } else {
+        tableCell.textContent = currentText ? `1. ${currentText}` : '1. ';
+      }
+    }
+    if (!tableCell.innerHTML.trim()) {
+      tableCell.innerHTML = '<br>';
+    }
+
+    tableCell.focus();
+    if (sel) {
+      const range = doc.createRange();
+      range.selectNodeContents(tableCell);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    onMutated?.();
+    return;
+  }
+
+  // Not inside a list item or table cell: handle text-based blocks as expected for a text editor
   const topBlock = findTopBlock(anchorNode, canvas);
 
   if (!topBlock || !canvas.contains(topBlock)) {

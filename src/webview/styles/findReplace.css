@@ -1,0 +1,314 @@
+/* ==========================================================================
+   Find & Replace Widget Styles
+   ========================================================================== */
+
+.find-widget {
+  position: absolute;
+  top: 68px;
+  right: 28px;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 320px;
+  max-width: 420px;
+  padding: 6px 8px;
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
+  font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  animation: find-widget-slide 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+@keyframes find-widget-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.find-row,
+.find-replace-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.find-replace-indent {
+  width: 22px;
+  flex-shrink: 0;
+}
+
+.find-chevron-icon {
+  transition: transform 0.15s ease;
+}
+
+.find-toggle-replace-btn.expanded .find-chevron-icon {
+  transform: rotate(90deg);
+}
+
+.find-input-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.find-input {
+  width: 100%;
+  height: 26px;
+  padding: 3px 44px 3px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  font-family: inherit;
+  color: var(--text, #1e293b);
+  background-color: var(--input-bg, #ffffff);
+  border: 1px solid var(--border-muted, #cbd5e1);
+  border-radius: 5px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.find-replace-row .find-input {
+  padding-right: 8px;
+}
+
+.find-input:focus {
+  border-color: var(--primary, #0f172a);
+  box-shadow: 0 0 0 1.5px var(--primary, #0f172a);
+}
+
+.find-input::placeholder {
+  color: var(--text-muted, #94a3b8);
+}
+
+.find-input-actions {
+  position: absolute;
+  right: 3px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.find-toggle-opt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--mono-font, monospace);
+  color: var(--text-muted, #64748b);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.find-toggle-opt-btn:hover {
+  background: var(--primary-light, #f1f5f9);
+  color: var(--text, #0f172a);
+}
+
+.find-toggle-opt-btn.active {
+  background: var(--primary-light, #f1f5f9);
+  color: var(--primary, #0f172a);
+  border-color: var(--primary-border, #cbd5e1);
+}
+
+.find-count {
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
+  min-width: 40px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.find-count.has-no-results {
+  color: #ef4444;
+}
+
+.find-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.find-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text, #1e293b);
+  cursor: pointer;
+  transition: all 0.1s ease;
+  padding: 0;
+}
+
+.find-btn-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.find-btn:hover {
+  background-color: var(--primary-light, #f1f5f9);
+  color: var(--text, #0f172a);
+}
+
+.find-close-btn {
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--text-muted, #64748b);
+  margin-left: 2px;
+}
+
+.find-close-btn:hover {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.12);
+}
+
+.find-replace-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.find-action-btn {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--border-muted, #cbd5e1);
+  background-color: var(--card-header-bg, #f1f5f9);
+  border-radius: 4px;
+  color: var(--text, #1e293b);
+  white-space: nowrap;
+}
+
+.find-action-btn:hover {
+  background-color: var(--primary, #0f172a);
+  border-color: var(--primary, #0f172a);
+  color: var(--primary-contrast, #ffffff);
+}
+
+/* Toolbar Search Button */
+.find-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text, #1e293b);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.find-toolbar-btn:hover {
+  background: var(--toolbar-btn-hover-bg, rgba(255, 255, 255, 0.75));
+  color: var(--toolbar-btn-hover-fg, #0f172a);
+}
+
+/* Document Highlights in Formatted Canvas */
+mark.find-match {
+  background-color: rgba(250, 204, 21, 0.45);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+mark.find-match.active {
+  background-color: #f59e0b;
+  color: #0f172a;
+  outline: 2px solid #d97706;
+}
+
+/* Dark Mode Adaptation */
+body.vscode-dark .find-widget,
+html.is-dark .find-widget,
+:root[data-theme="dark"] .find-widget {
+  background-color: var(--card-bg, #0b1120);
+  border-color: var(--card-border, #1e293b);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+body.vscode-dark .find-input,
+html.is-dark .find-input,
+:root[data-theme="dark"] .find-input {
+  background-color: #0f172a;
+  border-color: #334155;
+  color: var(--text, #e2e8f0);
+}
+
+body.vscode-dark .find-input:focus,
+html.is-dark .find-input:focus,
+:root[data-theme="dark"] .find-input:focus {
+  border-color: var(--primary, #38bdf8);
+  box-shadow: 0 0 0 1.5px var(--primary, #38bdf8);
+}
+
+body.vscode-dark .find-btn:hover,
+html.is-dark .find-btn:hover,
+:root[data-theme="dark"] .find-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+body.vscode-dark .find-toggle-opt-btn:hover,
+html.is-dark .find-toggle-opt-btn:hover,
+:root[data-theme="dark"] .find-toggle-opt-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+body.vscode-dark .find-toggle-opt-btn.active,
+html.is-dark .find-toggle-opt-btn.active,
+:root[data-theme="dark"] .find-toggle-opt-btn.active {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border-color: #0284c7;
+}
+
+body.vscode-dark .find-action-btn,
+html.is-dark .find-action-btn,
+:root[data-theme="dark"] .find-action-btn {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+body.vscode-dark .find-action-btn:hover,
+html.is-dark .find-action-btn:hover,
+:root[data-theme="dark"] .find-action-btn:hover {
+  background-color: var(--primary, #38bdf8);
+  border-color: var(--primary, #38bdf8);
+  color: #0f172a;
+}
+
+body.vscode-dark mark.find-match,
+html.is-dark mark.find-match,
+:root[data-theme="dark"] mark.find-match {
+  background-color: rgba(234, 179, 8, 0.35);
+}
+
+body.vscode-dark mark.find-match.active,
+html.is-dark mark.find-match.active,
+:root[data-theme="dark"] mark.find-match.active {
+  background-color: #f59e0b;
+  color: #0f172a;
+  outline: 2px solid #fbbf24;
+}

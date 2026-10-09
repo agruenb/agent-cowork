@@ -196,6 +196,18 @@
         "category": "%command.category%",
         "title": "%command.openCoworkTreeView.title%",
         "icon": "$(folder-library)"
+      },
+      {
+        "command": "agent-cowork.find",
+        "category": "%command.category%",
+        "title": "%command.find.title%",
+        "icon": "$(search)"
+      },
+      {
+        "command": "agent-cowork.replace",
+        "category": "%command.category%",
+        "title": "%command.replace.title%",
+        "icon": "$(find-replace)"
       }
     ],
     "viewsContainers": {
@@ -305,6 +317,20 @@
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "agent-cowork.find",
+        "key": "ctrl+f",
+        "mac": "cmd+f",
+        "when": "activeCustomEditorId == 'agentCowork.markdownEditor'"
+      },
+      {
+        "command": "agent-cowork.replace",
+        "key": "ctrl+h",
+        "mac": "cmd+alt+f",
+        "when": "activeCustomEditorId == 'agentCowork.markdownEditor'"
+      }
+    ],
     "configuration": {
       "title": "%config.title%",
       "properties": {

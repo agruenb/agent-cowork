@@ -118,7 +118,22 @@ export function handleTableKeyDown(
     e.key === 'ArrowLeft' ||
     e.key === 'ArrowRight';
 
-  if (e.key !== 'Tab' && !isArrow) return false;
+  const isSpace = e.key === ' ';
+  const isBackspaceOrDelete = e.key === 'Backspace' || e.key === 'Delete';
+  const isEnter = e.key === 'Enter';
+  const isPrintableChar =
+    e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== ' ';
+
+  if (
+    e.key !== 'Tab' &&
+    !isArrow &&
+    !isSpace &&
+    !isBackspaceOrDelete &&
+    !isEnter &&
+    !isPrintableChar
+  ) {
+    return false;
+  }
 
   // Do not intercept modified arrow keys (allow text selection with Shift, word jumps with Alt, etc.)
   if (isArrow && (e.shiftKey || e.altKey || e.metaKey || e.ctrlKey)) {
@@ -135,11 +150,21 @@ export function handleTableKeyDown(
 
   const anchor = sel.anchorNode;
   const cell =
-    anchor && anchor.nodeType === 1
-      ? (anchor as HTMLElement).closest('td, th')
-      : anchor?.parentElement?.closest('td, th');
+    (anchor && anchor.nodeType === 1
+      ? ((anchor as HTMLElement).closest('td, th') as HTMLElement | null)
+      : (anchor?.parentElement?.closest('td, th') as HTMLElement | null)) ||
+    editorCanvas.querySelector<HTMLElement>('td.is-focused-cell, th.is-focused-cell');
 
   if (!cell || !editorCanvas.contains(cell)) {
+    return false;
+  }
+
+  const isCheckboxCell =
+    cell.classList.contains('table-checkbox-cell') ||
+    cell.querySelector(':scope > input.table-cell-checkbox') !== null;
+
+  // If not a checkbox cell and not an arrow or Tab key, don't intercept normal typing
+  if (!isCheckboxCell && !isArrow && e.key !== 'Tab') {
     return false;
   }
 
@@ -148,6 +173,40 @@ export function handleTableKeyDown(
 
   const currentTr = cell.closest('tr');
   if (!currentTr) return false;
+
+  // Checkbox cell keyboard controls
+  if (isCheckboxCell) {
+    if (isSpace) {
+      e.preventDefault();
+      const cb = cell.querySelector<HTMLInputElement>('input.table-cell-checkbox');
+      const nowChecked = cb ? !cb.checked : cell.getAttribute('data-checked') !== 'true';
+      if (cb) cb.checked = nowChecked;
+      cell.setAttribute('data-checked', nowChecked ? 'true' : 'false');
+      cell.classList.toggle('is-checked', nowChecked);
+      emitEdit();
+      return true;
+    }
+
+    if (isBackspaceOrDelete) {
+      e.preventDefault();
+      cell.classList.remove('table-checkbox-cell', 'is-checked');
+      cell.removeAttribute('data-checked');
+      cell.innerHTML = '<br>';
+      focusCell(cell, false);
+      emitEdit();
+      return true;
+    }
+
+    if (isPrintableChar) {
+      e.preventDefault();
+      cell.classList.remove('table-checkbox-cell', 'is-checked');
+      cell.removeAttribute('data-checked');
+      cell.textContent = e.key;
+      focusCell(cell, true);
+      emitEdit();
+      return true;
+    }
+  }
 
   // Build ordered list of all table rows (thead then tbody)
   const rows: HTMLTableRowElement[] = [];
@@ -163,6 +222,30 @@ export function handleTableKeyDown(
   const colIndex = cellsInRow.indexOf(cell as HTMLElement);
 
   if (rowIndex === -1 || colIndex === -1) return false;
+
+  // Enter inside checkbox cell navigates to cell below at same column (or adds new row)
+  if (isCheckboxCell && isEnter && !e.shiftKey) {
+    e.preventDefault();
+    if (rowIndex < rows.length - 1) {
+      const targetRow = rows[rowIndex + 1];
+      const targetCells = Array.from(targetRow.children) as HTMLElement[];
+      const targetCol = Math.min(colIndex, targetCells.length - 1);
+      if (targetCol >= 0 && targetCells[targetCol]) {
+        focusCell(targetCells[targetCol], true);
+        return true;
+      }
+    } else {
+      const newRow = addTableRow(table);
+      emitEdit();
+      const targetCells = Array.from(newRow.children) as HTMLElement[];
+      const targetCol = Math.min(colIndex, targetCells.length - 1);
+      if (targetCol >= 0 && targetCells[targetCol]) {
+        focusCell(targetCells[targetCol], true);
+        return true;
+      }
+    }
+    return true;
+  }
 
   // 1. Tab / Shift+Tab navigation
   if (e.key === 'Tab') {

@@ -151,9 +151,20 @@ export async function getOriginalContent(document: vscode.TextDocument): Promise
 export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   public static readonly viewType = 'agentCowork.markdownEditor';
   private static readonly activePanels = new Set<vscode.WebviewPanel>();
+  private static currentActivePanel: vscode.WebviewPanel | null = null;
   private static treeViewVisible = true;
   private static readonly _onDidActiveDocumentChange = new vscode.EventEmitter<vscode.Uri>();
   public static readonly onDidActiveDocumentChange = MarkdownEditorProvider._onDidActiveDocumentChange.event;
+
+  public static openFind(replace = false): void {
+    const target = MarkdownEditorProvider.currentActivePanel || Array.from(MarkdownEditorProvider.activePanels)[0];
+    if (target) {
+      target.webview.postMessage({
+        type: 'openFind',
+        replace,
+      });
+    }
+  }
 
   public static setTreeViewVisible(visible: boolean): void {
     MarkdownEditorProvider.treeViewVisible = visible;
@@ -200,6 +211,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
+    MarkdownEditorProvider.currentActivePanel = webviewPanel;
     // Notify that a custom editor document is active
     MarkdownEditorProvider._onDidActiveDocumentChange.fire(document.uri);
 
@@ -208,6 +220,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         sendInitialContent();
       }
       if (e.webviewPanel.active) {
+        MarkdownEditorProvider.currentActivePanel = webviewPanel;
         MarkdownEditorProvider._onDidActiveDocumentChange.fire(document.uri);
       }
     });
@@ -629,6 +642,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.onDidDispose(() => {
       MarkdownEditorProvider.activePanels.delete(webviewPanel);
+      if (MarkdownEditorProvider.currentActivePanel === webviewPanel) {
+        MarkdownEditorProvider.currentActivePanel = null;
+      }
       if (initFallbackTimer) {
         clearTimeout(initFallbackTimer);
       }
@@ -756,6 +772,13 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         <button id="btn-ai-reject" class="btn-ai-action btn-ai-reject" tabindex="-1" title="${t('KI-Änderungen verwerfen')}">✕ ${t('Verwerfen')}</button>
       </div>
 
+      <!-- Find in document button -->
+      <button id="btn-toolbar-find" class="find-toolbar-btn" tabindex="-1" title="${t('Suchen (Cmd+F)')}" aria-label="${t('Suchen')}">
+        <svg class="tb-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+        </svg>
+      </button>
+
       <!-- Discreet / un-prominent Raw Markdown source toggle -->
       <button id="btn-toggle-raw" class="raw-toggle-btn" tabindex="-1" title="${t('Markdown-Quelltext anzeigen oder bearbeiten')}">&lt;/&gt; Raw</button>
 
@@ -775,6 +798,65 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708l6-6z"/>
         </svg>
       </button>
+    </div>
+
+    <!-- Floating Find & Replace Widget -->
+    <div id="find-widget" class="find-widget" style="display: none;" role="search" aria-label="${t('Suchen und Ersetzen')}">
+      <div class="find-row">
+        <button id="btn-find-toggle-replace" class="find-btn find-btn-icon find-toggle-replace-btn" tabindex="-1" title="${t('Ersetzen ein-/ausblenden')}" aria-label="${t('Ersetzen ein-/ausblenden')}" aria-expanded="false">
+          <svg class="find-chevron-icon" width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+            <path fill-rule="evenodd" d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06z"/>
+          </svg>
+        </button>
+
+        <div class="find-input-container">
+          <input id="find-input" class="find-input" type="text" placeholder="${t('Suchen')}" autocomplete="off" spellcheck="false" />
+          <div class="find-input-actions">
+            <button id="btn-find-case" class="find-toggle-opt-btn" tabindex="-1" title="${t('Groß-/Kleinschreibung beachten')}" aria-label="${t('Groß-/Kleinschreibung beachten')}">
+              <span>Aa</span>
+            </button>
+            <button id="btn-find-word" class="find-toggle-opt-btn" tabindex="-1" title="${t('Nur ganzes Wort')}" aria-label="${t('Nur ganzes Wort')}">
+              <span>\\b</span>
+            </button>
+          </div>
+        </div>
+
+        <span id="find-count" class="find-count" aria-live="polite">0/0</span>
+
+        <div class="find-nav-group">
+          <button id="btn-find-prev" class="find-btn find-btn-icon" tabindex="-1" title="${t('Vorheriges Ergebnis (Umschalt+Eingabe)')}" aria-label="${t('Vorheriges Ergebnis')}">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+              <path fill-rule="evenodd" d="M3.22 9.78a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1-1.06 1.06L8 6.06 4.28 9.78a.75.75 0 0 1-1.06 0z"/>
+            </svg>
+          </button>
+          <button id="btn-find-next" class="find-btn find-btn-icon" tabindex="-1" title="${t('Nächstes Ergebnis (Eingabe)')}" aria-label="${t('Nächstes Ergebnis')}">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+              <path fill-rule="evenodd" d="M3.22 6.22a.75.75 0 0 1 1.06 0L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0l-4.25-4.25a.75.75 0 0 1 0-1.06z"/>
+            </svg>
+          </button>
+        </div>
+
+        <button id="btn-find-close" class="find-btn find-btn-icon find-close-btn" tabindex="-1" title="${t('Schließen (Esc)')}" aria-label="${t('Schließen')}">
+          ✕
+        </button>
+      </div>
+
+      <div id="find-replace-row" class="find-replace-row" style="display: none;">
+        <div class="find-replace-indent"></div>
+
+        <div class="find-input-container">
+          <input id="find-replace-input" class="find-input" type="text" placeholder="${t('Ersetzen')}" autocomplete="off" spellcheck="false" />
+        </div>
+
+        <div class="find-replace-actions">
+          <button id="btn-replace" class="find-btn find-action-btn" tabindex="-1" title="${t('Ersetzen')}">
+            <span>${t('Ersetzen')}</span>
+          </button>
+          <button id="btn-replace-all" class="find-btn find-action-btn" tabindex="-1" title="${t('Alles ersetzen')}">
+            <span>${t('Alles ersetzen')}</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Error/Warning Banner -->

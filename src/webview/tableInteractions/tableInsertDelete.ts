@@ -81,14 +81,29 @@ export function addTableRow(table: HTMLTableElement, insertAtIndex?: number): HT
     1
   );
 
+  const existingRows = Array.from(tbody.querySelectorAll('tr'));
+  const refRow = existingRows.length > 0
+    ? (insertAtIndex !== undefined && insertAtIndex > 0 ? existingRows[insertAtIndex - 1] : existingRows[existingRows.length - 1])
+    : null;
+
   const tr = doc.createElement('tr');
   for (let i = 0; i < colCount; i++) {
     const td = doc.createElement('td');
-    td.innerHTML = '<br>';
+    const refCell = refRow ? (refRow.children[i] as HTMLElement | undefined) : undefined;
+    if (refCell && refCell.classList.contains('table-checkbox-cell')) {
+      td.className = 'table-checkbox-cell';
+      td.setAttribute('data-checked', 'false');
+      const cb = doc.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'table-cell-checkbox';
+      cb.contentEditable = 'false';
+      td.appendChild(cb);
+    } else {
+      td.innerHTML = '<br>';
+    }
     tr.appendChild(td);
   }
 
-  const existingRows = Array.from(tbody.querySelectorAll('tr'));
   if (insertAtIndex !== undefined && insertAtIndex >= 0 && insertAtIndex < existingRows.length) {
     tbody.insertBefore(tr, existingRows[insertAtIndex]);
   } else {

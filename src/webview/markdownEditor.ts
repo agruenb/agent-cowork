@@ -13,7 +13,7 @@ import {
   indentRawText,
   outdentRawText,
 } from '../markdown/listOperations';
-import { wireTableInteractions, handleTableKeyDown } from './tableInteractions';
+import { wireTableInteractions, handleTableKeyDown, focusCell } from './tableInteractions';
 import { wireToolbar, executeCommand } from './toolbarWiring';
 import { wireBlockFocus } from './blockFocus';
 import { wireBlockDelete } from './blockDelete';
@@ -65,6 +65,16 @@ import {
   scrollToLineInFormatted,
   scrollToLineInRaw,
 } from './scrollSync';
+import {
+  wireFindReplace,
+  openFindWidget,
+  closeFindWidget,
+  handleGlobalFindShortcuts,
+  refreshFindIfOpen,
+  updateFindWidgetLanguage,
+  clearFormattedHighlights,
+  isFindWidgetOpen,
+} from './findReplace';
 
 // -------------------------------------------------------------
 // Core View Management
@@ -321,6 +331,9 @@ export function toggleRawMode(): void {
       return;
     }
 
+    if (canvas) {
+      clearFormattedHighlights(canvas);
+    }
     if (state.isCanvasDirty) {
       const md = getMarkdownFromCanvas();
       if (md !== null) {
@@ -434,6 +447,7 @@ export function toggleRawMode(): void {
       }
     }
   }
+  refreshFindIfOpen();
 }
 
 // -------------------------------------------------------------
@@ -1509,6 +1523,7 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
     }
 
     updateCodeCopyLanguage(document);
+    updateFindWidgetLanguage();
 
     // Show cowork tree button
     const btnShowCoworkTree = document.getElementById('btn-show-cowork-tree');
@@ -1614,6 +1629,14 @@ export function handleWindowMessage(event: MessageEvent): void {
   const message = event.data;
   const textarea = getRawTextarea();
   switch (message?.type) {
+    case 'openFind': {
+      openFindWidget(Boolean(message.replace));
+      break;
+    }
+    case 'closeFind': {
+      closeFindWidget();
+      break;
+    }
     case 'scrollToAnchor': {
       if (typeof message.anchor === 'string') {
         scrollToHeadingOrAnchor(message.anchor);
@@ -2191,7 +2214,35 @@ export function initMarkdownEditor(): void {
         container.setAttribute('data-language', val);
       }
     }
+
+    const tableCell = target?.closest('td, th') as HTMLElement | null;
+    if (tableCell && canvas.contains(tableCell) && !tableCell.classList.contains('table-checkbox-cell')) {
+      const text = (tableCell.textContent || '').replace(/\u200B/g, '').trim();
+      const match = text.match(/^\[([ xX]?)\]$/);
+      if (match) {
+        const isChecked = match[1].toLowerCase() === 'x';
+        tableCell.classList.add('table-checkbox-cell');
+        tableCell.setAttribute('data-checked', isChecked ? 'true' : 'false');
+        if (isChecked) {
+          tableCell.classList.add('is-checked');
+        } else {
+          tableCell.classList.remove('is-checked');
+        }
+        tableCell.innerHTML = '';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'table-cell-checkbox';
+        cb.checked = isChecked;
+        cb.contentEditable = 'false';
+        tableCell.appendChild(cb);
+        focusCell(tableCell, false);
+      }
+    }
+
     emitCanvasEdit();
+    if (isFindWidgetOpen()) {
+      refreshFindIfOpen();
+    }
   });
 
   // Immediately place caret at the end of the line on mousedown, preventing default start-of-line placement,
@@ -2252,6 +2303,7 @@ export function initMarkdownEditor(): void {
         } else {
           cell.classList.remove('is-checked');
         }
+        focusCell(cell, false);
         emitCanvasEdit();
       }
     }
@@ -2302,6 +2354,9 @@ export function initMarkdownEditor(): void {
     autoResizeRawTextarea();
     updateRawLineNumbers();
     emitEdit(textarea.value);
+    if (isFindWidgetOpen()) {
+      refreshFindIfOpen();
+    }
   });
 
   textarea.addEventListener('keydown', handleRawKeyDown);
@@ -2420,6 +2475,10 @@ export function initMarkdownEditor(): void {
     toggleRawMode,
     wireTaskCheckboxes,
   });
+
+  // Initialize Find & Replace widget and shortcuts
+  wireFindReplace();
+  window.addEventListener('keydown', handleGlobalFindShortcuts, true);
 
   // Initialize block focus and delete button handlers
   wireBlockFocus(canvas);

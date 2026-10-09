@@ -20,6 +20,8 @@
   "command.toggleCoworkView.title": "Toggle Cowork View",
   "command.toggleDarkMode.title": "Toggle Dark Mode",
   "command.openCoworkTreeView.title": "Open Workspace Folder View",
+  "command.find.title": "Find",
+  "command.replace.title": "Find and Replace",
   "viewContainer.agentCowork.title": "Workspace",
   "view.folderView.name": "Workspace Folder",
   "view.folderView.contextualTitle": "Workspace",

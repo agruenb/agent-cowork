@@ -1226,6 +1226,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   );
 
+  const findCmd = vscode.commands.registerCommand('agent-cowork.find', () => {
+    MarkdownEditorProvider.openFind(false);
+  });
+
+  const replaceCmd = vscode.commands.registerCommand('agent-cowork.replace', () => {
+    MarkdownEditorProvider.openFind(true);
+  });
+
   context.subscriptions.push(
     openWelcomeCmd,
     helloWorldCmd,
@@ -1234,6 +1242,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     toggleCoworkViewCmd,
     toggleDarkModeCmd,
     openCoworkTreeViewCmd,
+    findCmd,
+    replaceCmd,
     openWorkspaceFolderCmd,
     refreshFolderViewCmd,
     newFileCmd,

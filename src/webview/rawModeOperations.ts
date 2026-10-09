@@ -1,4 +1,5 @@
 import { indentRawText, outdentRawText } from '../markdown/listOperations';
+import { isTableDelimiterRow } from '../markdown/parser';
 import { tWebview } from './i18n';
 import { autoResizeRawTextarea } from './editorState';
 import { updateRawLineNumbers } from './rawLineNumbers';
@@ -145,6 +146,51 @@ export function applyRawFormatting(
       const lineEndIdx = val.indexOf('\n', end);
       const lineEnd = lineEndIdx === -1 ? val.length : lineEndIdx;
       const targetLines = val.slice(lineStart, lineEnd).split('\n');
+
+      // Check if cursor is on a single table row line
+      if (
+        targetLines.length === 1 &&
+        targetLines[0].trim().startsWith('|') &&
+        targetLines[0].trim().endsWith('|') &&
+        !isTableDelimiterRow(targetLines[0])
+      ) {
+        const line = targetLines[0];
+        const offsetInLine = Math.max(0, Math.min(line.length, start - lineStart));
+        const pipeIndices: number[] = [];
+        for (let i = 0; i < line.length; i++) {
+          if (line[i] === '|') pipeIndices.push(i);
+        }
+
+        if (pipeIndices.length >= 2) {
+          let cellIdx = 0;
+          for (let i = 0; i < pipeIndices.length - 1; i++) {
+            if (offsetInLine >= pipeIndices[i] && offsetInLine <= pipeIndices[i + 1]) {
+              cellIdx = i;
+              break;
+            }
+          }
+
+          const cellStart = pipeIndices[cellIdx] + 1;
+          const cellEnd = pipeIndices[cellIdx + 1];
+          const cellContent = line.slice(cellStart, cellEnd);
+          const trimmed = cellContent.trim();
+
+          let replacementCell = '';
+          if (/^\[([ xX])\]$/.test(trimmed)) {
+            // Toggle off: clear cell to space
+            replacementCell = ' ';
+          } else {
+            // Toggle on: format as checkbox cell
+            replacementCell = ' [ ] ';
+          }
+
+          const newLine = line.slice(0, cellStart) + replacementCell + line.slice(cellEnd);
+          newText = val.slice(0, lineStart) + newLine + val.slice(lineEnd);
+          newStart = lineStart + cellStart + replacementCell.length;
+          newEnd = newStart;
+          break;
+        }
+      }
 
       const allTasks = targetLines.every((l) => /^\s*[-*+]\s+\[([ xX])\]\s*/.test(l));
       const transformed = targetLines

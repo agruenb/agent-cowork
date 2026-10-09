@@ -71,6 +71,24 @@ const enWebviewTranslations: Record<string, string> = {
   'Arbeitsordner anzeigen': 'Show workspace folder',
   'Markdown eingeben...': 'Enter Markdown...',
 
+  // Find and Replace
+  'Suchen (Cmd+F)': 'Find (Cmd+F)',
+  'Suchen (Ctrl+F)': 'Find (Ctrl+F)',
+  'Suchen': 'Find',
+  'Ersetzen': 'Replace',
+  'Ersetzen ein-/ausblenden': 'Toggle Replace',
+  'Alles ersetzen': 'Replace All',
+  'Vorheriges Ergebnis (Umschalt+Eingabe)': 'Previous match (Shift+Enter)',
+  'Vorheriges Ergebnis': 'Previous match',
+  'Nächstes Ergebnis (Eingabe)': 'Next match (Enter)',
+  'Nächstes Ergebnis': 'Next match',
+  'Groß-/Kleinschreibung beachten': 'Match Case',
+  'Nur ganzes Wort': 'Match Whole Word',
+  'Keine Ergebnisse': 'No results',
+  '{0} von {1}': '{0} of {1}',
+  'Schließen (Esc)': 'Close (Esc)',
+  'Suchen und Ersetzen': 'Find and Replace',
+
   // Code block
   'Code': 'Code',
   'Code-Typ bearbeiten': 'Edit code language',
