@@ -514,7 +514,7 @@ export function handleCanvasKeyDown(e: KeyboardEvent): void {
     }
     return;
   }
-  if (target?.closest('input')) {
+  if (target?.closest('input:not(.task-checkbox)')) {
     return;
   }
 

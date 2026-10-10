@@ -186,6 +186,22 @@ export function serializeListBlock(listEl: HTMLElement, indentLevel = 0): string
  * Serializes a single block element or container element into one or more Markdown blocks.
  */
 export function serializeBlockElement(blockEl: HTMLElement): string[] {
+  // Skip top-level or nested UI controls
+  if (
+    blockEl.classList.contains('block-delete-btn') ||
+    blockEl.classList.contains('block-confirm-popup') ||
+    blockEl.classList.contains('table-controls') ||
+    blockEl.classList.contains('table-confirm-popup') ||
+    blockEl.classList.contains('task-list-controls') ||
+    blockEl.classList.contains('task-item-drag-btn') ||
+    blockEl.classList.contains('task-item-del-btn') ||
+    blockEl.classList.contains('task-item-top-btn') ||
+    blockEl.classList.contains('task-drop-indicator') ||
+    blockEl.classList.contains('selection-cowork-btn')
+  ) {
+    return [];
+  }
+
   // Block containers: unwrap and serialize child blocks (skipping UI buttons/controls)
   if (blockEl.classList.contains('editor-block-container')) {
     const subBlocks: string[] = [];
@@ -200,15 +216,14 @@ export function serializeBlockElement(blockEl: HTMLElement): string[] {
         child.classList.contains('task-item-drag-btn') ||
         child.classList.contains('task-item-del-btn') ||
         child.classList.contains('task-item-top-btn') ||
-        child.classList.contains('task-drop-indicator')
+        child.classList.contains('task-drop-indicator') ||
+        child.classList.contains('selection-cowork-btn')
       ) {
         continue;
       }
       subBlocks.push(...serializeBlockElement(child));
     }
-    if (subBlocks.length > 0) {
-      return subBlocks;
-    }
+    return subBlocks;
   }
 
   const tagName = blockEl.tagName.toLowerCase();
@@ -385,7 +400,66 @@ export function serializeBlockElement(blockEl: HTMLElement): string[] {
     return [pContent];
   }
 
-  return [];
+  return [''];
+}
+
+/**
+ * Formats an array of serialized Markdown blocks and empty line indicators
+ * into standard Markdown text, correctly maintaining empty lines.
+ */
+export function formatMarkdownBlocks(blocks: string[]): string {
+  if (blocks.length === 0) {
+    return '';
+  }
+
+  // Find first and last non-empty block indices
+  let firstNonEmpty = -1;
+  let lastNonEmpty = -1;
+
+  for (let i = 0; i < blocks.length; i++) {
+    if (blocks[i] !== '') {
+      if (firstNonEmpty === -1) {
+        firstNonEmpty = i;
+      }
+      lastNonEmpty = i;
+    }
+  }
+
+  // If there are no non-empty blocks at all (all blocks are empty lines):
+  if (firstNonEmpty === -1) {
+    // A single empty block (e.g. default placeholder <p><br></p>) is an empty document
+    if (blocks.length <= 1) {
+      return '';
+    }
+    // Multiple empty lines in an empty document: N empty lines
+    return '\n'.repeat(blocks.length - 1);
+  }
+
+  let result = '';
+
+  // Leading empty lines
+  if (firstNonEmpty > 0) {
+    result += '\n'.repeat(firstNonEmpty);
+  }
+
+  // First non-empty block
+  result += blocks[firstNonEmpty];
+  let prevNonEmpty = firstNonEmpty;
+
+  // Interleaved blocks and empty lines between first and last non-empty block
+  for (let i = firstNonEmpty + 1; i <= lastNonEmpty; i++) {
+    if (blocks[i] !== '') {
+      const emptyCount = i - prevNonEmpty - 1;
+      result += '\n'.repeat(emptyCount + 2) + blocks[i];
+      prevNonEmpty = i;
+    }
+  }
+
+  // Trailing empty lines after last non-empty block
+  const endEmpty = blocks.length - 1 - lastNonEmpty;
+  result += '\n'.repeat(endEmpty + 1);
+
+  return result;
 }
 
 /**
@@ -398,6 +472,20 @@ export function domToMarkdown(editorRoot: HTMLElement): string {
     const node = editorRoot.childNodes[i];
     if (node.nodeType === 1 /* Element */) {
       const blockEl = node as HTMLElement;
+      if (
+        blockEl.classList.contains('block-delete-btn') ||
+        blockEl.classList.contains('block-confirm-popup') ||
+        blockEl.classList.contains('table-controls') ||
+        blockEl.classList.contains('table-confirm-popup') ||
+        blockEl.classList.contains('task-list-controls') ||
+        blockEl.classList.contains('task-item-drag-btn') ||
+        blockEl.classList.contains('task-item-del-btn') ||
+        blockEl.classList.contains('task-item-top-btn') ||
+        blockEl.classList.contains('task-drop-indicator') ||
+        blockEl.classList.contains('selection-cowork-btn')
+      ) {
+        continue;
+      }
       const serializedBlocks = serializeBlockElement(blockEl);
       blocks.push(...serializedBlocks);
     } else if (node.nodeType === 3 /* Text */) {
@@ -408,7 +496,7 @@ export function domToMarkdown(editorRoot: HTMLElement): string {
     }
   }
 
-  return blocks.join('\n\n') + (blocks.length > 0 ? '\n' : '');
+  return formatMarkdownBlocks(blocks);
 }
 
 /**

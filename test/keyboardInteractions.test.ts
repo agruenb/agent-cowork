@@ -306,7 +306,7 @@ describe('User Interactions - Keyboard Event Handlers', () => {
   });
 
   describe('Backspace / Delete Next to Task Checkbox', () => {
-    it('pressing backspace next to a checkbox deletes the checkbox immediately on the first keystroke', () => {
+    it('pressing backspace next to a checkbox deletes the checkbox and converts single task to a paragraph', () => {
       setContentFormatted('- [ ] Buy groceries');
       const li = editor.querySelector('li.task-item')!;
       assert.ok(li);
@@ -328,11 +328,12 @@ describe('User Interactions - Keyboard Event Handlers', () => {
       assert.strictEqual(defaultPrevented, true, 'Should prevent default to delete checkbox immediately');
       assert.strictEqual(editor.querySelectorAll('input[type="checkbox"]').length, 0);
       assert.strictEqual(editor.querySelectorAll('li.task-item').length, 0);
-      assert.strictEqual(editor.querySelectorAll('li.list-item').length, 1);
-      assert.strictEqual(domToMarkdown(editor).trim(), '- Buy groceries');
+      assert.strictEqual(editor.querySelectorAll('li').length, 0);
+      assert.strictEqual(editor.querySelectorAll('p[data-block-type="paragraph"]').length, 1);
+      assert.strictEqual(domToMarkdown(editor).trim(), 'Buy groceries');
     });
 
-    it('pressing backspace when cursor is placed to the left of the checkbox deletes it immediately', () => {
+    it('pressing backspace when cursor is placed to the left of the checkbox converts single task to paragraph', () => {
       setContentFormatted('- [ ] Call doctor');
       const li = editor.querySelector('li.task-item')!;
       assert.ok(li);
@@ -352,10 +353,11 @@ describe('User Interactions - Keyboard Event Handlers', () => {
 
       assert.strictEqual(defaultPrevented, true);
       assert.strictEqual(editor.querySelectorAll('input[type="checkbox"]').length, 0);
-      assert.strictEqual(domToMarkdown(editor).trim(), '- Call doctor');
+      assert.strictEqual(editor.querySelectorAll('li').length, 0);
+      assert.strictEqual(domToMarkdown(editor).trim(), 'Call doctor');
     });
 
-    it('pressing delete when cursor is placed to the left of the checkbox deletes it immediately', () => {
+    it('pressing delete when cursor is placed to the left of the checkbox converts single task to paragraph', () => {
       setContentFormatted('- [ ] Read book');
       const li = editor.querySelector('li.task-item')!;
       assert.ok(li);
@@ -375,7 +377,90 @@ describe('User Interactions - Keyboard Event Handlers', () => {
 
       assert.strictEqual(defaultPrevented, true);
       assert.strictEqual(editor.querySelectorAll('input[type="checkbox"]').length, 0);
-      assert.strictEqual(domToMarkdown(editor).trim(), '- Read book');
+      assert.strictEqual(editor.querySelectorAll('li').length, 0);
+      assert.strictEqual(domToMarkdown(editor).trim(), 'Read book');
+    });
+
+    it('pressing backspace on a checkbox when there are multiple items in the list converts to list item', () => {
+      setContentFormatted('- [ ] Buy groceries\n- [ ] Call doctor');
+      const items = editor.querySelectorAll('li.task-item');
+      assert.strictEqual(items.length, 2);
+      const li2 = items[1] as HTMLElement;
+      const contentSpan2 = li2.querySelector('.task-content')!;
+      setCursorIn(contentSpan2.firstChild || contentSpan2, 0);
+
+      let defaultPrevented = false;
+      const event = new dom.window.KeyboardEvent('keydown', {
+        key: 'Backspace',
+        bubbles: true,
+        cancelable: true,
+      });
+      event.preventDefault = () => {
+        defaultPrevented = true;
+      };
+
+      handleCanvasKeyDown(event);
+
+      assert.strictEqual(defaultPrevented, true);
+      assert.strictEqual(editor.querySelectorAll('input[type="checkbox"]').length, 1);
+      assert.strictEqual(domToMarkdown(editor).trim(), '- [ ] Buy groceries\n- Call doctor');
+
+      // Now backspace on the first item
+      const li1 = editor.querySelector('li.task-item') as HTMLElement;
+      const contentSpan1 = li1.querySelector('.task-content')!;
+      setCursorIn(contentSpan1.firstChild || contentSpan1, 0);
+
+      const event2 = new dom.window.KeyboardEvent('keydown', {
+        key: 'Backspace',
+        bubbles: true,
+        cancelable: true,
+      });
+
+      handleCanvasKeyDown(event2);
+
+      assert.strictEqual(editor.querySelectorAll('input[type="checkbox"]').length, 0);
+      assert.strictEqual(domToMarkdown(editor).trim(), '- Buy groceries\n- Call doctor');
+    });
+
+    it('pressing backspace on a checkbox when it is empty and the only one converts to an empty paragraph', () => {
+      setContentFormatted('- [ ] ');
+      const li = editor.querySelector('li.task-item')!;
+      assert.ok(li);
+      const contentSpan = li.querySelector('.task-content')!;
+      setCursorIn(contentSpan.firstChild || contentSpan, 0);
+
+      const event = new dom.window.KeyboardEvent('keydown', {
+        key: 'Backspace',
+        bubbles: true,
+        cancelable: true,
+      });
+
+      handleCanvasKeyDown(event);
+
+      assert.strictEqual(editor.querySelectorAll('input[type="checkbox"]').length, 0);
+      assert.strictEqual(editor.querySelectorAll('li').length, 0);
+      assert.strictEqual(editor.querySelectorAll('p[data-block-type="paragraph"]').length, 1);
+      assert.strictEqual(domToMarkdown(editor).trim(), '');
+    });
+
+    it('pressing backspace when checkbox input itself has focus converts single task to a paragraph', () => {
+      setContentFormatted('- [ ] Buy groceries');
+      const cb = editor.querySelector('input.task-checkbox') as HTMLInputElement;
+      assert.ok(cb);
+
+      const event = new dom.window.KeyboardEvent('keydown', {
+        key: 'Backspace',
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(event, 'target', { value: cb });
+
+      handleCanvasKeyDown(event);
+
+      assert.strictEqual(editor.querySelectorAll('input[type="checkbox"]').length, 0);
+      assert.strictEqual(editor.querySelectorAll('li').length, 0);
+      assert.strictEqual(editor.querySelectorAll('p[data-block-type="paragraph"]').length, 1);
+      assert.strictEqual(domToMarkdown(editor).trim(), 'Buy groceries');
     });
 
     it('pressing backspace in the middle of task text does not delete the checkbox', () => {

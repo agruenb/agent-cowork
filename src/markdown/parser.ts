@@ -175,8 +175,31 @@ interface ListStackFrame {
  * Parses a markdown document string into an array of structured blocks.
  */
 export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
-  const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+  if (!markdown || !markdown.trim()) {
+    return [];
+  }
+  const rawLines = markdown.replace(/\r\n/g, '\n').split('\n');
+  const hasTrailingNewline = markdown.endsWith('\n');
+  const lines = hasTrailingNewline && rawLines.length > 1 ? rawLines.slice(0, -1) : rawLines;
   const blocks: MarkdownBlock[] = [];
+
+  const consumeBlockDelimiter = (fromIdx: number): number => {
+    let nextIdx = fromIdx;
+    if (nextIdx < lines.length && !lines[nextIdx].trim()) {
+      // Only consume as delimiter if there is a subsequent non-empty line
+      let hasSubsequent = false;
+      for (let j = nextIdx + 1; j < lines.length; j++) {
+        if (lines[j].trim().length > 0) {
+          hasSubsequent = true;
+          break;
+        }
+      }
+      if (hasSubsequent) {
+        nextIdx++;
+      }
+    }
+    return nextIdx;
+  };
 
   let i = 0;
   while (i < lines.length) {
@@ -185,6 +208,12 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
 
     // Empty line
     if (!trimmed) {
+      blocks.push({
+        type: 'paragraph',
+        content: '',
+        startLine: i + 1,
+        endLine: i + 1,
+      });
       i++;
       continue;
     }
@@ -209,6 +238,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         startLine,
         endLine: i,
       });
+      i = consumeBlockDelimiter(i);
       continue;
     }
 
@@ -220,6 +250,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         endLine: i + 1,
       });
       i++;
+      i = consumeBlockDelimiter(i);
       continue;
     }
 
@@ -234,6 +265,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         endLine: i + 1,
       });
       i++;
+      i = consumeBlockDelimiter(i);
       continue;
     }
 
@@ -251,6 +283,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         startLine,
         endLine: i,
       });
+      i = consumeBlockDelimiter(i);
       continue;
     }
 
@@ -283,6 +316,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         startLine,
         endLine: i,
       });
+      i = consumeBlockDelimiter(i);
       continue;
     }
 
@@ -429,6 +463,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
       }
       rootBlock.endLine = i;
       blocks.push(rootBlock);
+      i = consumeBlockDelimiter(i);
       continue;
     }
 
@@ -460,6 +495,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
       startLine,
       endLine: i,
     });
+    i = consumeBlockDelimiter(i);
   }
 
   return blocks;

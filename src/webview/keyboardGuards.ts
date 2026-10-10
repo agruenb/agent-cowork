@@ -104,9 +104,10 @@ export function handleBlockKeyboardGuards(
 }
 
 /**
- * Intercepts Backspace or Delete when the caret is adjacent to a task checkbox.
- * Deletes the checkbox immediately on the first keystroke and converts the task item
- * to a regular list item, rather than placing the caret to the left of the checkbox.
+ * Intercepts Backspace or Delete when the caret is adjacent to a task checkbox,
+ * or when the checkbox itself has focus.
+ * If the task item is the only item in the list, converts it into a normal paragraph.
+ * If other items exist in the list, converts the task item to a regular list item.
  */
 export function handleTaskCheckboxBackspace(
   e: KeyboardEvent,
@@ -121,67 +122,173 @@ export function handleTaskCheckboxBackspace(
   const doc = editorCanvas.ownerDocument || document;
   const win = doc.defaultView || (typeof window !== 'undefined' ? window : null);
   const sel = win ? win.getSelection() : null;
-  if (!sel || !sel.isCollapsed || sel.rangeCount === 0) {
-    return false;
-  }
 
-  const anchorNode = sel.anchorNode;
-  if (!anchorNode || !editorCanvas.contains(anchorNode)) {
-    return false;
-  }
-
-  const anchorEl =
-    anchorNode.nodeType === 1 ? (anchorNode as HTMLElement) : anchorNode.parentElement;
-  const li = anchorEl?.closest('li') as HTMLElement | null;
-  if (!li || !editorCanvas.contains(li)) {
-    return false;
-  }
-
-  const cb = li.querySelector(':scope > input[type="checkbox"]') as HTMLInputElement | null;
-  if (!cb) {
-    return false;
-  }
-
-  const contentSpan = li.querySelector(':scope > .task-content') as HTMLElement | null;
-  const range = sel.getRangeAt(0);
+  let li: HTMLElement | null = null;
+  let cb: HTMLInputElement | null = null;
+  let contentSpan: HTMLElement | null = null;
   let isAdjacentToCheckbox = false;
 
-  if (e.key === 'Backspace') {
-    if (contentSpan && (anchorNode === contentSpan || contentSpan.contains(anchorNode))) {
-      try {
-        const preRange = doc.createRange();
-        preRange.setStart(contentSpan, 0);
-        preRange.setEnd(range.startContainer, range.startOffset);
-        const textBefore = preRange.toString().replace(/[\u200B\u00A0\s]+/g, '');
-        if (textBefore.length === 0) {
-          isAdjacentToCheckbox = true;
-        }
-      } catch {
-        if (range.startOffset === 0) {
-          isAdjacentToCheckbox = true;
-        }
-      }
-    } else if (anchorNode === li) {
-      const cbIndex = Array.prototype.indexOf.call(li.childNodes, cb);
-      if (range.startOffset === cbIndex || range.startOffset === cbIndex + 1) {
-        isAdjacentToCheckbox = true;
-      }
+  const targetEl = e.target as HTMLElement | null;
+  const targetCb = targetEl?.closest('input.task-checkbox') as HTMLInputElement | null;
+
+  if (targetCb && editorCanvas.contains(targetCb)) {
+    cb = targetCb;
+    li = cb.closest('li') as HTMLElement | null;
+    if (!li || !editorCanvas.contains(li)) {
+      return false;
     }
-  } else if (e.key === 'Delete') {
-    if (anchorNode === li) {
-      const cbIndex = Array.prototype.indexOf.call(li.childNodes, cb);
-      if (range.startOffset === cbIndex) {
-        isAdjacentToCheckbox = true;
+    contentSpan = li.querySelector(':scope > .task-content') as HTMLElement | null;
+    isAdjacentToCheckbox = true;
+  } else {
+    if (!sel || !sel.isCollapsed || sel.rangeCount === 0) {
+      return false;
+    }
+
+    const anchorNode = sel.anchorNode;
+    if (!anchorNode || !editorCanvas.contains(anchorNode)) {
+      return false;
+    }
+
+    const anchorEl =
+      anchorNode.nodeType === 1 ? (anchorNode as HTMLElement) : anchorNode.parentElement;
+    li = anchorEl?.closest('li') as HTMLElement | null;
+    if (!li || !editorCanvas.contains(li)) {
+      return false;
+    }
+
+    cb = li.querySelector(':scope > input[type="checkbox"]') as HTMLInputElement | null;
+    if (!cb) {
+      return false;
+    }
+
+    contentSpan = li.querySelector(':scope > .task-content') as HTMLElement | null;
+    const range = sel.getRangeAt(0);
+
+    if (e.key === 'Backspace') {
+      if (contentSpan && (anchorNode === contentSpan || contentSpan.contains(anchorNode))) {
+        try {
+          const preRange = doc.createRange();
+          preRange.setStart(contentSpan, 0);
+          preRange.setEnd(range.startContainer, range.startOffset);
+          const textBefore = preRange.toString().replace(/[\u200B\u00A0\s]+/g, '');
+          if (textBefore.length === 0) {
+            isAdjacentToCheckbox = true;
+          }
+        } catch {
+          if (range.startOffset === 0) {
+            isAdjacentToCheckbox = true;
+          }
+        }
+      } else if (anchorNode === li) {
+        const cbIndex = Array.prototype.indexOf.call(li.childNodes, cb);
+        if (range.startOffset === cbIndex || range.startOffset === cbIndex + 1) {
+          isAdjacentToCheckbox = true;
+        }
+      }
+    } else if (e.key === 'Delete') {
+      if (anchorNode === li) {
+        const cbIndex = Array.prototype.indexOf.call(li.childNodes, cb);
+        if (range.startOffset === cbIndex) {
+          isAdjacentToCheckbox = true;
+        }
       }
     }
   }
 
-  if (!isAdjacentToCheckbox) {
+  if (!isAdjacentToCheckbox || !li || !cb) {
     return false;
   }
 
   e.preventDefault();
 
+  const parentList = li.parentElement;
+  const isNested = !!parentList?.closest('li');
+  const listItems = parentList
+    ? Array.from(parentList.children).filter((c) => c.tagName.toLowerCase() === 'li')
+    : [];
+  const isOnlyItemInList = !isNested && listItems.length <= 1;
+
+  if (isOnlyItemInList) {
+    // 1. Collect any nested sublists inside this li
+    const nestedLists = Array.from(li.children).filter(
+      (c) => c.tagName === 'UL' || c.tagName === 'OL'
+    );
+
+    // 2. Create the replacement paragraph
+    const p = doc.createElement('p');
+    p.className = 'editor-block';
+    p.setAttribute('data-block-type', 'paragraph');
+
+    // 3. Extract content of li (excluding checkbox and nested sublists)
+    if (contentSpan) {
+      const nodes = Array.from(contentSpan.childNodes);
+      const hasVisibleContent =
+        (contentSpan.textContent || '').trim().length > 0 ||
+        contentSpan.querySelector('br, img') !== null;
+      if (!hasVisibleContent || nodes.length === 0) {
+        p.innerHTML = '<br>';
+      } else {
+        for (const node of nodes) {
+          p.appendChild(node);
+        }
+      }
+    } else {
+      const nodes = Array.from(li.childNodes).filter(
+        (n) => n !== cb && n.nodeName !== 'UL' && n.nodeName !== 'OL'
+      );
+      const text = nodes.map((n) => n.textContent || '').join('').trim();
+      if (nodes.length === 0 || (text.length === 0 && !li.querySelector('br, img'))) {
+        p.innerHTML = '<br>';
+      } else {
+        for (const node of nodes) {
+          p.appendChild(node);
+        }
+      }
+    }
+
+    if (!p.firstChild) {
+      p.innerHTML = '<br>';
+    }
+
+    // 4. Replace parentList with p (and any sublists)
+    if (parentList && parentList.parentNode) {
+      const container = parentList.parentNode;
+      container.insertBefore(p, parentList);
+      for (const sub of nestedLists) {
+        container.insertBefore(sub, parentList);
+      }
+      parentList.remove();
+    } else {
+      li.replaceWith(p);
+    }
+
+    // 5. Place caret at start of text in paragraph
+    let focusTarget: Node = p;
+    let focusOffset = 0;
+    let firstText: Node | null = p.firstChild;
+    while (firstText && firstText.nodeType !== 3 && firstText.firstChild) {
+      firstText = firstText.firstChild;
+    }
+    if (firstText && firstText.nodeType === 3) {
+      focusTarget = firstText;
+      focusOffset = 0;
+    }
+
+    editorCanvas.focus();
+    if (sel) {
+      const newRange = doc.createRange();
+      newRange.setStart(focusTarget, focusOffset);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+
+    wireTaskCheckboxes?.();
+    emitEdit();
+    return true;
+  }
+
+  // Not the only item in the list: remove checkbox and keep item in the list
   // 1. Remove checkbox and task classes
   cb.remove();
   li.removeAttribute('data-checked');
@@ -202,7 +309,6 @@ export function handleTaskCheckboxBackspace(
   }
 
   // 3. Update parent list type if no other tasks remain
-  const parentList = li.parentElement;
   if (parentList && parentList.classList.contains('task-list')) {
     const remainingTasks = parentList.querySelectorAll('.task-item, input[type="checkbox"]');
     if (remainingTasks.length === 0) {
@@ -213,15 +319,18 @@ export function handleTaskCheckboxBackspace(
   }
 
   // 4. Place caret at start of text
-  const newRange = doc.createRange();
-  if (firstChildToFocus.nodeType === 3) {
-    newRange.setStart(firstChildToFocus, 0);
-  } else {
-    newRange.selectNodeContents(firstChildToFocus);
-    newRange.collapse(true);
+  editorCanvas.focus();
+  if (sel) {
+    const newRange = doc.createRange();
+    if (firstChildToFocus.nodeType === 3) {
+      newRange.setStart(firstChildToFocus, 0);
+    } else {
+      newRange.selectNodeContents(firstChildToFocus);
+      newRange.collapse(true);
+    }
+    sel.removeAllRanges();
+    sel.addRange(newRange);
   }
-  sel.removeAllRanges();
-  sel.addRange(newRange);
 
   wireTaskCheckboxes?.();
   emitEdit();

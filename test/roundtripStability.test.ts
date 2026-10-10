@@ -195,13 +195,13 @@ describe('Roundtrip Stability (Multi-Cycle)', () => {
   // and stay stable after the first roundtrip.
   // -------------------------------------------------------------------
   describe('Whitespace normalization', () => {
-    it('extra blank lines between blocks normalize to single separators', () => {
+    it('extra blank lines between blocks are maintained and stay stable across roundtrips', () => {
       const input = '# Title\n\n\n\nParagraph\n\n\n\n- Item';
       const results = multiRoundtrip(input, 3);
-      // After normalization, should be stable
-      assert.strictEqual(results[1], results[2]);
-      // No triple+ blank lines in output
-      assert.ok(!results[1].includes('\n\n\n'));
+      // Empty lines between blocks should be maintained and remain stable
+      assert.strictEqual(results[0], input);
+      assert.strictEqual(results[1], input);
+      assert.strictEqual(results[2], input);
     });
 
     it('trailing spaces on lines are trimmed after roundtrip', () => {
