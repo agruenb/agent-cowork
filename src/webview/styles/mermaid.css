@@ -1,0 +1,232 @@
+/* -------------------------------------------------------------
+   Mermaid Diagrams & View Toggle Controls
+------------------------------------------------------------- */
+
+/* Toggle Button next to Copy Button in Code Block Header */
+.code-toggle-view-btn {
+  margin-left: auto;
+  margin-right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s ease;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* When toggle button is present, copy button sits right next to it */
+.code-toggle-view-btn + .code-copy-btn {
+  margin-left: 0;
+}
+
+.code-toggle-view-btn:hover {
+  background-color: var(--card-bg, #ffffff);
+  border-color: var(--card-border, #cbd5e1);
+  color: var(--text, #0f172a);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.code-toggle-view-btn:active {
+  transform: scale(0.95);
+}
+
+.code-toggle-view-btn.is-showing-code {
+  color: var(--primary, #0ea5e9);
+  background-color: var(--primary-light, #f1f5f9);
+  border-color: var(--primary-border, #cbd5e1);
+}
+
+body.vscode-dark .code-toggle-view-btn.is-showing-code {
+  color: #38bdf8;
+  background-color: rgba(56, 189, 248, 0.15);
+  border-color: #334155;
+}
+
+/* Rendered Diagram Preview Container */
+.mermaid-preview {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 20px;
+  background-color: var(--card-bg, #f8fafc);
+  overflow: hidden;
+  min-height: 100px;
+  cursor: grab;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.mermaid-preview.is-panning {
+  cursor: grabbing !important;
+}
+
+.mermaid-preview:has(.mermaid-error-card) {
+  cursor: default;
+  overflow-x: auto;
+}
+
+/* Transform Viewport for Pan & Zoom */
+.mermaid-viewport {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+  transition: transform 0.05s ease-out;
+}
+
+.mermaid-preview.is-panning .mermaid-viewport {
+  transition: none;
+}
+
+.mermaid-viewport svg {
+  max-width: none;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Floating Zoom Toolbar in Bottom-Right Corner */
+.mermaid-zoom-toolbar {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #cbd5e1);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 2px;
+  z-index: 5;
+  opacity: 0.85;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+
+.mermaid-preview:hover .mermaid-zoom-toolbar {
+  opacity: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.mermaid-zoom-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.12s ease;
+  line-height: 1;
+}
+
+.mermaid-zoom-btn:hover {
+  background-color: var(--bg-hover, rgba(0, 0, 0, 0.06));
+  color: var(--text, #0f172a);
+}
+
+.mermaid-zoom-btn:active {
+  transform: scale(0.92);
+}
+
+.mermaid-zoom-btn.mermaid-zoom-reset {
+  width: auto;
+  padding: 0 5px;
+  min-width: 36px;
+  font-size: 10px;
+  font-family: var(--mono-font, monospace);
+  font-weight: 600;
+}
+
+body.vscode-dark .mermaid-zoom-toolbar {
+  background-color: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+body.vscode-dark .mermaid-zoom-btn {
+  color: #94a3b8;
+}
+
+body.vscode-dark .mermaid-zoom-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+/* Error Card inside Diagram Preview */
+.mermaid-error-card {
+  width: 100%;
+  max-width: 540px;
+  background-color: #fef2f2;
+  border: 1px solid #fee2e2;
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #991b1b;
+  font-family: var(--font-family);
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.mermaid-error-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #b91c1c;
+}
+
+.mermaid-error-icon {
+  flex-shrink: 0;
+}
+
+.mermaid-error-message {
+  font-family: var(--mono-font);
+  font-size: 11px;
+  background-color: rgba(239, 68, 68, 0.08);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.mermaid-error-hint {
+  font-size: 11px;
+  color: #7f1d1d;
+  opacity: 0.85;
+}
+
+body.vscode-dark .mermaid-error-card {
+  background-color: #450a0a;
+  border-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+body.vscode-dark .mermaid-error-header {
+  color: #f87171;
+}
+
+body.vscode-dark .mermaid-error-message {
+  background-color: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+}
+
+body.vscode-dark .mermaid-error-hint {
+  color: #f87171;
+}

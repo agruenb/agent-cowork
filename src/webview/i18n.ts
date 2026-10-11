@@ -95,6 +95,12 @@ const enWebviewTranslations: Record<string, string> = {
   '// Code hier eingeben...': '// Enter code here...',
   'Code kopieren': 'Copy code',
   'Kopiert!': 'Copied!',
+  'Code anzeigen': 'Show code',
+  'Diagramm anzeigen': 'Show diagram',
+  'Mermaid Syntaxfehler': 'Mermaid syntax error',
+  'Vergrößern': 'Zoom in',
+  'Verkleinern': 'Zoom out',
+  'Zoom zurücksetzen': 'Reset zoom',
 
   // Quote
   'Zitat...': 'Quote...',

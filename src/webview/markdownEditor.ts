@@ -32,6 +32,11 @@ import {
   updateCodeCopyLanguage,
 } from './codeCopy';
 import {
+  wireMermaidControls,
+  updateMermaidBlocks,
+  updateMermaidLanguage,
+} from './mermaidControls';
+import {
   state,
   showErrorBanner,
   hideErrorBanner,
@@ -184,6 +189,7 @@ export function setContentFormatted(markdown: string): boolean {
   wireTaskCheckboxes();
   if (canvas) wireTableInteractions(canvas, () => emitCanvasEdit());
   if (canvas) wireCodeBlockCopyButtons(canvas);
+  if (canvas) updateMermaidBlocks(canvas);
   state.isCanvasDirty = false;
   return true;
 }
@@ -264,6 +270,7 @@ export function displayAiDiff(originalText: string, currentText: string): void {
     canvas.classList.add('is-review-mode');
     canvas.innerHTML = html;
     wireCodeBlockCopyButtons(canvas);
+    updateMermaidBlocks(canvas);
   }
 }
 
@@ -499,6 +506,13 @@ export function handleCanvasKeyDown(e: KeyboardEvent): void {
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
       const wrapper = langInput.closest<HTMLElement>('.code-block-wrapper');
+      if (wrapper && wrapper.getAttribute('data-view') === 'diagram') {
+        const toggleBtn = wrapper.querySelector<HTMLElement>('.code-toggle-view-btn');
+        if (toggleBtn) {
+          toggleBtn.click();
+          return;
+        }
+      }
       const codeEl = wrapper?.querySelector<HTMLElement>('code.editor-code');
       if (codeEl) {
         codeEl.focus();
@@ -1523,6 +1537,7 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
     }
 
     updateCodeCopyLanguage(document);
+    updateMermaidLanguage(document);
     updateFindWidgetLanguage();
 
     // Show cowork tree button
@@ -2487,8 +2502,9 @@ export function initMarkdownEditor(): void {
   // Initialize selection Cowork floating button
   wireSelectionCowork();
 
-  // Initialize code copying for code blocks and inline code
+  // Initialize code copying and mermaid controls for code blocks
   wireCodeBlockCopy(canvas);
+  wireMermaidControls(canvas);
   initInlineCodeCopy(canvas, (viewport || container) as HTMLElement);
 
   // Wire floating button to reopen closed Cowork tree view

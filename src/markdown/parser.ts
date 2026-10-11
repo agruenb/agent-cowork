@@ -3,6 +3,8 @@
  * formatted and editable document view.
  */
 
+import { renderMermaidPreviewHtml } from '../mermaid';
+
 export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -543,6 +545,8 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false, lang?: '
   const codeLangTitle = effectiveLang === 'en' ? 'Edit code language' : 'Code-Typ bearbeiten';
   const codeCopyTitle = effectiveLang === 'en' ? 'Copy code' : 'Code kopieren';
   const copyBtnHtml = `<button type="button" class="code-copy-btn" title="${codeCopyTitle}" aria-label="${codeCopyTitle}" tabindex="-1"><svg class="copy-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25v-7.5z"/><path fill-rule="evenodd" d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25v-7.5zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25h-7.5z"/></svg></button>`;
+  const codeToggleTitle = effectiveLang === 'en' ? 'Show code' : 'Code anzeigen';
+  const toggleBtnHtml = `<button type="button" class="code-toggle-view-btn" data-view="diagram" title="${codeToggleTitle}" aria-label="${codeToggleTitle}" tabindex="-1"><svg class="code-toggle-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M4.72 3.22a.75.75 0 0 1 1.06 1.06L2.06 8l3.72 3.72a.75.75 0 1 1-1.06 1.06L.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25zm6.56 0a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L14.94 8l-3.72-3.72a.75.75 0 0 1 0-1.06z"/></svg></button>`;
 
   const htmlParts: string[] = [];
 
@@ -581,8 +585,25 @@ export function blocksToHtml(blocks: MarkdownBlock[], isNested = false, lang?: '
 
       case 'code_block': {
         const langStr = block.language ? escapeHtml(block.language) : '';
+        const isMermaid = langStr.toLowerCase() === 'mermaid';
         const codeText = escapeHtml(block.content || '');
-        const inner = `<div class="editor-block code-block-wrapper" data-block-type="code_block" data-language="${langStr}"><div class="code-block-header"><input type="text" class="code-lang-input" value="${langStr}" placeholder="Code" title="${codeLangTitle}" spellcheck="false" autocomplete="off" />${copyBtnHtml}</div><pre><code class="editor-code" contenteditable="true">${codeText}</code></pre></div>`;
+
+        let headerBtns = copyBtnHtml;
+        let previewHtml = '';
+        let preStyle = '';
+        let wrapperClass = 'editor-block code-block-wrapper';
+        let viewAttr = '';
+
+        if (isMermaid) {
+          headerBtns = `${toggleBtnHtml}${copyBtnHtml}`;
+          wrapperClass += ' is-mermaid-block';
+          viewAttr = ' data-view="diagram"';
+          const renderedDiagram = renderMermaidPreviewHtml(block.content || '', effectiveLang);
+          previewHtml = `<div class="mermaid-preview" contenteditable="false" data-scale="1" data-pan-x="0" data-pan-y="0">${renderedDiagram}</div>`;
+          preStyle = ' style="display: none;"';
+        }
+
+        const inner = `<div class="${wrapperClass}" data-block-type="code_block" data-language="${langStr}"${viewAttr}><div class="code-block-header"><input type="text" class="code-lang-input" value="${langStr}" placeholder="Code" title="${codeLangTitle}" spellcheck="false" autocomplete="off" />${headerBtns}</div>${previewHtml}<pre${preStyle}><code class="editor-code" contenteditable="true">${codeText}</code></pre></div>`;
         htmlParts.push(
           isNested
             ? inner
