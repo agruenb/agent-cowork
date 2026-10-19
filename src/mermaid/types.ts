@@ -10,6 +10,17 @@ export type DiagramType =
   | 'er'
   | 'pie'
   | 'mindmap'
+  | 'quadrant'
+  | 'xychart'
+  | 'gantt'
+  | 'timeline'
+  | 'kanban'
+  | 'journey'
+  | 'gitGraph'
+  | 'sankey'
+  | 'block'
+  | 'packet'
+  | 'requirement'
   | 'unknown';
 
 export type NodeShape =
@@ -226,6 +237,196 @@ export interface MindmapNode {
 
 export interface MindmapData {
   root: MindmapNode | null;
+}
+
+// Quadrant Chart types
+export interface QuadrantPoint {
+  label: string;
+  x: number;
+  y: number;
+}
+
+export interface QuadrantData {
+  title?: string;
+  xAxisLabelLeft?: string;
+  xAxisLabelRight?: string;
+  yAxisLabelBottom?: string;
+  yAxisLabelTop?: string;
+  quadrant1?: string;
+  quadrant2?: string;
+  quadrant3?: string;
+  quadrant4?: string;
+  points: QuadrantPoint[];
+}
+
+// XY Chart types
+export type XySeriesType = 'bar' | 'line';
+
+export interface XySeries {
+  type: XySeriesType;
+  title?: string;
+  values: number[];
+}
+
+export interface XyChartData {
+  title?: string;
+  xAxisTitle?: string;
+  xAxisCategories?: string[];
+  xAxisRange?: [number, number];
+  yAxisTitle?: string;
+  yAxisRange?: [number, number];
+  series: XySeries[];
+}
+
+// Gantt Chart types
+export interface GanttTask {
+  id: string;
+  label: string;
+  section?: string;
+  status?: 'done' | 'active' | 'crit' | 'milestone';
+  startDate?: string;
+  endDate?: string;
+  duration?: string;
+  afterId?: string;
+}
+
+export interface GanttSection {
+  title: string;
+  tasks: GanttTask[];
+}
+
+export interface GanttData {
+  title?: string;
+  dateFormat?: string;
+  sections: GanttSection[];
+  allTasks: GanttTask[];
+}
+
+// Timeline types
+export interface TimelineEvent {
+  period: string;
+  events: string[];
+}
+
+export interface TimelineSection {
+  title: string;
+  events: TimelineEvent[];
+}
+
+export interface TimelineData {
+  title?: string;
+  sections: TimelineSection[];
+}
+
+// Kanban types
+export interface KanbanItem {
+  id: string;
+  label: string;
+  shape?: string;
+}
+
+export interface KanbanColumn {
+  id: string;
+  title: string;
+  items: KanbanItem[];
+}
+
+export interface KanbanData {
+  columns: KanbanColumn[];
+}
+
+// User Journey types
+export interface JourneyTask {
+  name: string;
+  score: number;
+  actors: string[];
+}
+
+export interface JourneySection {
+  title: string;
+  tasks: JourneyTask[];
+}
+
+export interface JourneyData {
+  title?: string;
+  sections: JourneySection[];
+}
+
+// Git Graph types
+export interface GitCommit {
+  id: string;
+  branch: string;
+  parents: string[];
+  tag?: string;
+  type?: 'NORMAL' | 'HIGHLIGHT' | 'REVERSE';
+}
+
+export interface GitGraphData {
+  branches: string[];
+  commits: GitCommit[];
+}
+
+// Sankey Diagram types
+export interface SankeyLink {
+  source: string;
+  target: string;
+  value: number;
+}
+
+export interface SankeyData {
+  links: SankeyLink[];
+}
+
+// Block Diagram types
+export interface BlockItem {
+  id: string;
+  label: string;
+  span?: number;
+  isSpace?: boolean;
+}
+
+export interface BlockData {
+  columns: number;
+  blocks: BlockItem[];
+}
+
+// Packet Diagram types
+export interface PacketField {
+  startBit: number;
+  endBit: number;
+  label: string;
+}
+
+export interface PacketData {
+  fields: PacketField[];
+}
+
+// Requirement Diagram types
+export interface ReqItem {
+  name: string;
+  id?: string;
+  text?: string;
+  risk?: string;
+  verifyMethod?: string;
+  type: string;
+}
+
+export interface ReqElement {
+  name: string;
+  type?: string;
+  docRef?: string;
+}
+
+export interface ReqRelationship {
+  source: string;
+  target: string;
+  type: string;
+}
+
+export interface RequirementData {
+  requirements: Map<string, ReqItem>;
+  elements: Map<string, ReqElement>;
+  relationships: ReqRelationship[];
 }
 
 export interface MermaidRenderResult {

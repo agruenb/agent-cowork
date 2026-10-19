@@ -39,6 +39,51 @@ describe('Custom Mermaid Renderer', () => {
       assert.strictEqual(detectDiagramType('mindmap\n  root((Root))\n    Branch 1'), 'mindmap');
     });
 
+    it('detects quadrant charts', () => {
+      assert.strictEqual(detectDiagramType('quadrantChart\n  title Reach\n  Campaign A: [0.3, 0.6]'), 'quadrant');
+    });
+
+    it('detects XY charts', () => {
+      assert.strictEqual(detectDiagramType('xychart-beta\n  title Sales\n  bar [1, 2, 3]'), 'xychart');
+      assert.strictEqual(detectDiagramType('xychart\n  bar [1, 2]'), 'xychart');
+    });
+
+    it('detects Gantt charts', () => {
+      assert.strictEqual(detectDiagramType('gantt\n  title Project Schedule\n  section Dev\n  Task 1 : 5d'), 'gantt');
+    });
+
+    it('detects timeline diagrams', () => {
+      assert.strictEqual(detectDiagramType('timeline\n  title History\n  2020 : Event'), 'timeline');
+    });
+
+    it('detects kanban boards', () => {
+      assert.strictEqual(detectDiagramType('kanban\n  Todo\n    [Task 1]'), 'kanban');
+    });
+
+    it('detects user journeys', () => {
+      assert.strictEqual(detectDiagramType('journey\n  title My Day\n  Make tea: 5: Me'), 'journey');
+    });
+
+    it('detects git graphs', () => {
+      assert.strictEqual(detectDiagramType('gitGraph\n  commit\n  branch feat'), 'gitGraph');
+    });
+
+    it('detects sankey diagrams', () => {
+      assert.strictEqual(detectDiagramType('sankey-beta\n  A,B,10'), 'sankey');
+    });
+
+    it('detects block diagrams', () => {
+      assert.strictEqual(detectDiagramType('block-beta\n  columns 2\n  a["Block A"]'), 'block');
+    });
+
+    it('detects packet diagrams', () => {
+      assert.strictEqual(detectDiagramType('packet-beta\n  0-15: "Port"'), 'packet');
+    });
+
+    it('detects requirement diagrams', () => {
+      assert.strictEqual(detectDiagramType('requirementDiagram\n  requirement req1 {\n  id: 1\n  }'), 'requirement');
+    });
+
     it('falls back to flowchart when edge arrows are present', () => {
       assert.strictEqual(detectDiagramType('A --> B --> C'), 'flowchart');
     });
@@ -239,6 +284,233 @@ describe('Custom Mermaid Renderer', () => {
       assert.ok(result.svg.includes('React'));
       assert.ok(result.svg.includes('Backend'));
       assert.ok(result.svg.includes('Postgres'));
+    });
+  });
+
+  describe('Quadrant Chart SVG Generation', () => {
+    it('renders quadrant matrix with title, labels, and coordinate points', () => {
+      const code = `quadrantChart
+        title Campaign Performance
+        x-axis Low Reach --> High Reach
+        y-axis Low ROI --> High ROI
+        quadrant-1 Expand
+        quadrant-2 Optimize
+        quadrant-3 Cut
+        quadrant-4 Monitor
+        Campaign Alpha: [0.75, 0.85]
+        Campaign Beta: [0.25, 0.40]`;
+
+      const result = renderMermaidToSvg(code);
+      assert.strictEqual(result.diagramType, 'quadrant');
+      assert.ok(!result.error);
+      assert.ok(result.svg.includes('Campaign Performance'));
+      assert.ok(result.svg.includes('Low Reach'));
+      assert.ok(result.svg.includes('High Reach'));
+      assert.ok(result.svg.includes('Low ROI'));
+      assert.ok(result.svg.includes('High ROI'));
+      assert.ok(result.svg.includes('Expand'));
+      assert.ok(result.svg.includes('Optimize'));
+      assert.ok(result.svg.includes('Campaign Alpha'));
+      assert.ok(result.svg.includes('Campaign Beta'));
+    });
+  });
+
+  describe('XY Chart SVG Generation', () => {
+    it('renders categorical XY chart with bars and line series', () => {
+      const code = `xychart-beta
+        title "Monthly Revenue"
+        x-axis [Jan, Feb, Mar]
+        y-axis "USD" 0 --> 1000
+        bar [300, 600, 900]
+        line [350, 620, 880]`;
+
+      const result = renderMermaidToSvg(code);
+      assert.strictEqual(result.diagramType, 'xychart');
+      assert.ok(!result.error);
+      assert.ok(result.svg.includes('Monthly Revenue'));
+      assert.ok(result.svg.includes('Jan'));
+      assert.ok(result.svg.includes('Feb'));
+      assert.ok(result.svg.includes('Mar'));
+      assert.ok(result.svg.includes('USD'));
+      assert.ok(result.svg.includes('<rect'));
+      assert.ok(result.svg.includes('<path'));
+    });
+  });
+
+  describe('Gantt Chart SVG Generation', () => {
+    it('renders timeline with sections, tasks, and status styles', () => {
+      const code = `gantt
+        title Sprint Schedule
+        section Phase 1
+          Design :done, 2024-01-01, 3d
+          Develop :active, 5d
+          Deploy :crit, milestone, 1d`;
+
+      const result = renderMermaidToSvg(code);
+      assert.strictEqual(result.diagramType, 'gantt');
+      assert.ok(!result.error);
+      assert.ok(result.svg.includes('Sprint Schedule'));
+      assert.ok(result.svg.includes('PHASE 1'));
+      assert.ok(result.svg.includes('Design'));
+      assert.ok(result.svg.includes('Develop'));
+      assert.ok(result.svg.includes('Deploy'));
+    });
+  });
+
+  describe('Timeline SVG Generation', () => {
+    it('renders chronological timeline nodes and event cards', () => {
+      const code = `timeline
+        title Company Milestones
+        2020 : Founded
+             : Seed Round
+        2022 : Series A`;
+
+      const result = renderMermaidToSvg(code);
+      assert.strictEqual(result.diagramType, 'timeline');
+      assert.ok(!result.error);
+      assert.ok(result.svg.includes('Company Milestones'));
+      assert.ok(result.svg.includes('2020'));
+      assert.ok(result.svg.includes('Founded'));
+      assert.ok(result.svg.includes('Seed Round'));
+      assert.ok(result.svg.includes('2022'));
+      assert.ok(result.svg.includes('Series A'));
+    });
+  });
+
+  describe('Kanban Board SVG Generation', () => {
+    it('renders columns with task cards and badge counters', () => {
+      const code = `kanban
+        Backlog
+          [Research API]
+        Doing
+          [Write Code]
+        Done
+          [Setup Repo]`;
+
+      const result = renderMermaidToSvg(code);
+      assert.strictEqual(result.diagramType, 'kanban');
+      assert.ok(!result.error);
+      assert.ok(result.svg.includes('Backlog'));
+      assert.ok(result.svg.includes('Doing'));
+      assert.ok(result.svg.includes('Done'));
+      assert.ok(result.svg.includes('Research API'));
+      assert.ok(result.svg.includes('Write Code'));
+      assert.ok(result.svg.includes('Setup Repo'));
+    });
+  });
+
+  describe('User Journey SVG Generation', () => {
+    it('renders customer journey steps, score indicators, and trendline', () => {
+      const code = `journey
+        title Onboarding
+        section Sign up
+          Fill form: 4: User
+          Verify email: 2: User, Auth`;
+
+      const result = renderMermaidToSvg(code);
+      assert.strictEqual(result.diagramType, 'journey');
+      assert.ok(!result.error);
+      assert.ok(result.svg.includes('Onboarding'));
+      assert.ok(result.svg.includes('Sign up'));
+      assert.ok(result.svg.includes('Fill form'));
+      assert.ok(result.svg.includes('Verify email'));
+      assert.ok(result.svg.includes('User'));
+    });
+  });
+
+  describe('Git Graph SVG Generation', () => {
+    it('renders branches, commits, branch badges, and merge curves', () => {
+      const code = `gitGraph
+        commit id: "init"
+        branch develop
+        checkout develop
+        commit id: "feat-1"
+        checkout main
+        merge develop id: "merge-1" tag: "v1.0"`;
+
+      const result = renderMermaidToSvg(code);
+      assert.strictEqual(result.diagramType, 'gitGraph');
+      assert.ok(!result.error);
+      assert.ok(result.svg.includes('main'));
+      assert.ok(result.svg.includes('develop'));
+      assert.ok(result.svg.includes('init'));
+      assert.ok(result.svg.includes('feat-1'));
+      assert.ok(result.svg.includes('v1.0'));
+    });
+  });
+
+  describe('Sankey Diagram SVG Generation', () => {
+    it('renders flow stages with nodes and smooth connecting ribbons', () => {
+      const code = `sankey-beta
+        Energy,Grid,100
+        Grid,Homes,60
+        Grid,Industry,40`;
+
+      const result = renderMermaidToSvg(code);
+      assert.strictEqual(result.diagramType, 'sankey');
+      assert.ok(!result.error);
+      assert.ok(result.svg.includes('Energy'));
+      assert.ok(result.svg.includes('Grid'));
+      assert.ok(result.svg.includes('Homes'));
+      assert.ok(result.svg.includes('Industry'));
+      assert.ok(result.svg.includes('<path'));
+    });
+  });
+
+  describe('Block Diagram SVG Generation', () => {
+    it('renders grid blocks with column spans', () => {
+      const code = `block-beta
+        columns 3
+        a["Frontend"] b["API Gateway"]:2
+        space c["Database"]:2`;
+
+      const result = renderMermaidToSvg(code);
+      assert.strictEqual(result.diagramType, 'block');
+      assert.ok(!result.error);
+      assert.ok(result.svg.includes('Frontend'));
+      assert.ok(result.svg.includes('API Gateway'));
+      assert.ok(result.svg.includes('Database'));
+    });
+  });
+
+  describe('Packet Diagram SVG Generation', () => {
+    it('renders bit field rows with headers and labels', () => {
+      const code = `packet-beta
+        0-15: "Source Port"
+        16-31: "Dest Port"
+        32-63: "Seq Num"`;
+
+      const result = renderMermaidToSvg(code);
+      assert.strictEqual(result.diagramType, 'packet');
+      assert.ok(!result.error);
+      assert.ok(result.svg.includes('Source Port'));
+      assert.ok(result.svg.includes('Dest Port'));
+      assert.ok(result.svg.includes('Seq Num'));
+      assert.ok(result.svg.includes('0-15'));
+      assert.ok(result.svg.includes('16-31'));
+    });
+  });
+
+  describe('Requirement Diagram SVG Generation', () => {
+    it('renders requirement and element boxes with relationships', () => {
+      const code = `requirementDiagram
+        requirement auth_req {
+          id: REQ-1
+          text: Secure login
+          risk: high
+        }
+        element login_service {
+          type: service
+        }
+        login_service - satisfies -> auth_req`;
+
+      const result = renderMermaidToSvg(code);
+      assert.strictEqual(result.diagramType, 'requirement');
+      assert.ok(!result.error);
+      assert.ok(result.svg.includes('auth_req'));
+      assert.ok(result.svg.includes('login_service'));
+      assert.ok(result.svg.includes('REQ-1'));
+      assert.ok(result.svg.includes('satisfies'));
     });
   });
 
