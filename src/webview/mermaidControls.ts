@@ -241,6 +241,15 @@ export function updateMermaidBlocks(root: HTMLElement): void {
     if (isMermaid) {
       wrapper.classList.add('is-mermaid-block');
 
+      // If this is an AI Diff block with segmented control
+      if (wrapper.querySelector('.mermaid-diff-views')) {
+        const previewAfter = wrapper.querySelector<HTMLElement>('.mermaid-diff-after');
+        const previewBefore = wrapper.querySelector<HTMLElement>('.mermaid-diff-before');
+        if (previewAfter) initPreviewPan(previewAfter);
+        if (previewBefore) initPreviewPan(previewBefore);
+        return;
+      }
+
       // Ensure toggle button exists in header
       if (header) {
         const toggleBtn = header.querySelector<HTMLElement>('.code-toggle-view-btn');
@@ -319,8 +328,36 @@ export function wireMermaidControls(canvas: HTMLElement): void {
     }
   });
 
-  // Toggle view button click handler
+  // Mermaid diff segmented view buttons handler
   canvas.addEventListener('click', (e: MouseEvent) => {
+    const diffBtn = (e.target as HTMLElement).closest<HTMLElement>('.btn-mermaid-view');
+    if (diffBtn && canvas.contains(diffBtn)) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const wrapper = diffBtn.closest<HTMLElement>('.code-block-wrapper');
+      if (!wrapper) return;
+
+      const group = diffBtn.closest('.mermaid-diff-views');
+      if (group) {
+        group.querySelectorAll('.btn-mermaid-view').forEach((b) => b.classList.remove('is-active'));
+      }
+      diffBtn.classList.add('is-active');
+
+      const view = diffBtn.getAttribute('data-view') || 'after';
+      const previewAfter = wrapper.querySelector<HTMLElement>('.mermaid-diff-after');
+      const previewBefore = wrapper.querySelector<HTMLElement>('.mermaid-diff-before');
+      const codeDiff = wrapper.querySelector<HTMLElement>('.mermaid-diff-code');
+
+      if (previewAfter) previewAfter.style.display = view === 'after' ? 'flex' : 'none';
+      if (previewBefore) previewBefore.style.display = view === 'before' ? 'flex' : 'none';
+      if (codeDiff) codeDiff.style.display = view === 'code-diff' ? 'block' : 'none';
+
+      if (view === 'after' && previewAfter) initPreviewPan(previewAfter);
+      if (view === 'before' && previewBefore) initPreviewPan(previewBefore);
+      return;
+    }
+
     const btn = (e.target as HTMLElement).closest<HTMLElement>('.code-toggle-view-btn');
     if (!btn || !canvas.contains(btn)) return;
 

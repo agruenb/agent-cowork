@@ -89,11 +89,54 @@ export function parseTableRow(line: string): string[] {
   return stripped.split(/(?<!\\)\|/).map((c) => c.replace(/\\\|/g, '|').trim());
 }
 
+/**
+ * Fenced code block information.
+ */
+export interface FenceInfo {
+  char: '`' | '~';
+  length: number;
+  info: string;
+}
+
+/**
+ * Checks whether a line starts a fenced code block (``` or ~~~).
+ */
+export function matchFence(line: string): FenceInfo | null {
+  if (!line) return null;
+  const trimmed = line.trim();
+  const match = trimmed.match(/^(`{3,}|~{3,})(.*)$/);
+  if (!match) return null;
+  const fenceStr = match[1];
+  const char = fenceStr[0] as '`' | '~';
+  const info = match[2].trim();
+  return {
+    char,
+    length: fenceStr.length,
+    info,
+  };
+}
+
+/**
+ * Checks whether a line closes an open code block fence.
+ */
+export function isFenceClose(line: string, openFence: FenceInfo): boolean {
+  if (!line) return false;
+  const trimmed = line.trim();
+  const match = trimmed.match(/^(`{3,}|~{3,})\s*$/);
+  if (!match) return false;
+  const fenceStr = match[1];
+  return fenceStr[0] === openFence.char && fenceStr.length >= openFence.length;
+}
+
 export interface MarkdownListItem {
   text: string;
   checked?: boolean;
   children?: MarkdownBlock[];
   line?: number;
+  diffType?: 'same' | 'added' | 'removed' | 'modified';
+  oldChecked?: boolean;
+  diffHtml?: string;
+  value?: number;
 }
 
 export interface MarkdownBlock {
@@ -115,6 +158,23 @@ export interface MarkdownBlock {
   rows?: string[][];
   startLine?: number;
   endLine?: number;
+}
+
+export interface BlockDiffContext {
+  diffType?: 'same' | 'added' | 'removed' | 'modified';
+  oldLevel?: number;
+  oldLanguage?: string;
+  oldContent?: string;
+  diffHtml?: string;
+  copySource?: string;
+  diffData?: any;
+}
+
+export interface RenderContext {
+  lang?: 'en' | 'de';
+  isNested?: boolean;
+  review?: boolean;
+  diffContext?: BlockDiffContext;
 }
 
 interface ParsedListLine {
@@ -220,18 +280,19 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
       continue;
     }
 
-    // Fenced Code Block: ```lang
-    if (trimmed.startsWith('```')) {
+    // Fenced Code Block: ```lang or ~~~lang
+    const fence = matchFence(line);
+    if (fence) {
       const startLine = i + 1;
-      const language = trimmed.slice(3).trim();
+      const language = fence.info;
       const codeLines: string[] = [];
       i++;
-      while (i < lines.length && !lines[i].trim().startsWith('```')) {
+      while (i < lines.length && !isFenceClose(lines[i], fence)) {
         codeLines.push(lines[i]);
         i++;
       }
       if (i < lines.length) {
-        i++; // skip closing ```
+        i++; // skip closing fence
       }
       blocks.push({
         type: 'code_block',
@@ -304,7 +365,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         i < lines.length &&
         lines[i].includes('|') &&
         !isTableDelimiterRow(lines[i]) &&
-        !lines[i].trim().startsWith('```') &&
+        !matchFence(lines[i]) &&
         !lines[i].trim().startsWith('#')
       ) {
         rows.push(parseTableRow(lines[i]));
@@ -445,7 +506,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         if (
           curIndent > stack[0].indent &&
           !curTrimmed.startsWith('#') &&
-          !curTrimmed.startsWith('```') &&
+          !matchFence(curTrimmed) &&
           !curTrimmed.startsWith('>')
         ) {
           const currentItem = stack[stack.length - 1].currentItem;
@@ -479,7 +540,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
       }
       if (
         /^#{1,6}\s/.test(cur) ||
-        cur.startsWith('```') ||
+        matchFence(cur) !== null ||
         cur.startsWith('>') ||
         (cur.startsWith('|') && i + 1 < lines.length && lines[i + 1].trim().startsWith('|') && /\|[\s-:]+\|/.test(lines[i + 1].trim())) ||
         /^(\*{3,}|-{3,}|_{3,})$/.test(cur) ||
@@ -532,176 +593,349 @@ function detectParserLang(lang?: 'en' | 'de'): 'en' | 'de' {
   return 'de';
 }
 
+export function renderHeading(block: MarkdownBlock, ctx: RenderContext): string {
+  const level = block.level || 1;
+  const tag = `h${level}`;
+  const diffType = ctx.diffContext?.diffType;
+  let diffClass = '';
+  let oldLevelAttr = '';
+  let badgeHtml = '';
+  if (diffType === 'added') diffClass = ' diff-block-added';
+  else if (diffType === 'removed') diffClass = ' diff-block-removed';
+  else if (diffType === 'modified') {
+    diffClass = ' diff-block-modified';
+    if (ctx.diffContext?.oldLevel && ctx.diffContext.oldLevel !== level) {
+      oldLevelAttr = ` data-diff-old-level="${ctx.diffContext.oldLevel}"`;
+      badgeHtml = `<span class="diff-level-badge" aria-hidden="true">H${ctx.diffContext.oldLevel} → H${level}</span>`;
+    }
+  }
+  const inner = ctx.diffContext?.diffHtml !== undefined
+    ? ctx.diffContext.diffHtml
+    : parseInlineMarkdown(block.content || '');
+  return `<${tag} class="editor-block${diffClass}" data-block-type="heading" data-level="${level}"${oldLevelAttr}>${badgeHtml}${inner}</${tag}>`;
+}
+
+export function renderParagraph(block: MarkdownBlock, ctx: RenderContext): string {
+  const diffType = ctx.diffContext?.diffType;
+  let diffClass = '';
+  if (diffType === 'added') diffClass = ' diff-block-added';
+  else if (diffType === 'removed') diffClass = ' diff-block-removed';
+  else if (diffType === 'modified') diffClass = ' diff-block-modified';
+
+  let content: string;
+  if (ctx.diffContext?.diffHtml !== undefined) {
+    content = ctx.diffContext.diffHtml;
+  } else if (block.content) {
+    content = parseInlineMarkdown(block.content);
+  } else {
+    content = '<br>';
+  }
+  return `<p class="editor-block${diffClass}" data-block-type="paragraph">${content}</p>`;
+}
+
+export function renderBlockquote(block: MarkdownBlock, ctx: RenderContext): string {
+  const diffType = ctx.diffContext?.diffType;
+  let diffClass = '';
+  if (diffType === 'added') diffClass = ' diff-block-added';
+  else if (diffType === 'removed') diffClass = ' diff-block-removed';
+  else if (diffType === 'modified') diffClass = ' diff-block-modified';
+
+  let quoteHtml: string;
+  if (ctx.diffContext?.diffHtml !== undefined) {
+    quoteHtml = ctx.diffContext.diffHtml;
+  } else {
+    quoteHtml = (block.content || '')
+      .split('\n')
+      .map((line) => `<p>${parseInlineMarkdown(line)}</p>`)
+      .join('');
+  }
+  const editable = ctx.review ? 'false' : 'true';
+  const inner = `<blockquote class="editor-block${diffClass}" data-block-type="blockquote" contenteditable="${editable}">${quoteHtml}</blockquote>`;
+  if (ctx.isNested) {
+    return inner;
+  }
+  const deleteBtnHtml = ctx.review ? '' : getBlockDeleteBtnHtml(ctx.lang);
+  return `<div class="editor-block-container widget-block${diffClass}" data-block-type="blockquote" contenteditable="false">${deleteBtnHtml}${inner}</div>`;
+}
+
+export function renderCodeBlock(block: MarkdownBlock, ctx: RenderContext): string {
+  const diffType = ctx.diffContext?.diffType;
+  const langStr = block.language ? escapeHtml(block.language) : '';
+  const isMermaid = langStr.toLowerCase() === 'mermaid';
+  const effectiveLang = ctx.lang || 'de';
+  const codeLangTitle = effectiveLang === 'en' ? 'Edit code language' : 'Code-Typ bearbeiten';
+  const codeCopyTitle = effectiveLang === 'en' ? 'Copy code' : 'Code kopieren';
+  const copySource = ctx.diffContext?.copySource ?? block.content ?? '';
+  const copyBtnHtml = `<button type="button" class="code-copy-btn" title="${codeCopyTitle}" aria-label="${codeCopyTitle}" tabindex="-1" data-copy-source="${escapeHtml(copySource)}"><svg class="copy-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25v-7.5z"/><path fill-rule="evenodd" d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25v-7.5zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25h-7.5z"/></svg></button>`;
+  const codeToggleTitle = effectiveLang === 'en' ? 'Show code' : 'Code anzeigen';
+  const toggleBtnHtml = `<button type="button" class="code-toggle-view-btn" data-view="diagram" title="${codeToggleTitle}" aria-label="${codeToggleTitle}" tabindex="-1"><svg class="code-toggle-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M4.72 3.22a.75.75 0 0 1 1.06 1.06L2.06 8l3.72 3.72a.75.75 0 1 1-1.06 1.06L.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25zm6.56 0a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L14.94 8l-3.72-3.72a.75.75 0 0 1 0-1.06z"/></svg></button>`;
+
+  if (diffType === 'modified') {
+    let oldLangAttr = '';
+    let headerContent = '';
+    if (ctx.diffContext?.oldLanguage !== undefined && ctx.diffContext.oldLanguage !== (block.language || '')) {
+      const oldLangDisplay = escapeHtml(ctx.diffContext.oldLanguage || 'none');
+      const newLangDisplay = escapeHtml(block.language || 'none');
+      headerContent = `<span class="code-diff-header-lang">${oldLangDisplay} → ${newLangDisplay}</span>`;
+      oldLangAttr = ` data-diff-old-language="${escapeHtml(ctx.diffContext.oldLanguage)}"`;
+    } else {
+      headerContent = `<span class="code-diff-header-lang">${langStr || 'Code'}</span>`;
+    }
+
+    if (isMermaid) {
+      const viewsControl = `<div class="mermaid-diff-views" role="group" aria-label="Mermaid view"><button type="button" class="btn-mermaid-view is-active" data-view="after">After</button><button type="button" class="btn-mermaid-view" data-view="before">Before</button><button type="button" class="btn-mermaid-view" data-view="code-diff">Code diff</button></div>`;
+      const afterDiagram = renderMermaidPreviewHtml(block.content || '', effectiveLang);
+      const beforeDiagram = renderMermaidPreviewHtml(ctx.diffContext?.oldContent || '', effectiveLang);
+      const codeDiffContent = ctx.diffContext?.diffHtml || escapeHtml(block.content || '');
+
+      const previewAfter = `<div class="mermaid-preview mermaid-diff-after" contenteditable="false" data-scale="1" data-pan-x="0" data-pan-y="0">${afterDiagram}</div>`;
+      const previewBefore = `<div class="mermaid-preview mermaid-diff-before" style="display:none;" contenteditable="false" data-scale="1" data-pan-x="0" data-pan-y="0">${beforeDiagram}</div>`;
+      const codeDiffView = `<div class="mermaid-diff-code" style="display:none;"><pre><code class="editor-code">${codeDiffContent}</code></pre></div>`;
+
+      const inner = `<div class="editor-block code-block-wrapper is-mermaid-block diff-block-modified" data-block-type="code_block" data-language="mermaid" data-view="diagram"${oldLangAttr}><div class="code-block-header">${viewsControl}${copyBtnHtml}</div>${previewAfter}${previewBefore}${codeDiffView}</div>`;
+      return ctx.isNested ? inner : `<div class="editor-block-container widget-block" data-block-type="code_block" contenteditable="false">${inner}</div>`;
+    }
+
+    const codeDiffHtml = ctx.diffContext?.diffHtml || escapeHtml(block.content || '');
+    const inner = `<div class="editor-block code-block-wrapper code-diff-wrapper diff-block-modified" data-block-type="code_block" data-language="${langStr}"${oldLangAttr}><div class="code-block-header">${headerContent}<span class="code-diff-badge">AI Diff</span>${copyBtnHtml}</div><pre><code class="editor-code">${codeDiffHtml}</code></pre></div>`;
+    return ctx.isNested ? inner : `<div class="editor-block-container widget-block" data-block-type="code_block" contenteditable="false">${inner}</div>`;
+  }
+
+  // Normal / Added / Removed
+  let diffClass = '';
+  if (diffType === 'added') diffClass = ' diff-block-added';
+  else if (diffType === 'removed') diffClass = ' diff-block-removed';
+
+  let headerBtns = copyBtnHtml;
+  let previewHtml = '';
+  let preStyle = '';
+  let wrapperClass = `editor-block code-block-wrapper${diffClass}`;
+  let viewAttr = '';
+
+  if (isMermaid) {
+    headerBtns = `${toggleBtnHtml}${copyBtnHtml}`;
+    wrapperClass += ' is-mermaid-block';
+    viewAttr = ' data-view="diagram"';
+    const renderedDiagram = renderMermaidPreviewHtml(block.content || '', effectiveLang);
+    previewHtml = `<div class="mermaid-preview" contenteditable="false" data-scale="1" data-pan-x="0" data-pan-y="0">${renderedDiagram}</div>`;
+    preStyle = ' style="display: none;"';
+  }
+
+  const readonlyAttr = ctx.review ? ' readonly' : '';
+  const editableCode = ctx.review ? 'false' : 'true';
+  const codeText = escapeHtml(block.content || '');
+  const deleteBtnHtml = ctx.review ? '' : getBlockDeleteBtnHtml(effectiveLang);
+
+  const inner = `<div class="${wrapperClass}" data-block-type="code_block" data-language="${langStr}"${viewAttr}><div class="code-block-header"><input type="text" class="code-lang-input" value="${langStr}" placeholder="Code" title="${codeLangTitle}" spellcheck="false" autocomplete="off"${readonlyAttr} />${headerBtns}</div>${previewHtml}<pre${preStyle}><code class="editor-code" contenteditable="${editableCode}">${codeText}</code></pre></div>`;
+
+  return ctx.isNested
+    ? inner
+    : `<div class="editor-block-container widget-block${diffClass}" data-block-type="code_block" contenteditable="false">${deleteBtnHtml}${inner}</div>`;
+}
+
+export function renderList(block: MarkdownBlock, ctx: RenderContext): string {
+  if (ctx.diffContext?.diffHtml !== undefined) {
+    return ctx.diffContext.diffHtml;
+  }
+  const isNested = !!ctx.isNested;
+  const effectiveLang = ctx.lang || 'de';
+  const diffType = ctx.diffContext?.diffType;
+  let diffClass = '';
+  if (diffType === 'added') diffClass = ' diff-block-added';
+  else if (diffType === 'removed') diffClass = ' diff-block-removed';
+  else if (diffType === 'modified') diffClass = ' diff-block-modified';
+
+  switch (block.type) {
+    case 'task_list': {
+      const blockClass = isNested ? `task-list${diffClass}` : `editor-block task-list${diffClass}`;
+      const itemHtmls = (block.items || []).map((item) => {
+        const checkedAttr = item.checked ? 'checked' : '';
+        const checkedClass = item.checked ? ' is-checked' : '';
+        const diffItemClass = item.diffType ? ` diff-item-${item.diffType}` : '';
+        const diffCheckboxClass = item.oldChecked !== undefined && item.oldChecked !== item.checked ? ' diff-checkbox-changed' : '';
+        const oldCheckedAttr = item.oldChecked !== undefined && item.oldChecked !== item.checked ? ` data-diff-old-checked="${item.oldChecked}"` : '';
+        let childHtml = '';
+        if (item.children && item.children.length > 0) {
+          childHtml = blocksToHtml(item.children, true, effectiveLang, { review: ctx.review });
+        }
+        let inlineHtml: string;
+        if (item.diffHtml !== undefined) {
+          inlineHtml = item.diffHtml;
+        } else if (item.text && item.text.trim()) {
+          inlineHtml = parseInlineMarkdown(item.text);
+        } else {
+          inlineHtml = '<br>';
+        }
+        if (item.diffType === 'removed') {
+          inlineHtml = `<del class="diff-del">${inlineHtml}</del>`;
+        } else if (item.diffType === 'added') {
+          inlineHtml = `<ins class="diff-ins">${inlineHtml}</ins>`;
+        }
+        const disabledAttr = ctx.review ? 'disabled' : '';
+        return `<li class="task-item${checkedClass}${diffItemClass}${diffCheckboxClass}" data-checked="${item.checked ? 'true' : 'false'}"${oldCheckedAttr}><input type="checkbox" class="task-checkbox" ${checkedAttr} ${disabledAttr} contenteditable="false"><span class="task-content">${inlineHtml}</span>${childHtml}</li>`;
+      });
+      return `<ul class="${blockClass}" data-block-type="task_list">${itemHtmls.join('')}</ul>`;
+    }
+
+    case 'unordered_list': {
+      const blockClass = isNested ? `bullet-list${diffClass}` : `editor-block bullet-list${diffClass}`;
+      const itemHtmls = (block.items || []).map((item) => {
+        const diffItemClass = item.diffType ? ` diff-item-${item.diffType}` : '';
+        let childHtml = '';
+        if (item.children && item.children.length > 0) {
+          childHtml = blocksToHtml(item.children, true, effectiveLang, { review: ctx.review });
+        }
+        let inlineHtml: string;
+        if (item.diffHtml !== undefined) {
+          inlineHtml = item.diffHtml;
+        } else if (item.text && item.text.trim()) {
+          inlineHtml = parseInlineMarkdown(item.text);
+        } else {
+          inlineHtml = '<br>';
+        }
+        if (item.diffType === 'removed') {
+          inlineHtml = `<del class="diff-del">${inlineHtml}</del>`;
+        } else if (item.diffType === 'added') {
+          inlineHtml = `<ins class="diff-ins">${inlineHtml}</ins>`;
+        }
+        return `<li class="list-item${diffItemClass}">${inlineHtml}${childHtml}</li>`;
+      });
+      return `<ul class="${blockClass}" data-block-type="unordered_list">${itemHtmls.join('')}</ul>`;
+    }
+
+    case 'ordered_list': {
+      const blockClass = isNested ? `ordered-list${diffClass}` : `editor-block ordered-list${diffClass}`;
+      const itemHtmls = (block.items || []).map((item) => {
+        const diffItemClass = item.diffType ? ` diff-item-${item.diffType}` : '';
+        const valueAttr = item.value !== undefined ? ` value="${item.value}"` : '';
+        let childHtml = '';
+        if (item.children && item.children.length > 0) {
+          childHtml = blocksToHtml(item.children, true, effectiveLang, { review: ctx.review });
+        }
+        let inlineHtml: string;
+        if (item.diffHtml !== undefined) {
+          inlineHtml = item.diffHtml;
+        } else if (item.text && item.text.trim()) {
+          inlineHtml = parseInlineMarkdown(item.text);
+        } else {
+          inlineHtml = '<br>';
+        }
+        if (item.diffType === 'removed') {
+          inlineHtml = `<del class="diff-del">${inlineHtml}</del>`;
+        } else if (item.diffType === 'added') {
+          inlineHtml = `<ins class="diff-ins">${inlineHtml}</ins>`;
+        }
+        return `<li class="list-item${diffItemClass}"${valueAttr}>${inlineHtml}${childHtml}</li>`;
+      });
+      return `<ol class="${blockClass}" data-block-type="ordered_list">${itemHtmls.join('')}</ol>`;
+    }
+    default:
+      return '';
+  }
+}
+
+export function renderTable(block: MarkdownBlock, ctx: RenderContext): string {
+  if (ctx.diffContext?.diffHtml !== undefined) {
+    return ctx.diffContext.diffHtml;
+  }
+  const diffType = ctx.diffContext?.diffType;
+  let diffClass = '';
+  if (diffType === 'added') diffClass = ' diff-block-added';
+  else if (diffType === 'removed') diffClass = ' diff-block-removed';
+  else if (diffType === 'modified') diffClass = ' diff-block-modified';
+
+  const renderCell = (content: string, isHeader: boolean) => {
+    const trimmed = content.trim();
+    const checkboxMatch = trimmed.match(/^([-*+]?\s*)?\[([ xX])\]$/);
+    const tag = isHeader ? 'th' : 'td';
+    if (checkboxMatch) {
+      const isChecked = checkboxMatch[2].toLowerCase() === 'x';
+      const checkedAttr = isChecked ? 'checked' : '';
+      const checkedClass = isChecked ? ' is-checked' : '';
+      const disabledAttr = ctx.review ? 'disabled' : '';
+      return `<${tag} class="table-checkbox-cell${checkedClass}" data-checked="${isChecked ? 'true' : 'false'}"><input type="checkbox" class="table-cell-checkbox" ${checkedAttr} ${disabledAttr} contenteditable="false"></${tag}>`;
+    }
+    const parsed = parseInlineMarkdown(content);
+    return `<${tag}>${parsed || '<br>'}</${tag}>`;
+  };
+
+  const headers = (block.headers || [])
+    .map((h) => renderCell(h, true))
+    .join('');
+  const rows = (block.rows || [])
+    .map((row) => {
+      const cells = row.map((c) => renderCell(c, false)).join('');
+      return `<tr>${cells}</tr>`;
+    })
+    .join('');
+  const editable = ctx.review ? 'false' : 'true';
+  const inner = `<div class="editor-block table-wrapper${diffClass}" data-block-type="table"><div class="table-scroll-wrapper"><table class="editor-table" contenteditable="${editable}"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  if (ctx.isNested) {
+    return inner;
+  }
+  const deleteBtnHtml = ctx.review ? '' : getBlockDeleteBtnHtml(ctx.lang);
+  return `<div class="editor-block-container widget-block${diffClass}" data-block-type="table" contenteditable="false">${deleteBtnHtml}${inner}</div>`;
+}
+
+export function renderHr(_block: MarkdownBlock, ctx: RenderContext): string {
+  const diffType = ctx.diffContext?.diffType;
+  let diffClass = '';
+  if (diffType === 'added') diffClass = ' diff-block-added';
+  else if (diffType === 'removed') diffClass = ' diff-block-removed';
+  else if (diffType === 'modified') diffClass = ' diff-block-modified';
+
+  const inner = `<hr class="editor-block${diffClass}" data-block-type="hr">`;
+  if (ctx.isNested) {
+    return inner;
+  }
+  const deleteBtnHtml = ctx.review ? '' : getBlockDeleteBtnHtml(ctx.lang);
+  return `<div class="editor-block-container widget-block${diffClass}" data-block-type="hr" contenteditable="false">${deleteBtnHtml}${inner}</div>`;
+}
+
+export function renderBlock(block: MarkdownBlock, ctx: RenderContext): string {
+  switch (block.type) {
+    case 'heading':
+      return renderHeading(block, ctx);
+    case 'paragraph':
+      return renderParagraph(block, ctx);
+    case 'blockquote':
+      return renderBlockquote(block, ctx);
+    case 'code_block':
+      return renderCodeBlock(block, ctx);
+    case 'task_list':
+    case 'unordered_list':
+    case 'ordered_list':
+      return renderList(block, ctx);
+    case 'table':
+      return renderTable(block, ctx);
+    case 'hr':
+      return renderHr(block, ctx);
+    default:
+      return '';
+  }
+}
+
 /**
  * Converts parsed MarkdownBlocks into an editable HTML structure.
  */
-export function blocksToHtml(blocks: MarkdownBlock[], isNested = false, lang?: 'en' | 'de'): string {
+export function blocksToHtml(
+  blocks: MarkdownBlock[],
+  isNested = false,
+  lang?: 'en' | 'de',
+  ctxOverride?: Partial<RenderContext>
+): string {
   if (blocks.length === 0) {
     return isNested ? '' : '<p class="editor-block" data-block-type="paragraph"><br></p>';
   }
 
   const effectiveLang = detectParserLang(lang);
-  const deleteBtnHtml = getBlockDeleteBtnHtml(effectiveLang);
-  const codeLangTitle = effectiveLang === 'en' ? 'Edit code language' : 'Code-Typ bearbeiten';
-  const codeCopyTitle = effectiveLang === 'en' ? 'Copy code' : 'Code kopieren';
-  const copyBtnHtml = `<button type="button" class="code-copy-btn" title="${codeCopyTitle}" aria-label="${codeCopyTitle}" tabindex="-1"><svg class="copy-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25v-7.5z"/><path fill-rule="evenodd" d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25v-7.5zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25h-7.5z"/></svg></button>`;
-  const codeToggleTitle = effectiveLang === 'en' ? 'Show code' : 'Code anzeigen';
-  const toggleBtnHtml = `<button type="button" class="code-toggle-view-btn" data-view="diagram" title="${codeToggleTitle}" aria-label="${codeToggleTitle}" tabindex="-1"><svg class="code-toggle-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M4.72 3.22a.75.75 0 0 1 1.06 1.06L2.06 8l3.72 3.72a.75.75 0 1 1-1.06 1.06L.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25zm6.56 0a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L14.94 8l-3.72-3.72a.75.75 0 0 1 0-1.06z"/></svg></button>`;
+  const ctx: RenderContext = {
+    lang: effectiveLang,
+    isNested,
+    ...ctxOverride,
+  };
 
-  const htmlParts: string[] = [];
-
-  for (const block of blocks) {
-    switch (block.type) {
-      case 'heading': {
-        const level = block.level || 1;
-        const tag = `h${level}`;
-        htmlParts.push(
-          `<${tag} class="editor-block" data-block-type="heading" data-level="${level}">${parseInlineMarkdown(
-            block.content || ''
-          )}</${tag}>`
-        );
-        break;
-      }
-
-      case 'paragraph': {
-        const content = block.content ? parseInlineMarkdown(block.content) : '<br>';
-        htmlParts.push(`<p class="editor-block" data-block-type="paragraph">${content}</p>`);
-        break;
-      }
-
-      case 'blockquote': {
-        const quoteHtml = (block.content || '')
-          .split('\n')
-          .map((line) => `<p>${parseInlineMarkdown(line)}</p>`)
-          .join('');
-        const inner = `<blockquote class="editor-block" data-block-type="blockquote" contenteditable="true">${quoteHtml}</blockquote>`;
-        htmlParts.push(
-          isNested
-            ? inner
-            : `<div class="editor-block-container widget-block" data-block-type="blockquote" contenteditable="false">${deleteBtnHtml}${inner}</div>`
-        );
-        break;
-      }
-
-      case 'code_block': {
-        const langStr = block.language ? escapeHtml(block.language) : '';
-        const isMermaid = langStr.toLowerCase() === 'mermaid';
-        const codeText = escapeHtml(block.content || '');
-
-        let headerBtns = copyBtnHtml;
-        let previewHtml = '';
-        let preStyle = '';
-        let wrapperClass = 'editor-block code-block-wrapper';
-        let viewAttr = '';
-
-        if (isMermaid) {
-          headerBtns = `${toggleBtnHtml}${copyBtnHtml}`;
-          wrapperClass += ' is-mermaid-block';
-          viewAttr = ' data-view="diagram"';
-          const renderedDiagram = renderMermaidPreviewHtml(block.content || '', effectiveLang);
-          previewHtml = `<div class="mermaid-preview" contenteditable="false" data-scale="1" data-pan-x="0" data-pan-y="0">${renderedDiagram}</div>`;
-          preStyle = ' style="display: none;"';
-        }
-
-        const inner = `<div class="${wrapperClass}" data-block-type="code_block" data-language="${langStr}"${viewAttr}><div class="code-block-header"><input type="text" class="code-lang-input" value="${langStr}" placeholder="Code" title="${codeLangTitle}" spellcheck="false" autocomplete="off" />${headerBtns}</div>${previewHtml}<pre${preStyle}><code class="editor-code" contenteditable="true">${codeText}</code></pre></div>`;
-        htmlParts.push(
-          isNested
-            ? inner
-            : `<div class="editor-block-container widget-block" data-block-type="code_block" contenteditable="false">${deleteBtnHtml}${inner}</div>`
-        );
-        break;
-      }
-
-      case 'task_list': {
-        const blockClass = isNested ? 'task-list' : 'editor-block task-list';
-        const itemHtmls = (block.items || []).map((item) => {
-          const checkedAttr = item.checked ? 'checked' : '';
-          const checkedClass = item.checked ? ' is-checked' : '';
-          let childHtml = '';
-          if (item.children && item.children.length > 0) {
-            childHtml = blocksToHtml(item.children, true, effectiveLang);
-          }
-          const inlineHtml = item.text && item.text.trim() ? parseInlineMarkdown(item.text) : '<br>';
-          return `<li class="task-item${checkedClass}" data-checked="${item.checked ? 'true' : 'false'}"><input type="checkbox" class="task-checkbox" ${checkedAttr} contenteditable="false"><span class="task-content">${inlineHtml}</span>${childHtml}</li>`;
-        });
-        htmlParts.push(`<ul class="${blockClass}" data-block-type="task_list">${itemHtmls.join('')}</ul>`);
-        break;
-      }
-
-      case 'unordered_list': {
-        const blockClass = isNested ? 'bullet-list' : 'editor-block bullet-list';
-        const itemHtmls = (block.items || []).map((item) => {
-          let childHtml = '';
-          if (item.children && item.children.length > 0) {
-            childHtml = blocksToHtml(item.children, true, effectiveLang);
-          }
-          const inlineHtml = item.text && item.text.trim() ? parseInlineMarkdown(item.text) : '<br>';
-          return `<li class="list-item">${inlineHtml}${childHtml}</li>`;
-        });
-        htmlParts.push(`<ul class="${blockClass}" data-block-type="unordered_list">${itemHtmls.join('')}</ul>`);
-        break;
-      }
-
-      case 'ordered_list': {
-        const blockClass = isNested ? 'ordered-list' : 'editor-block ordered-list';
-        const itemHtmls = (block.items || []).map((item) => {
-          let childHtml = '';
-          if (item.children && item.children.length > 0) {
-            childHtml = blocksToHtml(item.children, true, effectiveLang);
-          }
-          const inlineHtml = item.text && item.text.trim() ? parseInlineMarkdown(item.text) : '<br>';
-          return `<li class="list-item">${inlineHtml}${childHtml}</li>`;
-        });
-        htmlParts.push(`<ol class="${blockClass}" data-block-type="ordered_list">${itemHtmls.join('')}</ol>`);
-        break;
-      }
-
-      case 'table': {
-        const renderCell = (content: string, isHeader: boolean) => {
-          const trimmed = content.trim();
-          const checkboxMatch = trimmed.match(/^([-*+]?\s*)?\[([ xX])\]$/);
-          const tag = isHeader ? 'th' : 'td';
-          if (checkboxMatch) {
-            const isChecked = checkboxMatch[2].toLowerCase() === 'x';
-            const checkedAttr = isChecked ? 'checked' : '';
-            const checkedClass = isChecked ? ' is-checked' : '';
-            return `<${tag} class="table-checkbox-cell${checkedClass}" data-checked="${isChecked ? 'true' : 'false'}"><input type="checkbox" class="table-cell-checkbox" ${checkedAttr} contenteditable="false"></${tag}>`;
-          }
-          const parsed = parseInlineMarkdown(content);
-          return `<${tag}>${parsed || '<br>'}</${tag}>`;
-        };
-
-        const headers = (block.headers || [])
-          .map((h) => renderCell(h, true))
-          .join('');
-        const rows = (block.rows || [])
-          .map((row) => {
-            const cells = row.map((c) => renderCell(c, false)).join('');
-            return `<tr>${cells}</tr>`;
-          })
-          .join('');
-        const inner = `<div class="editor-block table-wrapper" data-block-type="table"><div class="table-scroll-wrapper"><table class="editor-table" contenteditable="true"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
-        htmlParts.push(
-          isNested
-            ? inner
-            : `<div class="editor-block-container widget-block" data-block-type="table" contenteditable="false">${deleteBtnHtml}${inner}</div>`
-        );
-        break;
-      }
-
-      case 'hr': {
-        const inner = '<hr class="editor-block" data-block-type="hr">';
-        htmlParts.push(
-          isNested
-            ? inner
-            : `<div class="editor-block-container widget-block" data-block-type="hr" contenteditable="false">${deleteBtnHtml}${inner}</div>`
-        );
-        break;
-      }
-    }
-  }
-
-  return htmlParts.join('\n');
+  return blocks.map((block) => renderBlock(block, ctx)).join('\n');
 }
 
 

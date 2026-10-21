@@ -102,7 +102,7 @@ describe('AI Diff Webview Interactions & Safe Review Mode', () => {
   });
 
   it('displays diffs, enters safe review mode, and shows toolbar AI edits panel', () => {
-    const original = '# Title\nThis is the original text.';
+    const original = '# Title\nThis is the original text.\n```ts\nconst x = 5;\n```';
     const modified = '# Title\nThis is the modified text with new details.\n```ts\nconst x = 10;\n```';
 
     displayAiDiff(original, modified);

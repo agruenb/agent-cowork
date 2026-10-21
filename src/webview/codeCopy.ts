@@ -150,10 +150,16 @@ export function wireCodeBlockCopy(canvas: HTMLElement): void {
 
       const wrapper = btn.closest<HTMLElement>('.code-block-wrapper');
       if (wrapper) {
-        const codeEl =
-          wrapper.querySelector<HTMLElement>('code.editor-code') ||
-          wrapper.querySelector<HTMLElement>('pre code');
-        const text = codeEl ? (codeEl.textContent || '') : '';
+        const copySource = btn.getAttribute('data-copy-source') ?? wrapper.getAttribute('data-copy-source');
+        let text = '';
+        if (copySource !== null && copySource !== undefined) {
+          text = copySource;
+        } else {
+          const codeEl =
+            wrapper.querySelector<HTMLElement>('code.editor-code') ||
+            wrapper.querySelector<HTMLElement>('pre code');
+          text = codeEl ? (codeEl.textContent || '') : '';
+        }
         await copyToClipboard(text, canvas.ownerDocument);
         showCopiedFeedback(btn, false);
       }
