@@ -703,101 +703,110 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       </svg>
     </button>
 
-    <!-- Top Formatting Toolbar -->
-    <div class="toolbar" role="toolbar" aria-label="${t('Editor Werkzeugleiste')}">
-      <!-- Heading Select & Inline Formatting (Stacked Vertically) -->
-      <div class="toolbar-group toolbar-group-text">
-        <select id="select-heading" class="tb-select tb-select-compact" tabindex="-1" title="${t('Textformatierung')}">
+    <!-- Toolbar icon sprite (16px grid, shared stroke weight) -->
+    <svg class="tb-sprite" width="0" height="0" aria-hidden="true" focusable="false">
+      <defs>
+        <symbol id="tb-i-bold" viewBox="0 0 16 16"><path d="M4.75 2.75h3.9a2.4 2.4 0 0 1 0 4.8h-3.9zM4.75 7.55h4.6a2.6 2.6 0 0 1 0 5.2h-4.6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+        <symbol id="tb-i-italic" viewBox="0 0 16 16"><path d="M7 2.75h5M4 13.25h5M9.6 2.75 6.4 13.25" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+        <symbol id="tb-i-strike" viewBox="0 0 16 16"><path d="M2.5 8h11M11.2 4.3c-.5-1-1.6-1.55-3.1-1.55-1.85 0-3.1.95-3.1 2.25 0 .55.25 1 .75 1.35M4.9 11.2c.45 1.25 1.7 2.05 3.3 2.05 1.95 0 3.25-.95 3.25-2.35 0-.35-.08-.65-.25-.95" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+        <symbol id="tb-i-checklist" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="4.5" height="4.5" rx="1"/><path d="m3.1 4.8 1 1 1.4-1.8"/><rect x="2" y="9" width="4.5" height="4.5" rx="1"/><path d="M9 4.75h5M9 11.25h5"/></g></symbol>
+        <symbol id="tb-i-bullets" viewBox="0 0 16 16"><g fill="currentColor"><circle cx="3" cy="4" r="1.1"/><circle cx="3" cy="8" r="1.1"/><circle cx="3" cy="12" r="1.1"/></g><path d="M6.5 4h7.5M6.5 8h7.5M6.5 12h7.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+        <symbol id="tb-i-numbers" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h7M7 8h7M7 12h7" stroke-width="1.3"/><path d="M2.4 3.1 3.2 2.5v3" stroke-width="1"/><path d="M2.2 7.1c.15-.4.5-.65.95-.65.5 0 .85.3.85.75 0 .75-1.8 1.3-1.8 2.2h1.85" stroke-width="1"/><path d="M2.2 11.05c.15-.35.5-.55.9-.55.5 0 .85.3.85.7s-.35.7-.85.7c.5 0 .9.3.9.75s-.4.75-.9.75c-.45 0-.8-.2-.95-.6" stroke-width="1"/></g></symbol>
+        <symbol id="tb-i-quote" viewBox="0 0 16 16"><path d="M3 2.75v10.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6.5 4.5h7.5M6.5 8h7.5M6.5 11.5h5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+        <symbol id="tb-i-table" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="2.75" width="12" height="10.5" rx="1.5"/><path d="M2 6.25h12M2 9.75h12M6.5 6.25v7"/></g></symbol>
+        <symbol id="tb-i-code" viewBox="0 0 16 16"><path d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="tb-i-search" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="7" cy="7" r="4.25"/><path d="m10.2 10.2 3.3 3.3"/></g></symbol>
+        <symbol id="tb-i-doc" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M4 1.75h5.25L12.5 5v9.25H4z"/><path d="M9 1.75V5.25h3.5M6.25 8h4M6.25 10.75h4"/></g></symbol>
+        <symbol id="tb-i-markdown" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><rect x="1.5" y="3.5" width="13" height="9" rx="1.5"/><path d="M4 10.25v-4.5l1.75 2 1.75-2v4.5M11 5.75v4.5M9.5 8.75 11 10.25l1.5-1.5"/></g></symbol>
+        <symbol id="tb-i-chat" viewBox="0 0 16 16"><path d="M2.5 3.75a1.25 1.25 0 0 1 1.25-1.25h8.5a1.25 1.25 0 0 1 1.25 1.25v5.5A1.25 1.25 0 0 1 12.25 10.5H7.25L4.25 13v-2.5h-.5A1.25 1.25 0 0 1 2.5 9.25z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+        <symbol id="tb-i-chevron-up" viewBox="0 0 16 16"><path d="m4 10 4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="tb-i-arrow-up" viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="tb-i-arrow-down" viewBox="0 0 16 16"><path d="M8 3v10M4 9l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="tb-i-check" viewBox="0 0 16 16"><path d="m3 8.5 3.2 3.2L13 4.75" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="tb-i-close" viewBox="0 0 16 16"><path d="m4 4 8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+        <symbol id="tb-i-diff" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M8 4.75v3.5M6.25 6.5h3.5M6.25 11h3.5"/></g></symbol>
+        <symbol id="tb-i-more" viewBox="0 0 16 16"><g fill="currentColor"><circle cx="3.5" cy="8" r="1.15"/><circle cx="8" cy="8" r="1.15"/><circle cx="12.5" cy="8" r="1.15"/></g></symbol>
+        <symbol id="tb-i-warning" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M7.13 2.5a1 1 0 0 1 1.74 0l5.5 9.75a1 1 0 0 1-.87 1.5H2.5a1 1 0 0 1-.87-1.5z"/><path d="M8 6.25v3"/></g><circle cx="8" cy="11.4" r=".8" fill="currentColor"/></symbol>
+      </defs>
+    </svg>
+
+    <!-- Editor Toolbar: data-mode switches between formatting ("edit") and AI review ("review") -->
+    <div class="toolbar" role="toolbar" aria-label="${t('Editor Werkzeugleiste')}" data-mode="edit">
+      <div class="tb-group tb-edit">
+        <select id="select-heading" class="tb-select" tabindex="-1" title="${t('Textformatierung')}" aria-label="${t('Textformatierung')}">
           <option value="p">${t('Normaler Text')}</option>
           <option value="h1">${t('Überschrift 1 (Groß)')}</option>
           <option value="h2">${t('Überschrift 2 (Mittel)')}</option>
           <option value="h3">${t('Überschrift 3 (Klein)')}</option>
           <option value="h4">${t('Überschrift 4 (Sehr klein)')}</option>
         </select>
-        <div class="toolbar-subgroup">
-          <button id="btn-bold" class="tb-btn tb-btn-compact" tabindex="-1" title="${t('Fett (Cmd+B)')}"><strong>B</strong></button>
-          <button id="btn-italic" class="tb-btn tb-btn-compact" tabindex="-1" title="${t('Kursiv (Cmd+I)')}"><em>I</em></button>
-          <button id="btn-strike" class="tb-btn tb-btn-compact" tabindex="-1" title="${t('Durchgestrichen')}"><del>S</del></button>
-        </div>
       </div>
 
-      <div class="toolbar-separator"></div>
+      <div class="tb-divider tb-edit"></div>
 
-      <!-- Lists & Structure (Stacked Vertically) -->
-      <div class="toolbar-group toolbar-group-vertical">
-        <button id="btn-task" class="tb-btn tb-btn-stacked" tabindex="-1" title="${t('Aufgabenliste (Checkliste)')}">
-          <svg class="tb-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-            <path fill-rule="evenodd" d="M2 3.75A1.75 1.75 0 0 1 3.75 2h2.5A1.75 1.75 0 0 1 8 3.75v2.5A1.75 1.75 0 0 1 6.25 8h-2.5A1.75 1.75 0 0 1 2 6.25v-2.5zm1.75-.25a.25.25 0 0 0-.25.25v2.5c0 .138.112.25.25.25h2.5a.25.25 0 0 0 .25-.25v-2.5a.25.25 0 0 0-.25-.25h-2.5zM10.25 4a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5zM2 11.75A1.75 1.75 0 0 1 3.75 10h2.5A1.75 1.75 0 0 1 8 11.75v2.5A1.75 1.75 0 0 1 6.25 15.75h-2.5A1.75 1.75 0 0 1 2 14.25v-2.5zm1.75-.25a.25.25 0 0 0-.25.25v2.5c0 .138.112.25.25.25h2.5a.25.25 0 0 0 .25-.25v-2.5a.25.25 0 0 0-.25-.25h-2.5zM10.25 12a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5z"/>
-          </svg>
-          <span>${t('Aufgabe')}</span>
-        </button>
-        <button id="btn-bullet" class="tb-btn tb-btn-stacked" tabindex="-1" title="${t('Aufzählungsliste')}">
-          <svg class="tb-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-            <circle cx="2.5" cy="3.5" r="1.5"/>
-            <rect x="6" y="2.5" width="9.5" height="2" rx="1"/>
-            <circle cx="2.5" cy="8" r="1.5"/>
-            <rect x="6" y="7" width="9.5" height="2" rx="1"/>
-            <circle cx="2.5" cy="12.5" r="1.5"/>
-            <rect x="6" y="11.5" width="9.5" height="2" rx="1"/>
-          </svg>
-          <span>${t('Liste')}</span>
-        </button>
-        <button id="btn-ordered" class="tb-btn tb-btn-stacked" tabindex="-1" title="${t('Nummerierte Liste')}">
-          <svg class="tb-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-            <path fill-rule="evenodd" d="M2.003 2.5a.5.5 0 0 0-.723-.447l-1.003.5a.5.5 0 0 0 .446.894l.28-.14V6H.5a.5.5 0 0 0 0 1h2a.5.5 0 0 0 0-1h-.497V2.5zM6 3.75a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5A.75.75 0 0 1 6 3.75zm0 5a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5A.75.75 0 0 1 6 8.75zm0 5a.75.75 0 0 1 .75-.75h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1-.75-.75zM.5 9.5A.5.5 0 0 1 1 9h1.5a.5.5 0 0 1 .39.812L1.81 11H2.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.4-.8l1.6-2.2H1a.5.5 0 0 1-.5-.5z"/>
-          </svg>
-          <span>${t('Nummeriert')}</span>
-        </button>
+      <div class="tb-group tb-edit">
+        <button id="btn-bold" class="tb-btn" tabindex="-1" title="${t('Fett (Cmd+B)')}" aria-label="${t('Fett (Cmd+B)')}"><svg class="tb-icon"><use href="#tb-i-bold"/></svg></button>
+        <button id="btn-italic" class="tb-btn" tabindex="-1" title="${t('Kursiv (Cmd+I)')}" aria-label="${t('Kursiv (Cmd+I)')}"><svg class="tb-icon"><use href="#tb-i-italic"/></svg></button>
+        <button id="btn-strike" class="tb-btn" tabindex="-1" title="${t('Durchgestrichen')}" aria-label="${t('Durchgestrichen')}"><svg class="tb-icon"><use href="#tb-i-strike"/></svg></button>
       </div>
 
-      <div class="toolbar-separator"></div>
+      <div class="tb-divider tb-edit tb-fold-2"></div>
 
-      <!-- Insert Elements (Stacked Vertically) -->
-      <div class="toolbar-group toolbar-group-insert toolbar-group-vertical">
-        <button id="btn-quote" class="tb-btn tb-btn-stacked" tabindex="-1" title="${t('Zitat / Info-Kasten')}">${t('❝ Zitat')}</button>
-        <button id="btn-table" class="tb-btn tb-btn-stacked" tabindex="-1" title="${t('Tabelle einfügen')}">${t('田 Tabelle')}</button>
-        <button id="btn-code" class="tb-btn tb-btn-stacked" tabindex="-1" title="${t('Code-Block')}">&lt;&gt; Code</button>
+      <div class="tb-group tb-edit tb-fold-2" data-overflow>
+        <button id="btn-task" class="tb-btn" tabindex="-1" title="${t('Aufgabenliste (Checkliste)')}" aria-label="${t('Aufgabenliste (Checkliste)')}"><svg class="tb-icon"><use href="#tb-i-checklist"/></svg></button>
+        <button id="btn-bullet" class="tb-btn" tabindex="-1" title="${t('Aufzählungsliste')}" aria-label="${t('Aufzählungsliste')}"><svg class="tb-icon"><use href="#tb-i-bullets"/></svg></button>
+        <button id="btn-ordered" class="tb-btn" tabindex="-1" title="${t('Nummerierte Liste')}" aria-label="${t('Nummerierte Liste')}"><svg class="tb-icon"><use href="#tb-i-numbers"/></svg></button>
       </div>
 
-      <div class="toolbar-spacer"></div>
+      <div class="tb-divider tb-edit tb-fold-1"></div>
 
-      <!-- AI Edits Panel (shown when AI makes changes) -->
+      <div class="tb-group tb-edit tb-fold-1" data-overflow>
+        <button id="btn-quote" class="tb-btn" tabindex="-1" title="${t('Zitat / Info-Kasten')}" aria-label="${t('Zitat / Info-Kasten')}"><svg class="tb-icon"><use href="#tb-i-quote"/></svg></button>
+        <button id="btn-table" class="tb-btn" tabindex="-1" title="${t('Tabelle einfügen')}" aria-label="${t('Tabelle einfügen')}"><svg class="tb-icon"><use href="#tb-i-table"/></svg></button>
+        <button id="btn-code" class="tb-btn" tabindex="-1" title="${t('Code-Block')}" aria-label="${t('Code-Block')}"><svg class="tb-icon"><use href="#tb-i-code"/></svg></button>
+      </div>
+
+      <!-- Overflow menu: lists the groups hidden by narrow-width container queries -->
+      <div class="tb-overflow tb-edit">
+        <div class="tb-divider"></div>
+        <button id="btn-toolbar-more" class="tb-btn" tabindex="-1" title="${t('Weitere Werkzeuge')}" aria-label="${t('Weitere Werkzeuge')}" aria-haspopup="menu" aria-expanded="false"><svg class="tb-icon"><use href="#tb-i-more"/></svg></button>
+        <div id="toolbar-overflow-menu" class="tb-menu" role="menu" hidden></div>
+      </div>
+
+      <div class="toolbar-spacer tb-edit"></div>
+
+      <!-- AI review bar (shown instead of the formatting controls while AI changes wait for a decision) -->
       <div id="ai-edits-panel" class="ai-edits-panel" style="display: none;">
         <span id="ai-edits-stats" class="ai-edits-stats">
-          <span>🤖 ${t('KI-Änderungen')}:</span>
-          <span id="ai-stat-add" class="ai-stat-add">+0</span>
-          <span id="ai-stat-del" class="ai-stat-del">-0</span>
+          <svg class="tb-icon"><use href="#tb-i-diff"/></svg>
+          <span id="ai-edits-title" class="ai-edits-title">${t('KI-Änderungen')}</span>
+          <span class="ai-edits-numbers"><span id="ai-stat-add" class="ai-stat-add">+0</span><span id="ai-stat-del" class="ai-stat-del">-0</span></span>
         </span>
-        <button id="btn-ai-accept" class="btn-ai-action btn-ai-accept" tabindex="-1" title="${t('KI-Änderungen übernehmen')}">✓ ${t('Übernehmen')}</button>
-        <button id="btn-ai-reject" class="btn-ai-action btn-ai-reject" tabindex="-1" title="${t('KI-Änderungen verwerfen')}">✕ ${t('Verwerfen')}</button>
+        <div class="tb-divider"></div>
+        <button id="btn-ai-prev" class="tb-btn" tabindex="-1" title="${t('Vorherige Änderung (Umschalt+F7)')}" aria-label="${t('Vorherige Änderung (Umschalt+F7)')}"><svg class="tb-icon"><use href="#tb-i-arrow-up"/></svg></button>
+        <span id="ai-change-count" class="ai-change-count" aria-live="polite"></span>
+        <button id="btn-ai-next" class="tb-btn" tabindex="-1" title="${t('Nächste Änderung (F7)')}" aria-label="${t('Nächste Änderung (F7)')}"><svg class="tb-icon"><use href="#tb-i-arrow-down"/></svg></button>
+        <div class="toolbar-spacer"></div>
+        <span id="ai-edits-hint" class="ai-edits-hint">${t('Bearbeiten pausiert, bis du entscheidest')}</span>
+        <button id="btn-ai-reject" class="tb-text-btn tb-secondary" tabindex="-1" title="${t('KI-Änderungen verwerfen')}"><svg class="tb-icon"><use href="#tb-i-close"/></svg><span class="tb-label">${t('Verwerfen')}</span></button>
+        <button id="btn-ai-accept" class="tb-text-btn tb-primary" tabindex="-1" title="${t('KI-Änderungen übernehmen')}"><svg class="tb-icon"><use href="#tb-i-check"/></svg><span class="tb-label">${t('Übernehmen')}</span></button>
       </div>
 
-      <!-- Find in document button -->
-      <button id="btn-toolbar-find" class="find-toolbar-btn" tabindex="-1" title="${t('Suchen (Cmd+F)')}" aria-label="${t('Suchen')}">
-        <svg class="tb-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
-        </svg>
-      </button>
+      <button id="btn-toolbar-find" class="tb-btn tb-edit tb-fold-2" data-overflow tabindex="-1" title="${t('Suchen (Cmd+F)')}" aria-label="${t('Suchen')}"><svg class="tb-icon"><use href="#tb-i-search"/></svg></button>
 
-      <!-- Discreet / un-prominent Raw Markdown source toggle -->
-      <button id="btn-toggle-raw" class="raw-toggle-btn" tabindex="-1" title="${t('Markdown-Quelltext anzeigen oder bearbeiten')}">&lt;/&gt; Raw</button>
+      <!-- View switch: formatted document or Markdown source -->
+      <div class="tb-seg tb-fold-2" data-overflow role="group" aria-label="${t('Ansicht')}">
+        <button id="btn-view-formatted" class="tb-btn is-active" tabindex="-1" title="${t('Formatierte Ansicht')}" aria-label="${t('Formatierte Ansicht')}" aria-pressed="true"><svg class="tb-icon"><use href="#tb-i-doc"/></svg></button>
+        <button id="btn-toggle-raw" class="tb-btn" tabindex="-1" title="${t('Markdown-Quelltext anzeigen oder bearbeiten')}" aria-label="${t('Markdown-Quelltext anzeigen oder bearbeiten')}" aria-pressed="false"><svg class="tb-icon"><use href="#tb-i-markdown"/></svg></button>
+      </div>
 
-      <div class="toolbar-separator"></div>
+      <div class="tb-divider tb-edit"></div>
 
       <!-- Cowork with AI button -->
-      <button id="btn-cowork" class="cowork-btn" tabindex="-1" title="${t('Mit KI-Agent an diesem Dokument zusammenarbeiten')}">
-        <span>Cowork</span>
-        <svg class="cowork-arrow-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-          <path fill-rule="evenodd" d="M1 8a.75.75 0 0 1 .75-.75h10.19L8.22 3.53a.75.75 0 0 1 1.06-1.06l5 5a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 0 1-1.06-1.06l3.72-3.72H1.75A.75.75 0 0 1 1 8z"/>
-        </svg>
-      </button>
+      <button id="btn-cowork" class="tb-text-btn tb-primary tb-edit" tabindex="-1" title="${t('Mit KI-Agent an diesem Dokument zusammenarbeiten')}" aria-label="Cowork"><span class="tb-label">Cowork</span><svg class="tb-icon"><use href="#tb-i-chat"/></svg></button>
 
-      <!-- Collapse / Expand Toolbar Toggle (bottom-right corner) -->
-      <button id="btn-toggle-toolbar" class="toolbar-toggle-btn" tabindex="-1" title="${t('Symbolleiste einklappen')}" aria-label="${t('Symbolleiste einklappen')}" aria-expanded="true">
-        <svg class="tb-collapse-icon" width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
-          <path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708l6-6z"/>
-        </svg>
-      </button>
+      <!-- Collapse / expand toggle (becomes a pull tab under the collapsed strip) -->
+      <button id="btn-toggle-toolbar" class="tb-btn toolbar-toggle-btn tb-edit" tabindex="-1" title="${t('Symbolleiste einklappen')}" aria-label="${t('Symbolleiste einklappen')}" aria-expanded="true"><svg class="tb-icon tb-collapse-icon"><use href="#tb-i-chevron-up"/></svg></button>
     </div>
 
     <!-- Floating Find & Replace Widget -->
@@ -861,7 +870,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     <!-- Error/Warning Banner -->
     <div id="error-banner" class="error-banner" style="display: none;" role="alert">
-      <span class="error-banner-icon">⚠️</span>
+      <svg class="error-banner-icon tb-icon" aria-hidden="true"><use href="#tb-i-warning"/></svg>
       <span id="error-banner-text" class="error-banner-text"></span>
       <button id="error-banner-dismiss" class="error-banner-dismiss" title="${t('Schließen')}">✕</button>
     </div>
@@ -883,12 +892,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     </div>
 
     <!-- Floating Cowork button on text selection -->
-    <button id="btn-selection-cowork" class="selection-cowork-btn" tabindex="-1" title="${t('Mit KI-Agent an den ausgewählten Zeilen zusammenarbeiten')}" aria-label="Cowork">
-      <span>Cowork</span>
-      <svg class="cowork-arrow-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-        <path fill-rule="evenodd" d="M1 8a.75.75 0 0 1 .75-.75h10.19L8.22 3.53a.75.75 0 0 1 1.06-1.06l5 5a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 0 1-1.06-1.06l3.72-3.72H1.75A.75.75 0 0 1 1 8z"/>
-      </svg>
-    </button>
+    <button id="btn-selection-cowork" class="selection-cowork-btn" tabindex="-1" title="${t('Mit KI-Agent an den ausgewählten Zeilen zusammenarbeiten')}" aria-label="Cowork"><span>Cowork</span><svg class="tb-icon" aria-hidden="true"><use href="#tb-i-chat"/></svg></button>
   </div>
 
   <script id="agent-cowork-init-data" type="application/json" nonce="${nonce}">${initialDataJson}</script>

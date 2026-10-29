@@ -123,7 +123,7 @@ describe('User Interactions - Mode Toggle (Raw ↔ Formatted)', () => {
     assert.strictEqual(editor.style.display, 'none');
     assert.strictEqual(textarea.style.display, 'block');
     assert.strictEqual(toggleBtn.classList.contains('is-active'), true);
-    assert.strictEqual(toggleBtn.textContent, '📄 Formatiert');
+    assert.strictEqual(toggleBtn.getAttribute('aria-pressed'), 'true');
     assert.strictEqual(textarea.value.trim(), input);
   });
 
@@ -144,7 +144,7 @@ describe('User Interactions - Mode Toggle (Raw ↔ Formatted)', () => {
     assert.strictEqual(editor.style.display, 'block');
     assert.strictEqual(textarea.style.display, 'none');
     assert.strictEqual(toggleBtn.classList.contains('is-active'), false);
-    assert.strictEqual(toggleBtn.textContent, '</> Raw');
+    assert.strictEqual(toggleBtn.getAttribute('aria-pressed'), 'false');
 
     const h1 = editor.querySelector('h1');
     assert.ok(h1, 'Should have h1 in canvas');

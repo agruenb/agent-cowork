@@ -502,6 +502,77 @@ export function toggleToolbarCollapse(): boolean {
   return nextState;
 }
 
+function closeOverflowMenu(): void {
+  const menu = document.getElementById('toolbar-overflow-menu');
+  if (!menu || menu.hidden) return;
+  menu.hidden = true;
+  document.getElementById('btn-toolbar-more')?.setAttribute('aria-expanded', 'false');
+}
+
+/**
+ * Fills the overflow menu with the buttons of every [data-overflow] group that the
+ * toolbar's container queries currently hide. Each item forwards its click to the original button.
+ */
+function buildOverflowMenu(menu: HTMLElement): void {
+  menu.replaceChildren();
+  const groups = Array.from(document.querySelectorAll<HTMLElement>('.toolbar [data-overflow]'))
+    .filter((el) => window.getComputedStyle(el).display === 'none');
+
+  groups.forEach((group, index) => {
+    if (index > 0) {
+      const separator = document.createElement('div');
+      separator.className = 'tb-menu-separator';
+      menu.appendChild(separator);
+    }
+    const buttons = group.matches('button') ? [group] : Array.from(group.querySelectorAll<HTMLElement>('button'));
+    for (const source of buttons) {
+      const item = document.createElement('button');
+      item.className = 'tb-menu-item';
+      item.tabIndex = -1;
+      item.setAttribute('role', 'menuitem');
+      item.classList.toggle('is-active', source.classList.contains('is-active'));
+      const icon = source.querySelector('svg');
+      if (icon) item.appendChild(icon.cloneNode(true));
+      const label = document.createElement('span');
+      label.textContent = source.getAttribute('aria-label') || source.title;
+      item.appendChild(label);
+      item.addEventListener('click', () => {
+        closeOverflowMenu();
+        source.click();
+      });
+      menu.appendChild(item);
+    }
+  });
+}
+
+function wireOverflowMenu(): void {
+  const moreBtn = document.getElementById('btn-toolbar-more');
+  const menu = document.getElementById('toolbar-overflow-menu');
+  if (!moreBtn || !menu) return;
+
+  moreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!menu.hidden) {
+      closeOverflowMenu();
+      return;
+    }
+    buildOverflowMenu(menu);
+    menu.hidden = false;
+    moreBtn.setAttribute('aria-expanded', 'true');
+  });
+
+  document.addEventListener('mousedown', (e) => {
+    const target = e.target as Node | null;
+    if (target && !menu.contains(target) && !moreBtn.contains(target)) {
+      closeOverflowMenu();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeOverflowMenu();
+  });
+  window.addEventListener('resize', closeOverflowMenu);
+}
+
 /**
  * Attaches all toolbar button listeners, select changes, and shortcuts.
  */
@@ -513,6 +584,7 @@ export function wireToolbar(hooks: ToolbarHooks): void {
     if (
       btn &&
       btn.id !== 'btn-toggle-raw' &&
+      btn.id !== 'btn-view-formatted' &&
       btn.id !== 'btn-cowork' &&
       btn.id !== 'btn-toggle-toolbar' &&
       btn.id !== 'btn-ai-accept' &&
@@ -558,11 +630,16 @@ export function wireToolbar(hooks: ToolbarHooks): void {
     handleHeadingChange(target.value);
   });
 
-  // Raw toggle
+  // View switch: Markdown source / formatted view
   const toggleBtn = getRawToggleBtn();
   toggleBtn?.addEventListener('click', () => {
-    hooks.toggleRawMode();
+    if (!state.isRawMode) hooks.toggleRawMode();
   });
+  document.getElementById('btn-view-formatted')?.addEventListener('click', () => {
+    if (state.isRawMode) hooks.toggleRawMode();
+  });
+
+  wireOverflowMenu();
 
   // Cowork with AI button
   const cowork = document.getElementById('btn-cowork') || coworkBtn;

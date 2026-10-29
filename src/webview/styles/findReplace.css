@@ -204,25 +204,6 @@
 }
 
 /* Toolbar Search Button */
-.find-toolbar-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 26px;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text, #1e293b);
-  cursor: pointer;
-  transition: all 0.12s ease;
-}
-
-.find-toolbar-btn:hover {
-  background: var(--toolbar-btn-hover-bg, rgba(255, 255, 255, 0.75));
-  color: var(--toolbar-btn-hover-fg, #0f172a);
-}
-
 /* Document Highlights in Formatted Canvas */
 mark.find-match {
   background-color: rgba(250, 204, 21, 0.45);

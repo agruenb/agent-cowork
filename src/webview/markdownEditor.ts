@@ -15,6 +15,7 @@ import {
 } from '../markdown/listOperations';
 import { wireTableInteractions, handleTableKeyDown, focusCell } from './tableInteractions';
 import { wireToolbar, executeCommand } from './toolbarWiring';
+import { refreshAiReviewSummary, resetAiReviewNavigation, wireAiReview } from './aiReview';
 import { wireBlockFocus } from './blockFocus';
 import { wireBlockDelete } from './blockDelete';
 import { handleBlockKeyboardGuards, handleTaskCheckboxBackspace } from './keyboardGuards';
@@ -49,6 +50,7 @@ import {
   getEditorCanvas,
   getRawTextarea,
   getRawToggleBtn,
+  setRawToggleActive,
   getErrorBannerDismiss,
   autoResizeRawTextarea,
   getRawWrapper,
@@ -162,10 +164,7 @@ export function setContentFormatted(markdown: string): boolean {
         autoResizeRawTextarea();
         updateRawLineNumbers();
       }
-      if (toggleBtn) {
-        toggleBtn.classList.add('is-active');
-        toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
-      }
+      setRawToggleActive(toggleBtn, true);
     }
     vscode.postMessage({
       type: 'parseError',
@@ -256,6 +255,7 @@ export function displayAiDiff(originalText: string, currentText: string): void {
   if (panel) {
     panel.style.display = 'flex';
   }
+  document.querySelector('.toolbar')?.setAttribute('data-mode', 'review');
   if (statAdd) {
     statAdd.textContent = `+${stats.additions}`;
   }
@@ -272,6 +272,7 @@ export function displayAiDiff(originalText: string, currentText: string): void {
     wireCodeBlockCopyButtons(canvas);
     updateMermaidBlocks(canvas);
   }
+  refreshAiReviewSummary();
 }
 
 /**
@@ -287,6 +288,8 @@ export function clearAiDiff(cleanText?: string): void {
   if (panel) {
     panel.style.display = 'none';
   }
+  document.querySelector('.toolbar')?.setAttribute('data-mode', 'edit');
+  resetAiReviewNavigation();
 
   if (canvas) {
     canvas.setAttribute('contenteditable', 'true');
@@ -331,10 +334,8 @@ export function toggleRawMode(): void {
       const wrapper = getRawWrapper();
       if (wrapper) wrapper.style.display = 'flex';
       showRawDiffView(state.aiOriginalText || '', state.currentMarkdown);
-      if (toggleBtn) {
-        toggleBtn.classList.add('is-active');
-        toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
-      }
+      setRawToggleActive(toggleBtn, true);
+      refreshAiReviewSummary();
       return;
     }
 
@@ -371,10 +372,7 @@ export function toggleRawMode(): void {
       updateRawLineNumbers();
       textarea.focus({ preventScroll: true });
     }
-    if (toggleBtn) {
-      toggleBtn.classList.add('is-active');
-      toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
-    }
+    setRawToggleActive(toggleBtn, true);
 
     // Scroll to target line in Raw mode
     if (textarea && viewport) {
@@ -392,10 +390,7 @@ export function toggleRawMode(): void {
       const wrapper = getRawWrapper();
       if (wrapper) wrapper.style.display = 'none';
       if (canvas) canvas.style.display = 'block';
-      if (toggleBtn) {
-        toggleBtn.classList.remove('is-active');
-        toggleBtn.textContent = '</> Raw';
-      }
+      setRawToggleActive(toggleBtn, false);
       displayAiDiff(state.aiOriginalText || '', state.currentMarkdown);
       return;
     }
@@ -421,10 +416,7 @@ export function toggleRawMode(): void {
         autoResizeRawTextarea();
         updateRawLineNumbers();
       }
-      if (toggleBtn) {
-        toggleBtn.classList.add('is-active');
-        toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
-      }
+      setRawToggleActive(toggleBtn, true);
       return;
     }
     const wrapper = getRawWrapper();
@@ -435,10 +427,7 @@ export function toggleRawMode(): void {
       canvas.style.display = 'block';
       canvas.focus({ preventScroll: true });
     }
-    if (toggleBtn) {
-      toggleBtn.classList.remove('is-active');
-      toggleBtn.textContent = '</> Raw';
-    }
+    setRawToggleActive(toggleBtn, false);
     if (isModifiedInRaw) {
       emitEdit(md);
     }
@@ -1066,6 +1055,50 @@ export function isMouseEventOnScrollbar(e: MouseEvent, viewport: HTMLElement | n
 }
 
 /**
+ * Starts an empty paragraph when the user presses the mouse in the gap between two directly
+ * adjacent widget blocks (tables, code blocks, quotes, ...), which otherwise have no caret position.
+ * The paragraph is only created on demand so the Markdown stays free of extra blank lines.
+ */
+export function insertParagraphBetweenWidgets(e: MouseEvent, canvas: HTMLElement): boolean {
+  if (e.type !== 'mousedown' || e.button !== 0 || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return false;
+  const target = e.target as HTMLElement | null;
+  const doc = canvas.ownerDocument || document;
+  const viewport = doc.querySelector('.document-viewport') as HTMLElement | null;
+  if (!target || (target !== canvas && target !== viewport && !target.classList.contains('document-container'))) {
+    return false;
+  }
+  if (isMouseEventOnScrollbar(e, viewport)) return false;
+
+  const blocks = Array.from(canvas.children) as HTMLElement[];
+  for (let i = 0; i < blocks.length - 1; i++) {
+    const prev = blocks[i];
+    const next = blocks[i + 1];
+    if (!prev.classList.contains('widget-block') || !next.classList.contains('widget-block')) continue;
+    if (e.clientY > prev.getBoundingClientRect().bottom && e.clientY < next.getBoundingClientRect().top) {
+      const p = doc.createElement('p');
+      p.className = 'editor-block';
+      p.setAttribute('data-block-type', 'paragraph');
+      p.innerHTML = '<br>';
+      prev.after(p);
+      e.preventDefault();
+      canvas.focus({ preventScroll: true });
+      const win = doc.defaultView || window;
+      const sel = win.getSelection();
+      if (sel) {
+        const range = doc.createRange();
+        range.setStart(p, 0);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      emitCanvasEdit();
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Places caret at the end of a line's text when the user clicks or starts dragging
  * in the empty line area to the right of the text (in list items, paragraphs, headings, blockquotes, etc.).
  * When the user drags, handles drag selection smoothly.
@@ -1076,6 +1109,8 @@ export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElem
 
   const target = e.target as HTMLElement | null;
   if (!target) return false;
+
+  if (insertParagraphBetweenWidgets(e, canvas)) return true;
 
   const doc = canvas.ownerDocument || document;
   const win = doc.defaultView || (typeof window !== 'undefined' ? window : null);
@@ -1425,6 +1460,7 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
     const selectHeading = document.getElementById('select-heading') as HTMLSelectElement | null;
     if (selectHeading) {
       selectHeading.title = tWebview('Textformatierung');
+      selectHeading.setAttribute('aria-label', tWebview('Textformatierung'));
       const optP = selectHeading.querySelector('option[value="p"]');
       if (optP) optP.textContent = tWebview('Normaler Text');
       const optH1 = selectHeading.querySelector('option[value="h1"]');
@@ -1437,58 +1473,31 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
       if (optH4) optH4.textContent = tWebview('Überschrift 4 (Sehr klein)');
     }
 
-    // Formatting buttons
-    const btnBold = document.getElementById('btn-bold');
-    if (btnBold) btnBold.title = tWebview('Fett (Cmd+B)');
-    const btnItalic = document.getElementById('btn-italic');
-    if (btnItalic) btnItalic.title = tWebview('Kursiv (Cmd+I)');
-    const btnStrike = document.getElementById('btn-strike');
-    if (btnStrike) btnStrike.title = tWebview('Durchgestrichen');
-
-    // List buttons
-    const btnTask = document.getElementById('btn-task');
-    if (btnTask) {
-      btnTask.title = tWebview('Aufgabenliste (Checkliste)');
-      const span = btnTask.querySelector('span');
-      if (span) span.textContent = tWebview('Aufgabe');
-    }
-    const btnBullet = document.getElementById('btn-bullet');
-    if (btnBullet) {
-      btnBullet.title = tWebview('Aufzählungsliste');
-      const span = btnBullet.querySelector('span');
-      if (span) span.textContent = tWebview('Liste');
-    }
-    const btnOrdered = document.getElementById('btn-ordered');
-    if (btnOrdered) {
-      btnOrdered.title = tWebview('Nummerierte Liste');
-      const span = btnOrdered.querySelector('span');
-      if (span) span.textContent = tWebview('Nummeriert');
-    }
-
-    // Insert buttons
-    const btnQuote = document.getElementById('btn-quote');
-    if (btnQuote) {
-      btnQuote.title = tWebview('Zitat / Info-Kasten');
-      btnQuote.textContent = tWebview('❝ Zitat');
-    }
-    const btnTable = document.getElementById('btn-table');
-    if (btnTable) {
-      btnTable.title = tWebview('Tabelle einfügen');
-      btnTable.textContent = tWebview('田 Tabelle');
-    }
-    const btnCode = document.getElementById('btn-code');
-    if (btnCode) {
-      btnCode.title = tWebview('Code-Block');
-    }
-
-    // Toggle raw button
-    const toggleBtn = getRawToggleBtn();
-    if (toggleBtn) {
-      toggleBtn.title = tWebview('Markdown-Quelltext anzeigen oder bearbeiten');
-      if (state.isRawMode) {
-        toggleBtn.textContent = lang === 'en' ? '📄 Formatted' : '📄 Formatiert';
+    // Icon buttons: tooltip and accessible name
+    const iconButtonLabels: [string, string][] = [
+      ['btn-bold', 'Fett (Cmd+B)'],
+      ['btn-italic', 'Kursiv (Cmd+I)'],
+      ['btn-strike', 'Durchgestrichen'],
+      ['btn-task', 'Aufgabenliste (Checkliste)'],
+      ['btn-bullet', 'Aufzählungsliste'],
+      ['btn-ordered', 'Nummerierte Liste'],
+      ['btn-quote', 'Zitat / Info-Kasten'],
+      ['btn-table', 'Tabelle einfügen'],
+      ['btn-code', 'Code-Block'],
+      ['btn-toolbar-more', 'Weitere Werkzeuge'],
+      ['btn-view-formatted', 'Formatierte Ansicht'],
+      ['btn-toggle-raw', 'Markdown-Quelltext anzeigen oder bearbeiten'],
+      ['btn-ai-prev', 'Vorherige Änderung (Umschalt+F7)'],
+      ['btn-ai-next', 'Nächste Änderung (F7)'],
+    ];
+    for (const [id, key] of iconButtonLabels) {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.title = tWebview(key);
+        btn.setAttribute('aria-label', tWebview(key));
       }
     }
+    document.querySelector('.tb-seg')?.setAttribute('aria-label', tWebview('Ansicht'));
 
     // Cowork button
     const btnCowork = document.getElementById('btn-cowork');
@@ -1500,7 +1509,7 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
     // Collapse toolbar button
     const collapseBtn = document.getElementById('btn-toggle-toolbar');
     if (collapseBtn) {
-      const isCollapsed = collapseBtn.classList.contains('is-collapsed');
+      const isCollapsed = document.querySelector('.toolbar')?.classList.contains('is-collapsed');
       const title = isCollapsed
         ? tWebview('Symbolleiste ausklappen')
         : tWebview('Symbolleiste einklappen');
@@ -1508,20 +1517,26 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
       collapseBtn.setAttribute('aria-label', title);
     }
 
-    // AI Edits panel buttons
-    const btnAiAccept = document.getElementById('btn-ai-accept');
-    if (btnAiAccept) {
-      btnAiAccept.title = tWebview('KI-Änderungen übernehmen');
-      btnAiAccept.textContent = '✓ ' + tWebview('Übernehmen');
-    }
-    const btnAiReject = document.getElementById('btn-ai-reject');
-    if (btnAiReject) {
-      btnAiReject.title = tWebview('KI-Änderungen verwerfen');
-      btnAiReject.textContent = '✕ ' + tWebview('Verwerfen');
-    }
-    const aiStatsLabel = document.querySelector('#ai-edits-stats > span:first-child');
-    if (aiStatsLabel) {
-      aiStatsLabel.textContent = `🤖 ${tWebview('KI-Änderungen')}:`;
+    // AI review bar
+    const setButtonLabel = (btn: HTMLElement | null, title: string, label: string) => {
+      if (!btn) return;
+      btn.title = title;
+      const span = btn.querySelector('.tb-label');
+      if (span) {
+        span.textContent = label;
+      } else {
+        btn.textContent = label;
+      }
+    };
+    setButtonLabel(document.getElementById('btn-ai-accept'), tWebview('KI-Änderungen übernehmen'), tWebview('Übernehmen'));
+    setButtonLabel(document.getElementById('btn-ai-reject'), tWebview('KI-Änderungen verwerfen'), tWebview('Verwerfen'));
+    if (state.isReviewMode) {
+      refreshAiReviewSummary();
+    } else {
+      const aiTitle = document.getElementById('ai-edits-title');
+      if (aiTitle) aiTitle.textContent = tWebview('KI-Änderungen');
+      const aiHint = document.getElementById('ai-edits-hint');
+      if (aiHint) aiHint.textContent = tWebview('Bearbeiten pausiert, bis du entscheidest');
     }
 
     // Error banner dismiss
@@ -2153,10 +2168,7 @@ export function initMarkdownEditor(): void {
           if (gutter) gutter.style.display = 'block';
           if (textarea) textarea.style.display = 'block';
           const toggleBtn = getRawToggleBtn();
-          if (toggleBtn) {
-            toggleBtn.classList.add('is-active');
-            toggleBtn.textContent = getWebviewLanguage() === 'en' ? '📄 Formatted' : '📄 Formatiert';
-          }
+          setRawToggleActive(toggleBtn, true);
         }
         if (
           saved.isReviewMode === true &&
@@ -2490,6 +2502,7 @@ export function initMarkdownEditor(): void {
     toggleRawMode,
     wireTaskCheckboxes,
   });
+  wireAiReview();
 
   // Initialize Find & Replace widget and shortcuts
   wireFindReplace();

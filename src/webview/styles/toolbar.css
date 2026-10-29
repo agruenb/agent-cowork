@@ -1,390 +1,464 @@
 /* -------------------------------------------------------------
-   Top Formatting Toolbar
+   Editor Toolbar
+   One row of 28px buttons with 16px icons, inset from the editor edges so
+   the canvas background connects to the active editor tab. All colors come
+   from the --tb-* tokens below, derived from the file's tint hue.
 ------------------------------------------------------------- */
+
+/* Light, no file tint yet */
 .toolbar {
+  --tb-bg: #e8edf3;
+  --tb-border: #cfd8e3;
+  --tb-fg: #0f172a;
+  --tb-muted: #475569;
+  --tb-ink: #0f172a;
+  --tb-strong: #94a3b8;
+  --tb-hover: rgba(15, 23, 42, 0.07);
+  --tb-pressed: rgba(15, 23, 42, 0.13);
+  --tb-divider: rgba(15, 23, 42, 0.18);
+  --tb-control-bg: rgba(255, 255, 255, 0.7);
+  --tb-control-border: rgba(15, 23, 42, 0.16);
+  --tb-seg-bg: rgba(15, 23, 42, 0.07);
+  --tb-seg-on: #ffffff;
+  --tb-primary: var(--primary, #0f172a);
+  --tb-primary-hover: var(--primary-hover, #1e293b);
+  --tb-primary-fg: var(--primary-contrast, #ffffff);
+  --tb-menu-bg: #ffffff;
+}
+
+/* Light, tinted with the file's hue */
+:where(.has-file-tint) .toolbar {
+  --tb-bg: hsl(var(--file-tint-hue, 160) 46% 88%);
+  --tb-border: hsl(var(--file-tint-hue, 160) 32% 74%);
+  --tb-ink: hsl(var(--file-tint-hue, 160) 45% 22%);
+  --tb-strong: hsl(var(--file-tint-hue, 160) 40% 58%);
+  --tb-hover: hsl(var(--file-tint-hue, 160) 50% 25% / 0.09);
+  --tb-pressed: hsl(var(--file-tint-hue, 160) 50% 25% / 0.16);
+  --tb-divider: hsl(var(--file-tint-hue, 160) 30% 30% / 0.24);
+  --tb-control-border: hsl(var(--file-tint-hue, 160) 30% 30% / 0.24);
+  --tb-seg-bg: hsl(var(--file-tint-hue, 160) 40% 30% / 0.11);
+}
+
+/* Dark, no file tint yet */
+:where(.vscode-dark, .vscode-high-contrast, .is-dark, [data-theme="dark"]) .toolbar {
+  --tb-bg: #1b2230;
+  --tb-border: #2c3646;
+  --tb-fg: #e2e8f0;
+  --tb-muted: #94a3b8;
+  --tb-ink: #f8fafc;
+  --tb-strong: #475569;
+  --tb-hover: rgba(255, 255, 255, 0.08);
+  --tb-pressed: rgba(255, 255, 255, 0.14);
+  --tb-divider: rgba(255, 255, 255, 0.14);
+  --tb-control-bg: rgba(0, 0, 0, 0.2);
+  --tb-control-border: rgba(255, 255, 255, 0.14);
+  --tb-seg-bg: rgba(0, 0, 0, 0.25);
+  --tb-seg-on: #334155;
+  --tb-menu-bg: #1e293b;
+}
+
+/* Dark, tinted with the file's hue */
+:where(.vscode-dark.has-file-tint, .vscode-high-contrast.has-file-tint, .is-dark.has-file-tint) .toolbar {
+  --tb-bg: hsl(var(--file-tint-hue, 160) 30% 19%);
+  --tb-border: hsl(var(--file-tint-hue, 160) 28% 30%);
+  --tb-ink: hsl(var(--file-tint-hue, 160) 60% 82%);
+  --tb-strong: hsl(var(--file-tint-hue, 160) 35% 45%);
+  --tb-hover: hsl(var(--file-tint-hue, 160) 50% 85% / 0.09);
+  --tb-pressed: hsl(var(--file-tint-hue, 160) 50% 85% / 0.16);
+  --tb-divider: hsl(var(--file-tint-hue, 160) 30% 85% / 0.16);
+  --tb-control-border: hsl(var(--file-tint-hue, 160) 30% 85% / 0.18);
+  --tb-seg-on: hsl(var(--file-tint-hue, 160) 25% 30%);
+}
+
+/* AI review: a saturated blue that stands apart from the pastel file tints */
+.toolbar[data-mode="review"] {
+  --tb-bg: hsl(214 95% 87%);
+  --tb-border: hsl(214 85% 66%);
+  --tb-ink: hsl(214 80% 28%);
+  --tb-strong: hsl(214 88% 52%);
+  --tb-hover: hsl(214 85% 35% / 0.12);
+  --tb-pressed: hsl(214 85% 35% / 0.2);
+  --tb-divider: hsl(214 60% 30% / 0.25);
+  --tb-control-bg: rgba(255, 255, 255, 0.75);
+  --tb-control-border: hsl(214 60% 30% / 0.3);
+  --tb-seg-bg: hsl(214 70% 35% / 0.12);
+  --tb-seg-on: #ffffff;
+  --tb-primary: hsl(214 88% 46%);
+  --tb-primary-hover: hsl(214 88% 40%);
+  --tb-primary-fg: #ffffff;
+}
+
+:where(.vscode-dark, .vscode-high-contrast, .is-dark, [data-theme="dark"]) .toolbar[data-mode="review"] {
+  --tb-bg: hsl(214 70% 24%);
+  --tb-border: hsl(214 75% 45%);
+  --tb-ink: hsl(214 95% 85%);
+  --tb-strong: hsl(214 88% 56%);
+  --tb-hover: rgba(255, 255, 255, 0.1);
+  --tb-pressed: rgba(255, 255, 255, 0.16);
+  --tb-divider: rgba(255, 255, 255, 0.18);
+  --tb-control-bg: rgba(0, 0, 0, 0.2);
+  --tb-control-border: rgba(255, 255, 255, 0.2);
+  --tb-seg-bg: rgba(0, 0, 0, 0.25);
+  --tb-seg-on: hsl(214 50% 34%);
+  --tb-primary: hsl(214 90% 56%);
+  --tb-primary-hover: hsl(214 90% 62%);
+}
+
+.tb-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.toolbar {
+  container: cowork-toolbar / inline-size;
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 24px 5px 12px;
-  background-color: var(--toolbar-bg, #ffffff);
-  border-bottom: 1px solid var(--toolbar-border, rgba(15, 23, 42, 0.12));
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  gap: 2px;
+  height: 40px;
+  margin: 6px 8px 0;
+  padding: 0 6px 0 8px;
+  background-color: var(--tb-bg);
+  border: 1px solid var(--tb-border);
+  border-radius: 8px;
+  color: var(--tb-fg);
   z-index: 50;
-  flex-wrap: wrap;
-  transition: min-height 0.15s ease, padding 0.15s ease, background-color 0.15s ease;
-}
-
-/* Filename-based pastel background tint applied to the document toolbar */
-html.has-file-tint .toolbar,
-body.has-file-tint .toolbar,
-html.has-file-tint .toolbar.is-collapsed,
-body.has-file-tint .toolbar.is-collapsed {
-  background-color: var(--toolbar-tint-bg, hsl(var(--file-tint-hue, 0) 50% 92%));
-  border-bottom-color: var(--toolbar-border, rgba(15, 23, 42, 0.15));
-}
-
-.toolbar-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-/* Vertically stacked text type & formatting group */
-.toolbar-group-text {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 3px;
-  width: 130px;
-}
-
-.toolbar-subgroup {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  width: 100%;
-}
-
-.tb-btn-compact {
-  flex: 1;
-  height: 20px !important;
-  min-width: 0 !important;
-  padding: 0 !important;
-  font-size: 11.5px !important;
-  border-radius: 4px !important;
-  line-height: 1;
-}
-
-.tb-select-compact {
-  height: 22px !important;
-  padding: 0 6px !important;
-  font-size: 11px !important;
-  font-weight: 500;
-  border-radius: 4px !important;
-  width: 100%;
-}
-
-/* Insert elements group with indicator */
-.toolbar-group-insert {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.toolbar-group-vertical,
-.toolbar-subgroup-vertical {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
-}
-
-.tb-btn-stacked {
-  height: 18px !important;
-  min-width: 0 !important;
-  padding: 0 6px !important;
-  font-size: 11px !important;
-  font-weight: 500;
-  border-radius: 4px !important;
-  line-height: 1;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 5px !important;
-  justify-content: flex-start !important;
-  white-space: nowrap;
-}
-
-.tb-icon {
-  display: inline-block;
   flex-shrink: 0;
-  vertical-align: middle;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.toolbar-separator {
+.tb-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.tb-divider {
   width: 1px;
-  height: 48px;
-  background-color: var(--border-muted, rgba(15, 23, 42, 0.16));
-  margin: 0 4px;
-  align-self: center;
+  height: 16px;
+  margin: 0 6px;
+  background-color: var(--tb-divider);
+  flex-shrink: 0;
 }
 
 .toolbar-spacer {
   flex: 1;
+  min-width: 8px;
 }
 
+.tb-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Icon button */
 .tb-btn {
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--text);
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  font-weight: 500;
+  width: 28px;
   height: 28px;
-  min-width: 28px;
-  padding: 0 7px;
-  transition: all 0.15s ease-in-out;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tb-fg);
+  cursor: pointer;
+  flex-shrink: 0;
   user-select: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.tb-btn:hover,
-.tb-btn-compact:hover,
-.tb-btn-stacked:hover {
-  background-color: var(--toolbar-btn-hover-bg, rgba(255, 255, 255, 0.75));
-  color: var(--toolbar-btn-hover-fg, #0f172a);
-  border-color: var(--border-muted, rgba(15, 23, 42, 0.18));
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+.tb-btn:hover {
+  background-color: var(--tb-hover);
 }
 
 .tb-btn:active,
-.tb-btn-compact:active,
-.tb-btn-stacked:active {
-  background-color: var(--primary-light-trans, rgba(15, 23, 42, 0.12));
-  transform: scale(0.97);
+.tb-btn.is-active {
+  background-color: var(--tb-pressed);
 }
 
-.tb-btn.is-active,
-.tb-btn-compact.is-active,
-.tb-btn-stacked.is-active {
-  background-color: var(--toolbar-btn-active-bg, #ffffff) !important;
-  color: var(--toolbar-btn-active-fg, #0f172a) !important;
-  border-color: var(--primary-border, rgba(15, 23, 42, 0.28)) !important;
-  font-weight: 700 !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+.tb-btn.is-active {
+  color: var(--tb-ink);
 }
 
+.tb-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: transparent;
+}
+
+.tb-btn:focus-visible,
+.tb-text-btn:focus-visible,
+.tb-select:focus-visible,
+.tb-menu-item:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, var(--tb-strong));
+  outline-offset: 1px;
+}
+
+/* Paragraph style dropdown */
 .tb-select {
+  width: 132px;
   height: 28px;
-  padding: 0 8px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text, #0f172a);
-  background-color: var(--input-bg, #ffffff);
-  border: 1px solid var(--border-muted, rgba(15, 23, 42, 0.18));
-  border-radius: 6px;
+  padding: 0 6px 0 8px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  color: var(--tb-fg);
+  background-color: var(--tb-control-bg);
+  border: 1px solid var(--tb-control-border);
+  border-radius: 5px;
   outline: none;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.tb-select:hover,
-.tb-select:focus {
-  border-color: var(--primary, #0f172a);
-  box-shadow: 0 0 0 2px var(--primary-selection, rgba(15, 23, 42, 0.1));
+.tb-select:hover {
+  border-color: var(--tb-strong);
 }
 
-/* Subtle, un-prominent Raw Markdown toggle button */
-.raw-toggle-btn {
+/* Labelled buttons (Cowork, review decisions) */
+.tb-text-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  background-color: var(--card-bg, rgba(255, 255, 255, 0.65));
-  border: 1px solid var(--border-muted, rgba(15, 23, 42, 0.18));
-  border-radius: 6px;
-  color: var(--text, #1e293b);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 10px;
+  gap: 6px;
   height: 28px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-}
-
-.raw-toggle-btn:hover {
-  background-color: var(--toolbar-btn-hover-bg, #ffffff);
-  color: var(--toolbar-btn-hover-fg, #0f172a);
-  border-color: var(--border-muted, rgba(15, 23, 42, 0.32));
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.raw-toggle-btn:active {
-  transform: scale(0.97);
-  background-color: var(--primary-light-trans, rgba(15, 23, 42, 0.12));
-}
-
-.raw-toggle-btn.is-active {
-  background-color: var(--primary, #0f172a);
-  border-color: var(--primary, #0f172a);
-  color: var(--primary-contrast, #ffffff);
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-}
-
-/* Prominent Cowork AI button */
-.cowork-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  background-color: var(--primary);
-  color: var(--primary-contrast, #ffffff);
-  border: 1px solid var(--primary);
-  border-radius: 6px;
+  padding: 0 12px 0 10px;
+  border-radius: 5px;
+  font-family: var(--font-family);
   font-size: 13px;
-  font-weight: 600;
-  padding: 0 11px;
-  height: 28px;
-  cursor: pointer;
-  box-shadow: 0 1px 3px var(--primary-selection, rgba(0, 0, 0, 0.15));
-  transition: all 0.15s ease-in-out;
-  user-select: none;
+  font-weight: 500;
   white-space: nowrap;
-}
-
-.cowork-btn:hover {
-  background-color: var(--primary-hover);
-  border-color: var(--primary-hover);
-  box-shadow: 0 2px 5px var(--primary-selection, rgba(0, 0, 0, 0.2));
-  transform: translateY(-0.5px);
-}
-
-.cowork-btn:active {
-  transform: translateY(0);
-  background-color: var(--primary-dark);
-  border-color: var(--primary-dark);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-.cowork-arrow-icon {
-  display: inline-block;
+  cursor: pointer;
   flex-shrink: 0;
-  transition: transform 0.15s ease;
+  user-select: none;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
-.cowork-btn:hover .cowork-arrow-icon {
-  transform: translateX(2px);
+/* Cowork carries its icon after the label, so the tighter padding sits on the right */
+#btn-cowork {
+  padding: 0 10px 0 12px;
+}
+
+.tb-primary {
+  background-color: var(--tb-primary);
+  border: 1px solid var(--tb-primary);
+  color: var(--tb-primary-fg);
+}
+
+.tb-primary:hover {
+  background-color: var(--tb-primary-hover);
+  border-color: var(--tb-primary-hover);
+}
+
+.tb-secondary {
+  background-color: var(--tb-control-bg);
+  border: 1px solid var(--tb-control-border);
+  color: var(--tb-fg);
+}
+
+.tb-secondary:hover {
+  border-color: var(--tb-strong);
+}
+
+/* Formatted / Markdown view switch */
+.tb-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  margin: 0 2px;
+  border-radius: 6px;
+  background-color: var(--tb-seg-bg);
+  flex-shrink: 0;
+}
+
+.tb-seg .tb-btn {
+  width: 26px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+.tb-seg .tb-btn.is-active {
+  background-color: var(--tb-seg-on);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14);
 }
 
 /* -------------------------------------------------------------
-   Collapse / Expand Toolbar Toggle
+   Modes: formatting controls give way to the AI review bar
 ------------------------------------------------------------- */
-.toolbar-toggle-btn {
-  position: absolute;
-  right: 4px;
-  bottom: 2px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  color: var(--text-muted, #334155);
-  width: 18px;
-  height: 14px;
-  cursor: pointer;
-  padding: 0;
-  opacity: 0.85;
-  transition: all 0.15s ease-in-out;
-  user-select: none;
-  z-index: 2;
-}
-
-.toolbar-toggle-btn:hover {
-  opacity: 1;
-  background-color: var(--primary-light-trans, rgba(15, 23, 42, 0.08));
-  color: var(--text, #0f172a);
-  border-color: var(--border-muted, rgba(15, 23, 42, 0.16));
-}
-
-.toolbar-toggle-btn:active {
-  background-color: var(--primary-light-trans, rgba(15, 23, 42, 0.16));
-}
-
-.tb-collapse-icon {
-  display: inline-block;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Collapsed Toolbar State */
-.toolbar.is-collapsed {
-  padding: 0;
-  min-height: 14px;
-  height: 14px;
-  box-shadow: none;
-  border-bottom: 1px solid var(--toolbar-border, rgba(15, 23, 42, 0.12));
-  background-color: var(--toolbar-bg, #f1f5f9);
-  flex-wrap: nowrap;
-  cursor: pointer;
-}
-
-.toolbar.is-collapsed>*:not(#btn-toggle-toolbar) {
+.toolbar[data-mode="review"] .tb-edit {
   display: none !important;
 }
 
-.toolbar.is-collapsed #btn-toggle-toolbar {
-  right: 4px;
-  bottom: 0px;
-  height: 13px;
-  width: 18px;
-  opacity: 0.7;
+/* -------------------------------------------------------------
+   Narrow editors: groups fold into the overflow menu
+------------------------------------------------------------- */
+.tb-overflow {
+  position: relative;
+  display: none;
+  align-items: center;
 }
 
-.toolbar.is-collapsed #btn-toggle-toolbar:hover {
-  opacity: 1;
-  background-color: var(--primary-light-trans, rgba(15, 23, 42, 0.1));
+@container cowork-toolbar (max-width: 760px) {
+  .tb-fold-1 {
+    display: none;
+  }
+  .tb-overflow {
+    display: inline-flex;
+  }
+}
+
+@container cowork-toolbar (max-width: 640px) {
+  .tb-fold-2 {
+    display: none;
+  }
+  .tb-select {
+    width: 108px;
+  }
+  .ai-edits-hint {
+    display: none;
+  }
+}
+
+@container cowork-toolbar (max-width: 440px) {
+  #btn-cowork .tb-label,
+  .ai-edits-title,
+  .ai-edits-numbers {
+    display: none;
+  }
+  #btn-cowork {
+    padding: 0 6px;
+  }
+}
+
+.tb-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 220px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--tb-menu-bg);
+  border: 1px solid var(--tb-control-border);
+  border-radius: 7px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  z-index: 100;
+}
+
+.tb-menu[hidden] {
+  display: none;
+}
+
+.tb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--tb-fg);
+  font-family: var(--font-family);
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tb-menu-item:hover {
+  background-color: var(--tb-hover);
+}
+
+.tb-menu-item.is-active {
+  color: var(--tb-ink);
+  font-weight: 600;
+}
+
+.tb-menu-separator {
+  height: 1px;
+  margin: 4px 2px;
+  background-color: var(--tb-divider);
+}
+
+/* -------------------------------------------------------------
+   Collapsed: a thin strip with a pull tab to bring the bar back
+------------------------------------------------------------- */
+.toolbar:not([data-mode="review"]).is-collapsed {
+  height: 10px;
+  padding: 0;
+  border-color: var(--tb-strong);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.toolbar:not([data-mode="review"]).is-collapsed > *:not(#btn-toggle-toolbar) {
+  display: none !important;
+}
+
+.toolbar:not([data-mode="review"]).is-collapsed #btn-toggle-toolbar {
+  position: absolute;
+  right: 14px;
+  top: 100%;
+  width: 32px;
+  height: 14px;
+  border-radius: 0 0 6px 6px;
+  background-color: var(--tb-strong);
+  color: #ffffff;
+}
+
+.toolbar:not([data-mode="review"]).is-collapsed #btn-toggle-toolbar:hover {
+  background-color: var(--tb-primary);
 }
 
 .toolbar.is-collapsed .tb-collapse-icon {
+  width: 12px;
+  height: 12px;
   transform: rotate(180deg);
 }
 
-/* Floating Selection Cowork Button */
+/* Floating Selection Cowork Button: same shape as the toolbar's Cowork button, lifted by a shadow */
 .selection-cowork-btn {
   position: fixed;
   display: none;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 12px;
   background-color: var(--primary);
   color: var(--primary-contrast, #ffffff);
   border: 1px solid var(--primary);
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 0 10px;
-  height: 26px;
+  border-radius: 5px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
   z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 1px 3px var(--primary-selection, rgba(0, 0, 0, 0.2));
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16), 0 1px 2px rgba(15, 23, 42, 0.12);
   user-select: none;
-  white-space: nowrap;
   opacity: 0;
-  transform: translateY(4px) scale(0.95);
-  transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.12s ease, border-color 0.12s ease;
   pointer-events: auto;
 }
 
 .selection-cowork-btn.is-visible {
   display: inline-flex;
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateY(0);
 }
 
 .selection-cowork-btn:hover {
   background-color: var(--primary-hover);
   border-color: var(--primary-hover);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), 0 2px 5px var(--primary-selection, rgba(0, 0, 0, 0.25));
-  transform: translateY(-1px) scale(1.02);
 }
 
 .selection-cowork-btn:active {
   background-color: var(--primary-dark);
   border-color: var(--primary-dark);
-  transform: translateY(0) scale(0.98);
-}
-
-.selection-cowork-btn .cowork-arrow-icon {
-  display: inline-block;
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
-}
-
-.selection-cowork-btn:hover .cowork-arrow-icon {
-  transform: translateX(2px);
 }

@@ -2,95 +2,79 @@
    AI Edits Toolbar Panel & Diffs
 ------------------------------------------------------------- */
 
-/* Toolbar Panel */
+/* Review bar contents (colors come from the toolbar's --tb-* review tokens) */
 .ai-edits-panel {
-  display: flex;
+  flex: 1;
+  min-width: 0;
   align-items: center;
-  gap: 8px;
-  background-color: var(--card-bg, #f1f5f9);
-  border: 1px solid var(--card-border, #cbd5e1);
-  border-radius: 6px;
-  padding: 2px 8px 2px 10px;
-  margin: 0 4px;
-  animation: fadeInAiPanel 0.2s ease-out;
-}
-
-@keyframes fadeInAiPanel {
-  from {
-    opacity: 0;
-    transform: translateY(-2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  gap: 2px;
 }
 
 .ai-edits-stats {
-  font-family: var(--font-family);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text, #0f172a);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tb-ink);
   white-space: nowrap;
   user-select: none;
 }
 
+.ai-edits-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-edits-numbers {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: 2px;
+  font-family: var(--mono-font);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .ai-stat-add {
-  color: #16a34a;
+  color: var(--diff-add-fg);
 }
 
 .ai-stat-del {
-  color: #dc2626;
+  color: var(--diff-del-fg);
 }
 
-.btn-ai-action {
-  font-family: var(--font-family);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.15s ease;
+.ai-change-count {
+  min-width: 56px;
+  padding: 0 4px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--tb-muted);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  line-height: 1.2;
 }
 
-.btn-ai-accept {
-  background-color: #16a34a;
-  border: 1px solid #15803d;
-  color: #ffffff;
-  box-shadow: 0 1px 2px rgba(22, 163, 74, 0.2);
+.ai-change-count:empty {
+  display: none;
 }
 
-.btn-ai-accept:hover {
-  background-color: #15803d;
-  border-color: #166534;
+.ai-edits-hint {
+  margin-right: 8px;
+  font-size: 12.5px;
+  color: var(--tb-muted);
+  white-space: nowrap;
 }
 
-.btn-ai-accept:active {
-  background-color: #166534;
+.ai-edits-panel .tb-text-btn + .tb-text-btn {
+  margin-left: 6px;
 }
 
-.btn-ai-reject {
-  background-color: var(--card-bg, #ffffff);
-  border: 1px solid var(--border-muted, #cbd5e1);
-  color: var(--diff-del-fg, #b91c1c);
-}
-
-.btn-ai-reject:hover {
-  background-color: var(--diff-del-bg, #fef2f2);
-  border-color: var(--diff-del-border, #f87171);
-  color: var(--diff-del-fg, #991b1b);
-}
-
-.btn-ai-reject:active {
-  background-color: var(--diff-del-bg, #fee2e2);
+/* Change selected with the review bar's previous/next navigation */
+.is-current-change {
+  outline: 2px solid hsl(214 88% 52% / 0.45);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 /* -------------------------------------------------------------

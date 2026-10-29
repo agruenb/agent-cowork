@@ -252,13 +252,13 @@ describe('Webview i18n & Localization', () => {
 
       const btnTable = document.getElementById('btn-table')!;
       assert.strictEqual(btnTable.getAttribute('title'), 'Insert table');
-      assert.strictEqual(btnTable.textContent, '田 Table');
+      assert.strictEqual(btnTable.getAttribute('aria-label'), 'Insert table');
 
       const btnQuote = document.getElementById('btn-quote')!;
-      assert.strictEqual(btnQuote.textContent, '❝ Quote');
+      assert.strictEqual(btnQuote.getAttribute('title'), 'Quote / Callout');
 
       const btnCode = document.getElementById('btn-code')!;
-      assert.strictEqual(btnCode.textContent, '<> Code');
+      assert.strictEqual(btnCode.getAttribute('title'), 'Code block');
 
       const btnRaw = document.getElementById('btn-toggle-raw')!;
       assert.strictEqual(
@@ -285,13 +285,13 @@ describe('Webview i18n & Localization', () => {
 
       const btnTable = document.getElementById('btn-table')!;
       assert.strictEqual(btnTable.getAttribute('title'), 'Tabelle einfügen');
-      assert.strictEqual(btnTable.textContent, '田 Tabelle');
+      assert.strictEqual(btnTable.getAttribute('aria-label'), 'Tabelle einfügen');
 
       const btnQuote = document.getElementById('btn-quote')!;
-      assert.strictEqual(btnQuote.textContent, '❝ Zitat');
+      assert.strictEqual(btnQuote.getAttribute('title'), 'Zitat / Info-Kasten');
 
       const btnCode = document.getElementById('btn-code')!;
-      assert.strictEqual(btnCode.textContent, '<> Code');
+      assert.strictEqual(btnCode.getAttribute('title'), 'Code-Block');
 
       const btnShowCoworkTree = document.getElementById('btn-show-cowork-tree')!;
       assert.strictEqual(btnShowCoworkTree.getAttribute('title'), 'Arbeitsordner anzeigen');

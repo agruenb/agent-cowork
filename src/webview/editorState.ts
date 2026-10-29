@@ -100,6 +100,21 @@ export function getRawToggleBtn(): HTMLButtonElement {
   return (rawToggleBtn?.isConnected ? rawToggleBtn : (typeof document !== 'undefined' ? document.getElementById('btn-toggle-raw') : null)) as HTMLButtonElement;
 }
 
+/**
+ * Reflects raw/formatted mode in the toolbar's view switch (Markdown source vs. formatted view).
+ */
+export function setRawToggleActive(toggleBtn: HTMLElement | null, isRaw: boolean): void {
+  if (toggleBtn) {
+    toggleBtn.classList.toggle('is-active', isRaw);
+    toggleBtn.setAttribute('aria-pressed', String(isRaw));
+  }
+  const formattedBtn = typeof document !== 'undefined' ? document.getElementById('btn-view-formatted') : null;
+  if (formattedBtn) {
+    formattedBtn.classList.toggle('is-active', !isRaw);
+    formattedBtn.setAttribute('aria-pressed', String(!isRaw));
+  }
+}
+
 export function getHeadingSelect(): HTMLSelectElement {
   return (headingSelect?.isConnected ? headingSelect : (typeof document !== 'undefined' ? document.getElementById('select-heading') : null)) as HTMLSelectElement;
 }

@@ -323,12 +323,8 @@ export function getSelectionCoworkButton(): HTMLButtonElement | null {
     btn.tabIndex = -1;
     btn.title = tWebview('Mit KI-Agent an den ausgewählten Zeilen zusammenarbeiten');
     btn.setAttribute('aria-label', 'Cowork');
-    btn.innerHTML = `
-      <span>Cowork</span>
-      <svg class="cowork-arrow-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-        <path fill-rule="evenodd" d="M1 8a.75.75 0 0 1 .75-.75h10.19L8.22 3.53a.75.75 0 0 1 1.06-1.06l5 5a.75.75 0 0 1 0 1.06l-5 5a.75.75 0 0 1-1.06-1.06l3.72-3.72H1.75A.75.75 0 0 1 1 8z"/>
-      </svg>
-    `;
+    // Same icon and label as the toolbar's Cowork button (icon from the toolbar sprite)
+    btn.innerHTML = '<span>Cowork</span><svg class="tb-icon" aria-hidden="true"><use href="#tb-i-chat"/></svg>';
     document.body.appendChild(btn);
   }
 

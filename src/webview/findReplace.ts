@@ -736,7 +736,7 @@ export function updateFindWidgetPosition(): void {
       ? (document.getElementById('error-banner') as HTMLElement | null)
       : null;
 
-  let topOffset = toolbar && toolbar.offsetHeight > 0 ? toolbar.offsetHeight : 58;
+  let topOffset = toolbar && toolbar.offsetHeight > 0 ? toolbar.offsetTop + toolbar.offsetHeight : 58;
   if (errorBanner && errorBanner.style.display !== 'none' && errorBanner.offsetHeight > 0) {
     topOffset += errorBanner.offsetHeight;
   }
