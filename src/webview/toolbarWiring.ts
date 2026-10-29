@@ -34,6 +34,120 @@ function focusCanvas(canvas: HTMLElement | null): void {
   }
 }
 
+/**
+ * Removes the quote-box containing the selection / caret, turning its content back into
+ * regular paragraphs / lists and selecting all of it so it can be re-quoted quickly.
+ * Returns false when the selection is not inside a quote-box.
+ */
+function unwrapSelectedQuote(canvas: HTMLElement): boolean {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) {
+    return false;
+  }
+  const range = sel.getRangeAt(0);
+  const startEl = range.startContainer.nodeType === 1 ? (range.startContainer as Element) : range.startContainer.parentElement;
+  const container = startEl?.closest<HTMLElement>('.widget-block[data-block-type="blockquote"]');
+  if (!container || !canvas.contains(container)) {
+    return false;
+  }
+  const quote = container.querySelector<HTMLElement>('blockquote');
+  if (!quote) {
+    return false;
+  }
+
+  const doc = canvas.ownerDocument;
+  const replacements: HTMLElement[] = [];
+  for (const child of Array.from(quote.children) as HTMLElement[]) {
+    const tag = child.tagName.toLowerCase();
+    if (tag === 'ul' || tag === 'ol') {
+      child.classList.add('editor-block');
+      replacements.push(child);
+    } else {
+      const p = doc.createElement('p');
+      p.className = 'editor-block';
+      p.setAttribute('data-block-type', 'paragraph');
+      p.innerHTML = child.innerHTML.trim() || '<br>';
+      replacements.push(p);
+    }
+  }
+  if (replacements.length === 0) {
+    const p = doc.createElement('p');
+    p.className = 'editor-block';
+    p.setAttribute('data-block-type', 'paragraph');
+    p.innerHTML = quote.innerHTML.trim() || '<br>';
+    replacements.push(p);
+  }
+  container.replaceWith(...replacements);
+
+  const caret = doc.createRange();
+  const last = replacements[replacements.length - 1];
+  caret.setStart(replacements[0], 0);
+  caret.setEnd(last, last.childNodes.length);
+  sel.removeAllRanges();
+  sel.addRange(caret);
+  return true;
+}
+
+/**
+ * Converts the blocks covered by a non-collapsed selection into a single quote-box.
+ * Returns false when there is nothing to convert (collapsed selection, already a widget block).
+ */
+function wrapSelectionInQuote(canvas: HTMLElement, deleteBtnHtml: string): boolean {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed || !sel.toString().trim()) {
+    return false;
+  }
+  const range = sel.getRangeAt(0);
+  if (!canvas.contains(range.commonAncestorContainer)) {
+    return false;
+  }
+
+  const blocks = (Array.from(canvas.children) as HTMLElement[]).filter(
+    (el) => range.intersectsNode(el) && el.nodeType === 1
+  );
+  if (blocks.length === 0 || blocks.some((b) => b.classList.contains('widget-block'))) {
+    return false;
+  }
+
+  const doc = canvas.ownerDocument;
+  const container = doc.createElement('div');
+  container.className = 'editor-block-container widget-block';
+  container.setAttribute('data-block-type', 'blockquote');
+  container.contentEditable = 'false';
+  const quote = doc.createElement('blockquote');
+  quote.className = 'editor-block';
+  quote.setAttribute('data-block-type', 'blockquote');
+  quote.contentEditable = 'true';
+
+  for (const block of blocks) {
+    const tag = block.tagName.toLowerCase();
+    if (tag === 'ul' || tag === 'ol') {
+      const list = block.cloneNode(true) as HTMLElement;
+      list.classList.remove('editor-block');
+      quote.appendChild(list);
+    } else {
+      const p = doc.createElement('p');
+      p.innerHTML = block.innerHTML.trim() || '<br>';
+      quote.appendChild(p);
+    }
+  }
+  container.insertAdjacentHTML('afterbegin', deleteBtnHtml);
+  container.appendChild(quote);
+
+  blocks[0].before(container);
+  blocks.forEach((b) => b.remove());
+  if (!container.nextElementSibling) {
+    container.insertAdjacentHTML('afterend', '<p class="editor-block" data-block-type="paragraph"><br></p>');
+  }
+
+  const caret = doc.createRange();
+  caret.selectNodeContents(quote.lastElementChild || quote);
+  caret.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(caret);
+  return true;
+}
+
 export function executeCommand(cmd: string, val: string = ''): void {
   const textarea = getRawTextarea();
   const canvas = getEditorCanvas();
@@ -47,6 +161,16 @@ export function executeCommand(cmd: string, val: string = ''): void {
   } else if (cmd === 'quote') {
     const lang = getWebviewLanguage();
     const deleteBtn = getBlockDeleteBtnHtml(lang);
+    if (canvas && unwrapSelectedQuote(canvas)) {
+      emitCanvasEdit();
+      updateToolbarActiveStates();
+      return;
+    }
+    if (canvas && wrapSelectionInQuote(canvas, deleteBtn)) {
+      emitCanvasEdit();
+      updateToolbarActiveStates();
+      return;
+    }
     const quoteHtml = `
       <div class="editor-block-container widget-block" data-block-type="blockquote" contenteditable="false">
         ${deleteBtn}

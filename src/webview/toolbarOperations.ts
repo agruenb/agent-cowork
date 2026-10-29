@@ -647,7 +647,22 @@ export function toggleListBlock(
   }
 
   // Not inside a list item or table cell: handle text-based blocks as expected for a text editor
-  const topBlock = findTopBlock(anchorNode, canvas);
+  let topBlock = findTopBlock(anchorNode, canvas);
+
+  // Inside a quote-box: operate on the paragraph within the quote, never replace the quote itself
+  const quoteEl = topBlock?.querySelector<HTMLElement>(':scope > blockquote') ?? null;
+  if (topBlock && quoteEl && topBlock.dataset.blockType === 'blockquote') {
+    const inner = findAncestor(anchorNode, quoteEl, (el) => el.parentElement === quoteEl);
+    if (inner) {
+      topBlock = inner;
+    } else {
+      const p = doc.createElement('p');
+      p.innerHTML = quoteEl.innerHTML.trim() || '<br>';
+      quoteEl.innerHTML = '';
+      quoteEl.appendChild(p);
+      topBlock = p;
+    }
+  }
 
   if (!topBlock || !canvas.contains(topBlock)) {
     const listBlock = createListBlock(doc, type, null);

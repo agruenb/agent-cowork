@@ -644,10 +644,12 @@ export function renderBlockquote(block: MarkdownBlock, ctx: RenderContext): stri
   if (ctx.diffContext?.diffHtml !== undefined) {
     quoteHtml = ctx.diffContext.diffHtml;
   } else {
-    quoteHtml = (block.content || '')
-      .split('\n')
-      .map((line) => `<p>${parseInlineMarkdown(line)}</p>`)
-      .join('');
+    const quoteLines = (block.content || '').split('\n');
+    if (quoteLines.some((line) => /^\s*([-*+]|\d+[.)])\s/.test(line))) {
+      quoteHtml = blocksToHtml(parseMarkdownToBlocks(block.content || ''), true, ctx.lang);
+    } else {
+      quoteHtml = quoteLines.map((line) => `<p>${parseInlineMarkdown(line)}</p>`).join('');
+    }
   }
   const editable = ctx.review ? 'false' : 'true';
   const inner = `<blockquote class="editor-block${diffClass}" data-block-type="blockquote" contenteditable="${editable}">${quoteHtml}</blockquote>`;

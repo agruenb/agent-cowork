@@ -655,4 +655,20 @@ describe('Toolbar Operations & Expanded Testing', () => {
       assert.strictEqual(editor.querySelectorAll('.editor-block-container').length, 0);
     });
   });
+  describe('Lists inside quote-boxes', () => {
+    it('keeps the quote-box when creating a list inside it and round-trips to markdown', () => {
+      const { html } = safeMarkdownToHtml('> Quote text');
+      editor.innerHTML = html;
+      const p = editor.querySelector('blockquote p')!;
+      highlightElement(p.firstChild || p);
+
+      toggleListBlock(editor, 'bullet');
+
+      const quote = editor.querySelector('.widget-block[data-block-type="blockquote"] blockquote');
+      assert.ok(quote, 'quote-box must survive');
+      assert.ok(quote!.querySelector('ul li'), 'list must be inside the quote');
+      assert.strictEqual(domToMarkdown(editor).trim(), '> - Quote text');
+      assert.ok(safeMarkdownToHtml('> - Quote text').html.includes('<ul'));
+    });
+  });
 });

@@ -256,12 +256,17 @@ export function serializeBlockElement(blockEl: HTMLElement): string[] {
 
   // Blockquote
   if (tagName === 'blockquote' || blockType === 'blockquote') {
-    const quoteParagraphs = blockEl.querySelectorAll('p');
-    if (quoteParagraphs.length > 0) {
-      const quoteLines: string[] = [];
-      quoteParagraphs.forEach((p) => {
-        quoteLines.push(`> ${serializeInlineNodes(p).trim()}`);
-      });
+    const quoteLines: string[] = [];
+    const children = Array.from(blockEl.children) as HTMLElement[];
+    if (children.length > 0) {
+      for (const child of children) {
+        const childTag = child.tagName.toLowerCase();
+        if (childTag === 'ul' || childTag === 'ol') {
+          serializeListBlock(child, 0).forEach((l) => quoteLines.push(`> ${l}`));
+        } else {
+          quoteLines.push(`> ${serializeInlineNodes(child).trim()}`);
+        }
+      }
       return [quoteLines.join('\n')];
     } else {
       const lines = (blockEl.textContent || '').split('\n');
