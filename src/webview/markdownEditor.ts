@@ -811,12 +811,19 @@ export function getCaretPositionForCoordinates(
   let targetBlock: HTMLElement | null = null;
   let minDistance = Infinity;
 
+  // Blocks are in document order, so a nested block follows its ancestor. A parent <li>'s rect
+  // spans its nested lists, hence prefer the innermost (last) block containing clientY.
+  let containingBlock: HTMLElement | null = null;
   for (const b of blocks) {
     const br = b.getBoundingClientRect();
     if (br.height > 0) {
       if (clientY >= br.top - 2 && clientY <= br.bottom + 2) {
-        targetBlock = b;
-        break;
+        if (!containingBlock || containingBlock.contains(b)) {
+          containingBlock = b;
+        } else {
+          break;
+        }
+        continue;
       }
       const dist = Math.min(Math.abs(clientY - br.top), Math.abs(clientY - br.bottom));
       if (dist < minDistance) {
@@ -825,6 +832,7 @@ export function getCaretPositionForCoordinates(
       }
     }
   }
+  if (containingBlock) targetBlock = containingBlock;
 
   if (!targetBlock) {
     // If no block had height > 0 (e.g. headless tests without mocked element rects),
@@ -1162,7 +1170,11 @@ export function handleLineClickOrDragOutsideText(e: MouseEvent, canvas: HTMLElem
           const br = b.getBoundingClientRect();
           if (br.height > 0) {
             if (e.clientY >= br.top - 2 && e.clientY <= br.bottom + 2) {
-              blockEl = b;
+              // Prefer the innermost block (nested list items sit inside their parent's rect)
+              if (!blockEl || blockEl.contains(b)) {
+                blockEl = b;
+                continue;
+              }
               break;
             }
             const dist = Math.min(Math.abs(e.clientY - br.top), Math.abs(e.clientY - br.bottom));
