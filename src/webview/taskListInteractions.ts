@@ -199,6 +199,20 @@ export function sendCheckedToTop(parentList: HTMLElement): void {
   parentList.appendChild(fragment);
 }
 
+/**
+ * Moves a single checked item up, placing it in front of the first unchecked
+ * item of the list. All other items keep their positions.
+ */
+export function sendItemToTop(parentList: HTMLElement, item: HTMLElement): void {
+  const items = Array.from(parentList.querySelectorAll<HTMLElement>(':scope > li'));
+  const firstUnchecked = items.find(
+    (li) => !li.classList.contains('is-checked') && li.getAttribute('data-checked') !== 'true'
+  );
+  if (!firstUnchecked || firstUnchecked === item) return;
+  if (items.indexOf(item) < items.indexOf(firstUnchecked)) return;
+  parentList.insertBefore(item, firstUnchecked);
+}
+
 // ────────────────────────────────────────────
 // Controls wiring
 // ────────────────────────────────────────────
@@ -471,8 +485,8 @@ export function wireTaskListControls(
     topBtn.className = 'task-item-top-btn';
     topBtn.setAttribute('data-item-idx', String(itemIdx));
     topBtn.appendChild(createSendToTopIcon(doc));
-    topBtn.title = tWebview('Erledigte nach oben verschieben');
-    topBtn.setAttribute('aria-label', tWebview('Erledigte nach oben verschieben'));
+    topBtn.title = tWebview('Erledigten Eintrag nach oben verschieben');
+    topBtn.setAttribute('aria-label', tWebview('Erledigten Eintrag nach oben verschieben'));
     topBtn.style.top = `${centerY - 9}px`;
     topBtn.style.left = `${itemLeft - 50}px`;
     topBtn.style.display = 'none';
@@ -486,7 +500,8 @@ export function wireTaskListControls(
       e.stopPropagation();
       e.preventDefault();
       clearDeleteHighlights();
-      sendCheckedToTop(taskList);
+      const targetItem = Array.from(taskList.querySelectorAll<HTMLElement>(':scope > li'))[itemIdx];
+      if (targetItem) sendItemToTop(taskList, targetItem);
       activeItemIdx = null;
       emitEdit();
       const canvas = (taskList.closest('#editor, [contenteditable="true"]') as HTMLElement) || doc.body;

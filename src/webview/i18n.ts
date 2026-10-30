@@ -140,7 +140,7 @@ const enWebviewTranslations: Record<string, string> = {
   // Task list controls
   'Eintrag ziehen zum Verschieben': 'Drag item to reorder',
   'Eintrag löschen': 'Delete item',
-  'Erledigte nach oben verschieben': 'Move completed to top',
+  'Erledigten Eintrag nach oben verschieben': 'Move completed item to top',
 
   // Table default templates
   'Spalte 1': 'Column 1',
