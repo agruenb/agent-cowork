@@ -18,6 +18,7 @@ import { wireToolbar, executeCommand } from './toolbarWiring';
 import { refreshAiReviewSummary, resetAiReviewNavigation, wireAiReview } from './aiReview';
 import { wireBlockFocus } from './blockFocus';
 import { wireBlockDelete } from './blockDelete';
+import { wireImageBlocks, applyPickedImage, updateImageBaseUri } from './imageBlocks';
 import { handleBlockKeyboardGuards, handleTaskCheckboxBackspace } from './keyboardGuards';
 import { wireAllTaskListControls } from './taskListInteractions';
 import { getWebviewLanguage, setWebviewLanguage, tWebview, WebviewLanguage } from './i18n';
@@ -1495,6 +1496,7 @@ export function updateEditorLanguage(lang: WebviewLanguage): void {
       ['btn-ordered', 'Nummerierte Liste'],
       ['btn-quote', 'Zitat / Info-Kasten'],
       ['btn-table', 'Tabelle einfügen'],
+      ['btn-image', 'Bild einfügen'],
       ['btn-code', 'Code-Block'],
       ['btn-toolbar-more', 'Weitere Werkzeuge'],
       ['btn-view-formatted', 'Formatierte Ansicht'],
@@ -1679,6 +1681,13 @@ export function handleWindowMessage(event: MessageEvent): void {
       closeFindWidget();
       break;
     }
+    case 'imagePicked': {
+      const canvas = getEditorCanvas();
+      if (canvas && typeof message.requestId === 'number' && typeof message.src === 'string') {
+        applyPickedImage(message.requestId, message.src, String(message.alt || ''), canvas, () => emitCanvasEdit());
+      }
+      break;
+    }
     case 'scrollToAnchor': {
       if (typeof message.anchor === 'string') {
         scrollToHeadingOrAnchor(message.anchor);
@@ -1686,6 +1695,9 @@ export function handleWindowMessage(event: MessageEvent): void {
       break;
     }
     case 'init': {
+      if (typeof message.imageBaseUri === 'string') {
+        updateImageBaseUri(getEditorCanvas(), message.imageBaseUri);
+      }
       if (typeof message.treeViewVisible === 'boolean') {
         setCoworkTreeButtonVisible(!message.treeViewVisible);
       }
@@ -2154,6 +2166,9 @@ export function initMarkdownEditor(): void {
         const dataEl = document.getElementById('agent-cowork-init-data');
         if (dataEl && dataEl.textContent) {
           const initData = JSON.parse(dataEl.textContent);
+        if (typeof initData.imageBaseUri === 'string') {
+          updateImageBaseUri(null, initData.imageBaseUri);
+        }
           if (initData.filename && saved.activeFilename && initData.filename !== saved.activeFilename) {
             fileMatches = false;
           }
@@ -2523,6 +2538,7 @@ export function initMarkdownEditor(): void {
   // Initialize block focus and delete button handlers
   wireBlockFocus(canvas);
   wireBlockDelete(canvas, () => emitCanvasEdit());
+  wireImageBlocks(canvas);
 
   // Initialize selection Cowork floating button
   wireSelectionCowork();

@@ -4,6 +4,7 @@ import { execFile } from 'child_process';
 import { hasVisibleContent } from './utils/markdownContent';
 import { t, getEffectiveLanguage } from './i18n';
 import { openCoworkTreeView } from './coworkViewManager';
+import { toMarkdownImagePath } from './markdown/imagePath';
 
 /**
  * Checks whether a document is a chat-editing snapshot document for the target document.
@@ -231,6 +232,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       localResourceRoots: [
         vscode.Uri.joinPath(this.context.extensionUri, 'dist'),
         vscode.Uri.joinPath(this.context.extensionUri, 'resources'),
+        // Images are loaded relative to the Markdown file and the workspace
+        ...(document.uri.scheme === 'file' ? [vscode.Uri.joinPath(document.uri, '..')] : []),
+        ...(vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri),
       ],
     };
 
@@ -269,6 +273,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         language: getEffectiveLanguage(),
         filename,
         treeViewVisible: MarkdownEditorProvider.isTreeViewVisible(),
+        imageBaseUri: getImageBaseUri(webviewPanel.webview, document),
       });
 
       const normDoc = docCurrentText.replace(/\r\n/g, '\n');
@@ -522,6 +527,20 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           await openCoworkTreeView();
           break;
         }
+        case 'pickImage': {
+          if (typeof message.requestId !== 'number') {
+            break;
+          }
+          const picked = await pickImageForDocument(document);
+          if (picked) {
+            webviewPanel.webview.postMessage({
+              type: 'imagePicked',
+              requestId: message.requestId,
+              ...picked,
+            });
+          }
+          break;
+        }
         case 'openLink': {
           if (document.isDirty) {
             await document.save();
@@ -677,6 +696,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       filename,
       language: lang,
       treeViewVisible: MarkdownEditorProvider.isTreeViewVisible(),
+      imageBaseUri: document ? getImageBaseUri(webview, document) : '',
     })
       .replace(/</g, '\\u003c')
       .replace(/>/g, '\\u003e')
@@ -714,6 +734,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         <symbol id="tb-i-numbers" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h7M7 8h7M7 12h7" stroke-width="1.3"/><path d="M2.4 3.1 3.2 2.5v3" stroke-width="1"/><path d="M2.2 7.1c.15-.4.5-.65.95-.65.5 0 .85.3.85.75 0 .75-1.8 1.3-1.8 2.2h1.85" stroke-width="1"/><path d="M2.2 11.05c.15-.35.5-.55.9-.55.5 0 .85.3.85.7s-.35.7-.85.7c.5 0 .9.3.9.75s-.4.75-.9.75c-.45 0-.8-.2-.95-.6" stroke-width="1"/></g></symbol>
         <symbol id="tb-i-quote" viewBox="0 0 16 16"><path d="M3 2.75v10.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6.5 4.5h7.5M6.5 8h7.5M6.5 11.5h5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
         <symbol id="tb-i-table" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="2.75" width="12" height="10.5" rx="1.5"/><path d="M2 6.25h12M2 9.75h12M6.5 6.25v7"/></g></symbol>
+        <symbol id="tb-i-image" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.75" width="12" height="10.5" rx="1.5"/><circle cx="5.75" cy="6.25" r="1.1"/><path d="m2.5 12 3.6-3.6 2.4 2.4 2-2 3.5 3.5"/></g></symbol>
         <symbol id="tb-i-code" viewBox="0 0 16 16"><path d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
         <symbol id="tb-i-search" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="7" cy="7" r="4.25"/><path d="m10.2 10.2 3.3 3.3"/></g></symbol>
         <symbol id="tb-i-doc" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"><path d="M4 1.75h5.25L12.5 5v9.25H4z"/><path d="M9 1.75V5.25h3.5M6.25 8h4M6.25 10.75h4"/></g></symbol>
@@ -762,6 +783,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
       <div class="tb-group tb-edit tb-fold-1" data-overflow>
         <button id="btn-quote" class="tb-btn" tabindex="-1" title="${t('Zitat / Info-Kasten')}" aria-label="${t('Zitat / Info-Kasten')}"><svg class="tb-icon"><use href="#tb-i-quote"/></svg></button>
+        <button id="btn-image" class="tb-btn" tabindex="-1" title="${t('Bild einfügen')}" aria-label="${t('Bild einfügen')}"><svg class="tb-icon"><use href="#tb-i-image"/></svg></button>
         <button id="btn-table" class="tb-btn" tabindex="-1" title="${t('Tabelle einfügen')}" aria-label="${t('Tabelle einfügen')}"><svg class="tb-icon"><use href="#tb-i-table"/></svg></button>
         <button id="btn-code" class="tb-btn" tabindex="-1" title="${t('Code-Block')}" aria-label="${t('Code-Block')}"><svg class="tb-icon"><use href="#tb-i-code"/></svg></button>
       </div>
@@ -900,6 +922,54 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 </body>
 </html>`;
   }
+}
+
+/**
+ * Webview URI of the folder that contains the document; relative image paths resolve against it.
+ */
+function getImageBaseUri(webview: vscode.Webview, document: vscode.TextDocument): string {
+  if (document.uri.scheme !== 'file') {
+    return '';
+  }
+  return `${webview.asWebviewUri(vscode.Uri.joinPath(document.uri, '..')).toString()}/`;
+}
+
+/**
+ * Lets the user choose an image file inside the document's folder and returns its path
+ * relative to the document, so the link keeps working when the folder is moved.
+ */
+async function pickImageForDocument(
+  document: vscode.TextDocument
+): Promise<{ src: string; alt: string } | undefined> {
+  if (document.uri.scheme !== 'file') {
+    return undefined;
+  }
+  const picked = await vscode.window.showOpenDialog({
+    canSelectMany: false,
+    canSelectFiles: true,
+    canSelectFolders: false,
+    defaultUri: vscode.Uri.joinPath(document.uri, '..'),
+    title: t('Bild auswählen'),
+    openLabel: t('Bild auswählen'),
+    filters: { [t('Bilder')]: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif', 'ico'] },
+  });
+  const target = picked?.[0];
+  if (!target) {
+    return undefined;
+  }
+
+  // Only images inside the document's folder tree are allowed, so every stored path stays
+  // a plain downward path and keeps working when the folder is moved.
+  const relative = path.relative(path.dirname(document.uri.fsPath), target.fsPath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    void vscode.window.showWarningMessage(
+      t('Das ausgewählte Bild liegt nicht im selben Ordner wie dieses Dokument. Eingefügte Bilder müssen im selben Ordner oder in einem Unterordner liegen.')
+    );
+    return undefined;
+  }
+  const src = toMarkdownImagePath(relative);
+  const alt = path.basename(target.fsPath, path.extname(target.fsPath));
+  return { src, alt };
 }
 
 function getNonce(): string {

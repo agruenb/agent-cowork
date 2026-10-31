@@ -18,6 +18,7 @@ import {
   renderList,
   renderTable,
   renderHr,
+  renderImage,
   renderBlock,
 } from './parser';
 
@@ -1074,6 +1075,8 @@ function computeBlockSignature(b: MarkdownBlock): string {
       return `code_block:${b.language || ''}:${b.content}`;
     case 'hr':
       return 'hr';
+    case 'image':
+      return `image:${b.src || ''}:${b.alt || ''}:${b.title || ''}`;
     case 'table':
       return `table:${(b.headers || []).join('|')}::${(b.rows || []).map((r) => r.join('|')).join('\n')}`;
     case 'task_list':
@@ -1091,6 +1094,9 @@ function computeBlockSimilarity(b1: MarkdownBlock, b2: MarkdownBlock): number {
   }
   if (b1.type === 'hr') {
     return 1.0;
+  }
+  if (b1.type === 'image') {
+    return 0.5;
   }
   if (b1.type === 'table') {
     const h1 = b1.headers || [];
@@ -1280,6 +1286,11 @@ export function formatMarkdownDiff(
 
           case 'hr': {
             renderedHtmlParts.push(renderHr(addB, baseCtx));
+            break;
+          }
+
+          case 'image': {
+            renderedHtmlParts.push(renderImage(addB, baseCtx));
             break;
           }
         }

@@ -33,6 +33,11 @@ function getBlockTypeLabels(blockType: string | null): { title: string; desc: st
         title: tWebview('Trennlinie löschen?'),
         desc: tWebview('Möchten Sie diese Trennlinie wirklich löschen?'),
       };
+    case 'image':
+      return {
+        title: tWebview('Bild löschen?'),
+        desc: tWebview('Möchten Sie dieses Bild wirklich löschen?'),
+      };
     default:
       return {
         title: tWebview('Block löschen?'),

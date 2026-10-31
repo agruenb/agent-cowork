@@ -13,11 +13,12 @@ import {
   indentActiveListItem,
   outdentActiveListItem,
   insertBlockElement,
+  insertWidgetAtCursor,
   applyHeading,
   applyRawFormatting,
 } from './toolbarOperations';
 import { wireTableInteractions } from './tableInteractions';
-import { getBlockDeleteBtnHtml } from '../markdown/parser';
+import { getBlockDeleteBtnHtml, renderImage } from '../markdown/parser';
 import { handleCodeButtonClick } from './inlineCode';
 import { getCodeBlockCopyBtnHtml } from './codeCopy';
 import { tWebview, getWebviewLanguage } from './i18n';
@@ -259,6 +260,20 @@ export function handleOutdent(wireTaskCheckboxes: () => void): void {
   focusCanvas(canvas);
   outdentActiveListItem(canvas, () => {
     wireTaskCheckboxes();
+    emitCanvasEdit();
+  });
+}
+
+export function insertImage(): void {
+  const textarea = getRawTextarea();
+  const canvas = getEditorCanvas();
+  if (state.isRawMode) {
+    applyRawFormatting(textarea, 'image');
+    return;
+  }
+  focusCanvas(canvas);
+  const imageHtml = renderImage({ type: 'image', src: '', alt: '' }, { lang: getWebviewLanguage() });
+  insertWidgetAtCursor(canvas, imageHtml, () => {
     emitCanvasEdit();
   });
 }
@@ -604,6 +619,7 @@ export function wireToolbar(hooks: ToolbarHooks): void {
   document.getElementById('btn-task')?.addEventListener('click', () => handleListToggle('task', hooks.wireTaskCheckboxes));
   document.getElementById('btn-quote')?.addEventListener('click', () => executeCommand('quote'));
   document.getElementById('btn-table')?.addEventListener('click', () => insertTable());
+  document.getElementById('btn-image')?.addEventListener('click', () => insertImage());
   document.getElementById('btn-code')?.addEventListener('click', () => {
     const textarea = getRawTextarea();
     const canvas = getEditorCanvas();

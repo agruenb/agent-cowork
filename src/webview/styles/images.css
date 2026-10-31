@@ -1,0 +1,110 @@
+/* -------------------------------------------------------------
+   Image Widget
+------------------------------------------------------------- */
+.editor-block-container.widget-block[data-block-type="image"] {
+  margin-top: 12px;
+  margin-bottom: 14px;
+}
+
+/* Tall images are scaled down (keeping their aspect ratio) so they never exceed the viewport */
+.editor-block-container[data-block-type="image"] .image-element {
+  display: block;
+  max-width: 100%;
+  max-height: min(60vh, 560px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 6px;
+  user-select: none;
+}
+
+.editor-block-container[data-block-type="image"] .block-delete-btn {
+  top: 6px;
+  right: 6px;
+}
+
+/* Placeholder while no image is selected, and fallback when the file cannot be loaded */
+.image-placeholder,
+.image-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 120px;
+  padding: 16px;
+  box-sizing: border-box;
+  border: 1.5px dashed var(--border-muted, #cbd5e1);
+  border-radius: 8px;
+  background-color: var(--card-bg, #f8fafc);
+  color: var(--text-muted, #64748b);
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.image-missing[hidden] {
+  display: none;
+}
+
+.image-placeholder[role="button"] {
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.image-placeholder[role="button"]:hover,
+.image-placeholder[role="button"]:focus-visible {
+  border-color: var(--primary, #0f172a);
+  color: var(--primary, #0f172a);
+  outline: none;
+}
+
+.image-placeholder-label {
+  font-weight: 500;
+}
+
+.image-missing-path {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+/* Replace button: sits to the left of the delete button and appears on hover */
+.image-replace-btn {
+  position: absolute;
+  top: 6px;
+  right: 34px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-muted, #cbd5e1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+  outline: none;
+  user-select: none;
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.editor-block-container.widget-block:hover .image-replace-btn,
+.image-replace-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.image-replace-btn:hover,
+.image-replace-btn:focus-visible {
+  background-color: var(--primary, #0f172a);
+  border-color: var(--primary, #0f172a);
+  color: var(--primary-contrast, #ffffff);
+}

@@ -143,6 +143,11 @@ const enTranslations: Record<string, string> = {
   'Nummerierte Liste': 'Numbered list',
   'Zitat / Info-Kasten': 'Quote / Callout',
   'Tabelle einfügen': 'Insert table',
+  'Bild einfügen': 'Insert image',
+  'Bild auswählen': 'Select image',
+  'Bilder': 'Images',
+  'Das ausgewählte Bild liegt nicht im selben Ordner wie dieses Dokument. Eingefügte Bilder müssen im selben Ordner oder in einem Unterordner liegen.':
+    "The image you selected is not in the same folder as this document. Inserted images must be in the same folder or in a subfolder.",
   'Code-Block': 'Code block',
   'Code kopieren': 'Copy code',
   'Kopiert!': 'Copied!',

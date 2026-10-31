@@ -202,6 +202,16 @@ export function serializeBlockElement(blockEl: HTMLElement): string[] {
     return [];
   }
 
+  // Image (an empty path is the "Select image" placeholder)
+  if (blockEl.getAttribute('data-block-type') === 'image') {
+    const src = blockEl.getAttribute('data-src') || '';
+    const alt = blockEl.getAttribute('data-alt') || '';
+    const title = blockEl.getAttribute('data-title');
+    const target = /\s/.test(src) ? `<${src}>` : src;
+    const titlePart = src && title ? ` "${title.replace(/"/g, "'")}"` : '';
+    return [`![${alt}](${target}${titlePart})`];
+  }
+
   // Block containers: unwrap and serialize child blocks (skipping UI buttons/controls)
   if (blockEl.classList.contains('editor-block-container')) {
     const subBlocks: string[] = [];

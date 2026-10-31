@@ -4,6 +4,7 @@
  */
 
 import { renderMermaidPreviewHtml } from '../mermaid';
+import { resolveImageSrc } from './imagePath';
 
 export function escapeHtml(text: string): string {
   return text
@@ -128,6 +129,18 @@ export function isFenceClose(line: string, openFence: FenceInfo): boolean {
   return fenceStr[0] === openFence.char && fenceStr.length >= openFence.length;
 }
 
+/**
+ * Matches a line that consists solely of an image: `![alt](src "title")`.
+ * An empty `![]()` is the placeholder for an image that has not been chosen yet.
+ */
+export function matchImageLine(line: string): { alt: string; src: string; title?: string } | null {
+  const m = line
+    .trim()
+    .match(/^!\[([^\]]*)\]\(\s*(?:<([^>]*)>|([^\s)]*))(?:\s+(?:"([^"]*)"|'([^']*)'))?\s*\)$/);
+  if (!m) return null;
+  return { alt: m[1], src: m[2] ?? m[3] ?? '', title: m[4] ?? m[5] };
+}
+
 export interface MarkdownListItem {
   text: string;
   checked?: boolean;
@@ -149,7 +162,8 @@ export interface MarkdownBlock {
     | 'unordered_list'
     | 'ordered_list'
     | 'table'
-    | 'hr';
+    | 'hr'
+    | 'image';
   level?: number;
   content?: string;
   items?: MarkdownListItem[];
@@ -158,6 +172,10 @@ export interface MarkdownBlock {
   rows?: string[][];
   startLine?: number;
   endLine?: number;
+  /** image blocks: path as written in Markdown (empty while no image is selected) */
+  src?: string;
+  alt?: string;
+  title?: string;
 }
 
 export interface BlockDiffContext {
@@ -309,6 +327,22 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
     if (/^(\*{3,}|-{3,}|_{3,})$/.test(trimmed)) {
       blocks.push({
         type: 'hr',
+        startLine: i + 1,
+        endLine: i + 1,
+      });
+      i++;
+      i = consumeBlockDelimiter(i);
+      continue;
+    }
+
+    // Image on its own line: ![alt](path)
+    const imageMatch = matchImageLine(trimmed);
+    if (imageMatch) {
+      blocks.push({
+        type: 'image',
+        src: imageMatch.src,
+        alt: imageMatch.alt,
+        title: imageMatch.title,
         startLine: i + 1,
         endLine: i + 1,
       });
@@ -544,6 +578,7 @@ export function parseMarkdownToBlocks(markdown: string): MarkdownBlock[] {
         cur.startsWith('>') ||
         (cur.startsWith('|') && i + 1 < lines.length && lines[i + 1].trim().startsWith('|') && /\|[\s-:]+\|/.test(lines[i + 1].trim())) ||
         /^(\*{3,}|-{3,}|_{3,})$/.test(cur) ||
+        matchImageLine(cur) !== null ||
         matchListItem(lines[i]) !== null
       ) {
         break;
@@ -894,6 +929,48 @@ export function renderHr(_block: MarkdownBlock, ctx: RenderContext): string {
   return `<div class="editor-block-container widget-block${diffClass}" data-block-type="hr" contenteditable="false">${deleteBtnHtml}${inner}</div>`;
 }
 
+export function renderImage(block: MarkdownBlock, ctx: RenderContext): string {
+  const diffType = ctx.diffContext?.diffType;
+  let diffClass = '';
+  if (diffType === 'added') diffClass = ' diff-block-added';
+  else if (diffType === 'removed') diffClass = ' diff-block-removed';
+  else if (diffType === 'modified') diffClass = ' diff-block-modified';
+
+  const lang = detectParserLang(ctx.lang);
+  const src = block.src || '';
+  const attrs =
+    ` data-src="${escapeHtml(src)}" data-alt="${escapeHtml(block.alt || '')}"` +
+    (block.title ? ` data-title="${escapeHtml(block.title)}"` : '');
+  const labelSelect = lang === 'en' ? 'Select image' : 'Bild auswählen';
+  const labelMissing = lang === 'en' ? 'Image not found' : 'Bild nicht gefunden';
+
+  let inner: string;
+  if (!src) {
+    const editable = ctx.review ? '' : ' role="button" tabindex="0"';
+    inner =
+      `<div class="image-placeholder"${editable}>` +
+      '<svg class="image-placeholder-icon" width="28" height="28" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><circle cx="5.75" cy="6" r="1.1"/><path d="m2.5 12 3.5-3.5 2.5 2.5 2-2 3 3"/></svg>' +
+      `<span class="image-placeholder-label">${labelSelect}</span></div>`;
+  } else {
+    const resolved = resolveImageSrc(src);
+    const titleAttr = block.title ? ` title="${escapeHtml(block.title)}"` : '';
+    inner =
+      `<img class="image-element" src="${escapeHtml(resolved)}" alt="${escapeHtml(block.alt || '')}"${titleAttr} draggable="false">` +
+      `<div class="image-missing" hidden><span class="image-placeholder-label">${labelMissing}</span><span class="image-missing-path">${escapeHtml(src)}</span></div>`;
+  }
+
+  const replaceLabel = lang === 'en' ? 'Replace image' : 'Bild ersetzen';
+  const replaceBtnHtml =
+    src && !ctx.review
+      ? `<button class="image-replace-btn" type="button" title="${replaceLabel}" contenteditable="false" aria-label="${replaceLabel}">` +
+        '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M13.5 6A5.5 5.5 0 0 0 3.6 4.6M2.5 10a5.5 5.5 0 0 0 9.9 1.4"/><path d="M3.5 1.75v3h3M12.5 14.25v-3h-3"/></svg></button>'
+      : '';
+  const deleteBtnHtml = ctx.review ? '' : getBlockDeleteBtnHtml(ctx.lang);
+  return `<div class="editor-block-container widget-block${diffClass}" data-block-type="image"${attrs} contenteditable="false">${replaceBtnHtml}${deleteBtnHtml}${inner}</div>`;
+}
+
 export function renderBlock(block: MarkdownBlock, ctx: RenderContext): string {
   switch (block.type) {
     case 'heading':
@@ -912,6 +989,8 @@ export function renderBlock(block: MarkdownBlock, ctx: RenderContext): string {
       return renderTable(block, ctx);
     case 'hr':
       return renderHr(block, ctx);
+    case 'image':
+      return renderImage(block, ctx);
     default:
       return '';
   }

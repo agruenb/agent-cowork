@@ -251,6 +251,13 @@ export function applyRawFormatting(
       break;
     }
 
+    case 'image': {
+      const image = `\n![]()\n`;
+      newText = val.slice(0, start) + image + val.slice(end);
+      newEnd = start + image.length;
+      break;
+    }
+
     case 'heading': {
       const lineStart = val.lastIndexOf('\n', start - 1) + 1;
       const lineEndIdx = val.indexOf('\n', end);

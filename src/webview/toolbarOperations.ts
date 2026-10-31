@@ -838,6 +838,77 @@ export function insertBlockElement(canvas: HTMLElement, blockHtml: string, onMut
 }
 
 /**
+ * Inserts a widget block at the cursor. Inside a paragraph the paragraph is split at the
+ * cursor so the widget lands between the text before and after it. In every other block
+ * (widgets, headings, lists, ...) or without a cursor the widget is inserted after that block.
+ * A paragraph for continued typing always follows the widget.
+ */
+export function insertWidgetAtCursor(canvas: HTMLElement, widgetHtml: string, onMutated?: () => void): void {
+  const doc = canvas.ownerDocument;
+  const sel = doc.defaultView ? doc.defaultView.getSelection() : window.getSelection();
+  const anchor = sel && sel.rangeCount > 0 ? sel.anchorNode : null;
+  const topBlock = findTopBlock(anchor, canvas);
+
+  const isParagraph =
+    !!topBlock &&
+    canvas.contains(topBlock) &&
+    topBlock.tagName.toLowerCase() === 'p' &&
+    !topBlock.classList.contains('widget-block');
+
+  if (!sel || !isParagraph || !topBlock) {
+    insertBlockElement(
+      canvas,
+      `${widgetHtml}<p class="editor-block" data-block-type="paragraph"><br></p>`,
+      onMutated
+    );
+    return;
+  }
+
+  // Cursor position; a selection collapses to its end so no text is lost
+  const cursor = sel.getRangeAt(0).cloneRange();
+  cursor.collapse(false);
+  if (!topBlock.contains(cursor.startContainer)) {
+    insertBlockElement(canvas, `${widgetHtml}<p class="editor-block" data-block-type="paragraph"><br></p>`, onMutated);
+    return;
+  }
+
+  const tailRange = doc.createRange();
+  tailRange.setStart(cursor.startContainer, cursor.startOffset);
+  tailRange.setEnd(topBlock, topBlock.childNodes.length);
+  const tail = tailRange.extractContents();
+
+  const after = topBlock.cloneNode(false) as HTMLElement;
+  after.appendChild(tail);
+  if (isBlockEmpty(after)) {
+    after.innerHTML = '<br>';
+  }
+
+  const temp = doc.createElement('div');
+  temp.innerHTML = widgetHtml.trim();
+  const widgets = Array.from(temp.children);
+
+  let last: Node = topBlock;
+  for (const el of widgets) {
+    topBlock.parentNode?.insertBefore(el, last.nextSibling);
+    last = el;
+  }
+  topBlock.parentNode?.insertBefore(after, last.nextSibling);
+
+  // Text before the cursor stays in the original paragraph; drop it if nothing is left
+  if (isBlockEmpty(topBlock)) {
+    topBlock.remove();
+  }
+
+  const caret = doc.createRange();
+  caret.setStart(after, 0);
+  caret.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(caret);
+
+  onMutated?.();
+}
+
+/**
  * Applies or toggles a heading level on the active block.
  */
 export function applyHeading(canvas: HTMLElement, val: string, onMutated?: () => void): void {
