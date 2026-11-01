@@ -21,11 +21,13 @@ export interface VscodeMockState {
   warningMessages?: { msg: string; items: any[] }[];
   warningAnswer?: any;
   errorMessages?: string[];
+  vscodeVersion?: string;
   textDocuments?: any[];
   appliedEdits?: any[];
   availableCommands?: string[];
   commandHandlers?: Record<string, (...args: any[]) => any>;
   documentChangeListeners?: ((e: any) => any)[];
+  documentOpenListeners?: ((doc: any) => any)[];
   documentCloseListeners?: ((doc: any) => any)[];
   documentSaveListeners?: ((doc: any) => any)[];
 }
@@ -50,11 +52,13 @@ export const vscodeMockState: VscodeMockState = {
   warningMessages: [],
   warningAnswer: undefined,
   errorMessages: [],
+  vscodeVersion: '1.144.0',
   textDocuments: [],
   appliedEdits: [],
   availableCommands: [],
   commandHandlers: {},
   documentChangeListeners: [],
+  documentOpenListeners: [],
   documentCloseListeners: [],
   documentSaveListeners: [],
 };
@@ -79,11 +83,13 @@ export function resetVscodeMock(): void {
   vscodeMockState.warningMessages = [];
   vscodeMockState.warningAnswer = undefined;
   vscodeMockState.errorMessages = [];
+  vscodeMockState.vscodeVersion = '1.144.0';
   vscodeMockState.textDocuments = [];
   vscodeMockState.appliedEdits = [];
   vscodeMockState.availableCommands = [];
   vscodeMockState.commandHandlers = {};
   vscodeMockState.documentChangeListeners = [];
+  vscodeMockState.documentOpenListeners = [];
   vscodeMockState.documentCloseListeners = [];
   vscodeMockState.documentSaveListeners = [];
 }
@@ -140,6 +146,9 @@ if (!(globalThis as any).__vscodeMockInstalled) {
         return mockVscodeInstance;
       }
       mockVscodeInstance = {
+        get version() {
+          return vscodeMockState.vscodeVersion;
+        },
         EndOfLine: {
           LF: 1,
           CRLF: 2,
@@ -241,6 +250,16 @@ if (!(globalThis as any).__vscodeMockInstalled) {
               dispose: () => {
                 const idx = vscodeMockState.documentChangeListeners?.indexOf(listener) ?? -1;
                 if (idx !== -1) vscodeMockState.documentChangeListeners?.splice(idx, 1);
+              },
+            };
+          },
+          onDidOpenTextDocument: (listener: (doc: any) => any) => {
+            vscodeMockState.documentOpenListeners = vscodeMockState.documentOpenListeners || [];
+            vscodeMockState.documentOpenListeners.push(listener);
+            return {
+              dispose: () => {
+                const idx = vscodeMockState.documentOpenListeners?.indexOf(listener) ?? -1;
+                if (idx !== -1) vscodeMockState.documentOpenListeners?.splice(idx, 1);
               },
             };
           },
@@ -493,6 +512,11 @@ if (!(globalThis as any).__vscodeMockInstalled) {
 export async function fireDidChangeTextDocument(e: any): Promise<void> {
   const listeners = [...(vscodeMockState.documentChangeListeners || [])];
   await Promise.all(listeners.map((listener) => listener(e)));
+}
+
+export async function fireDidOpenTextDocument(doc: any): Promise<void> {
+  const listeners = [...(vscodeMockState.documentOpenListeners || [])];
+  await Promise.all(listeners.map((listener) => listener(doc)));
 }
 
 export async function fireDidCloseTextDocument(doc: any): Promise<void> {

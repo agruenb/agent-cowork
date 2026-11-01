@@ -10,9 +10,11 @@ import {
   vscodeMockState,
   resetVscodeMock,
   fireDidChangeTextDocument,
+  fireDidOpenTextDocument,
   fireDidCloseTextDocument,
   fireDidSaveTextDocument,
 } from './vscodeMock';
+import { isVersionAtLeast } from '../src/utils/vscodeVersion';
 import { initMarkdownEditor } from '../src/webview/markdownEditor';
 import { vscode as webviewVscode, state } from '../src/webview/editorState';
 
@@ -688,5 +690,84 @@ describe('AI Diff Bug Fixes & Target Design Verifications', () => {
     );
 
     panel._dispose();
+  });
+
+  it('14. Starts review when the chat-editing baseline document arrives after the AI edit', async () => {
+    const provider = new MarkdownEditorProvider(mockContext);
+    const docPath = '/workspace/late.md';
+    const doc = createMockDocument('Original text', docPath);
+    vscodeMockState.textDocuments = [doc];
+    const panel = createMockWebviewPanel();
+
+    await provider.resolveCustomTextEditor(doc as any, panel as any, {} as any);
+    await panel._receiveMessage({ type: 'ready' });
+
+    // AI edit reaches the document before the baseline model is synced
+    doc._setText('AI edited text');
+    await fireDidChangeTextDocument({
+      document: doc,
+      contentChanges: [{ text: 'AI edited text' }],
+    });
+    assert.strictEqual(panel.postedMessages.find((m) => m.type === 'aiDiff'), undefined);
+
+    panel.postedMessages.length = 0;
+
+    // The chat-editing baseline document shows up afterwards
+    const sessionDoc = {
+      uri: {
+        scheme: 'chat-editing-text-model',
+        path: docPath,
+        fsPath: docPath,
+        toString: () => `chat-editing-text-model:${docPath}`,
+      },
+      getText: () => 'Original text',
+    };
+    vscodeMockState.textDocuments = [doc, sessionDoc];
+    await fireDidOpenTextDocument(sessionDoc);
+
+    const aiDiffMsg = panel.postedMessages.find((m) => m.type === 'aiDiff');
+    assert.ok(aiDiffMsg, 'Must start review once the baseline document opens');
+    assert.strictEqual(aiDiffMsg.originalText, 'Original text');
+    assert.strictEqual(aiDiffMsg.currentText, 'AI edited text');
+
+    panel._dispose();
+  });
+
+  it('15. Before VS Code 1.144 a late baseline document does not start review', async () => {
+    vscodeMockState.vscodeVersion = '1.143.2';
+    const provider = new MarkdownEditorProvider(mockContext);
+    const docPath = '/workspace/late-old.md';
+    const doc = createMockDocument('Original text', docPath);
+    vscodeMockState.textDocuments = [doc];
+    const panel = createMockWebviewPanel();
+
+    await provider.resolveCustomTextEditor(doc as any, panel as any, {} as any);
+    await panel._receiveMessage({ type: 'ready' });
+    assert.strictEqual(vscodeMockState.documentOpenListeners?.length, 0, 'Must not listen for opened documents');
+
+    panel.postedMessages.length = 0;
+    const sessionDoc = {
+      uri: {
+        scheme: 'chat-editing-text-model',
+        path: docPath,
+        fsPath: docPath,
+        toString: () => `chat-editing-text-model:${docPath}`,
+      },
+      getText: () => 'Something else',
+    };
+    vscodeMockState.textDocuments = [doc, sessionDoc];
+    await fireDidChangeTextDocument({ document: sessionDoc, contentChanges: [{ text: 'Something else' }] });
+
+    assert.strictEqual(panel.postedMessages.find((m) => m.type === 'aiDiff'), undefined);
+
+    panel._dispose();
+  });
+
+  it('16. isVersionAtLeast compares VS Code versions', () => {
+    assert.strictEqual(isVersionAtLeast('1.144.0', '1.144.0'), true);
+    assert.strictEqual(isVersionAtLeast('1.145.0-insider', '1.144.0'), true);
+    assert.strictEqual(isVersionAtLeast('2.0.0', '1.144.0'), true);
+    assert.strictEqual(isVersionAtLeast('1.143.9', '1.144.0'), false);
+    assert.strictEqual(isVersionAtLeast('1.85.0', '1.144.0'), false);
   });
 });

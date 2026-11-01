@@ -5,6 +5,13 @@ import { hasVisibleContent } from './utils/markdownContent';
 import { t, getEffectiveLanguage } from './i18n';
 import { openCoworkTreeView } from './coworkViewManager';
 import { toMarkdownImagePath } from './markdown/imagePath';
+import { isVersionAtLeast } from './utils/vscodeVersion';
+
+/**
+ * Starting with this VS Code version, an agent's edit can reach the document before
+ * the chat-editing baseline document is synced to the extension host.
+ */
+export const LATE_CHAT_BASELINE_MIN_VERSION = '1.144.0';
 
 /**
  * Checks whether a document is a chat-editing snapshot document for the target document.
@@ -302,29 +309,53 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       sendInitialContent();
     }, 1500);
 
-    const reevaluateDiff = async () => {
-      if (!reviewActive) {
-        return;
-      }
+    const lateChatBaseline = isVersionAtLeast(vscode.version, LATE_CHAT_BASELINE_MIN_VERSION);
+
+    // Re-checks the chat editing snapshots and starts or ends the review accordingly.
+    // On VS Code >= LATE_CHAT_BASELINE_MIN_VERSION the agent's edit may reach the document
+    // before the chat-editing baseline document reaches the extension host, so review mode
+    // must also be able to start once that baseline document shows up.
+    const syncDiffState = async () => {
       const snapshotText = await getOriginalContent(document);
       const docCurrentText = document.getText();
       const normDoc = docCurrentText.replace(/\r\n/g, '\n');
       const normSnap = snapshotText ? snapshotText.replace(/\r\n/g, '\n') : null;
       if (!normSnap || normSnap === normDoc) {
-        reviewActive = false;
-        baseline = docCurrentText;
+        if (reviewActive) {
+          reviewActive = false;
+          baseline = docCurrentText;
+          webviewPanel.webview.postMessage({
+            type: 'clearAiDiff',
+            text: docCurrentText,
+          });
+        }
+        return;
+      }
+      if (lateChatBaseline && !reviewActive && snapshotText !== null) {
+        reviewActive = true;
+        baseline = snapshotText;
+        lastSyncedText = docCurrentText;
         webviewPanel.webview.postMessage({
-          type: 'clearAiDiff',
-          text: docCurrentText,
+          type: 'aiDiff',
+          originalText: baseline,
+          currentText: docCurrentText,
         });
       }
     };
+
+    const openDocumentSubscription = lateChatBaseline
+      ? vscode.workspace.onDidOpenTextDocument(async (openedDoc) => {
+          if (isChatSnapshotDocumentFor(openedDoc, document)) {
+            await syncDiffState();
+          }
+        })
+      : undefined;
 
     // Listen to changes in the underlying VS Code TextDocument
     // (e.g. background edits from AI Agents, git pulls, or text editor saves)
     const changeDocumentSubscription = vscode.workspace.onDidChangeTextDocument(async (e) => {
       if (isChatSnapshotDocumentFor(e.document, document)) {
-        await reevaluateDiff();
+        await syncDiffState();
         return;
       }
 
@@ -383,14 +414,14 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     const closeDocumentSubscription = vscode.workspace.onDidCloseTextDocument(async (closedDoc) => {
       if (isChatSnapshotDocumentFor(closedDoc, document)) {
-        await reevaluateDiff();
+        await syncDiffState();
       }
     });
 
     const saveDocumentSubscription = vscode.workspace.onDidSaveTextDocument(async (savedDoc) => {
       if (savedDoc.uri.toString() === document.uri.toString()) {
         if (reviewActive) {
-          await reevaluateDiff();
+          await syncDiffState();
         }
       }
     });
@@ -670,6 +701,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       if (autoSaveTimer) {
         clearTimeout(autoSaveTimer);
       }
+      openDocumentSubscription?.dispose();
       changeDocumentSubscription.dispose();
       closeDocumentSubscription.dispose();
       saveDocumentSubscription.dispose();
