@@ -22,6 +22,7 @@ import { wireImageBlocks, applyPickedImage, updateImageBaseUri } from './imageBl
 import { handleBlockKeyboardGuards, handleTaskCheckboxBackspace } from './keyboardGuards';
 import { wireAllTaskListControls } from './taskListInteractions';
 import { handleInlineCodeArrowKey, wireInlineCodeCaret } from './inlineCodeCaret';
+import { handleWidgetSelectionExtend } from './widgetSelection';
 import { getWebviewLanguage, setWebviewLanguage, tWebview, WebviewLanguage } from './i18n';
 import {
   wireSelectionCowork,
@@ -520,6 +521,11 @@ export function handleCanvasKeyDown(e: KeyboardEvent): void {
     return;
   }
   if (target?.closest('input:not(.task-checkbox)')) {
+    return;
+  }
+
+  // Alt/Option+Shift+Arrow inside widgets: extend by word/paragraph without selecting the whole widget
+  if (handleWidgetSelectionExtend(e, canvas)) {
     return;
   }
 
