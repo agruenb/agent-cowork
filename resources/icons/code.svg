@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Clean readable file icon with dog-ear corner fold -->
+  <path d="M5 3 C4.45 3 4 3.45 4 4 L4 20 C4 20.55 4.45 21 5 21 L19 21 C19.55 21 20 20.55 20 20 L20 8 L15 3 L5 3 Z" fill="#ffffff" stroke="#94a3b8" stroke-width="1.2" />
+  <!-- Corner fold -->
+  <path d="M14.5 3 L14.5 8 L19.5 8 Z" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.2" stroke-linejoin="round" />
+  <!-- Code brackets </> -->
+  <polyline points="9.5 12 7.5 14.5 9.5 17" fill="none" stroke="#64748b" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="13" y1="11.5" x2="11" y2="17.5" stroke="#64748b" stroke-width="1.3" stroke-linecap="round" />
+  <polyline points="14.5 12 16.5 14.5 14.5 17" fill="none" stroke="#64748b" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
+

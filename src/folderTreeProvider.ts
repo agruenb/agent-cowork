@@ -15,6 +15,7 @@ import { t } from './i18n';
 
 import { getFilenameHue, getDarkShade } from './utils/colorUtils';
 import { getFileWithDotIconUri } from './utils/fileDotIcon';
+import { FileKind, getFileKind } from './utils/fileKind';
 
 export { isSameOrDescendant };
 
@@ -99,8 +100,8 @@ export class FolderItem extends vscode.TreeItem {
         this.iconPath = new vscode.ThemeIcon(iconId, new vscode.ThemeColor('charts.yellow'));
       }
     } else {
-      const ext = path.extname(this.uri.fsPath).toLowerCase();
-      const isMarkdown = ext === '.md' || ext === '.markdown' || ext === '.mdown' || ext === '.mkdn';
+      const fileKind = getFileKind(this.uri.fsPath);
+      const iconFile = `${fileKind}.svg`;
 
       if (this._isOpened) {
         const fileName = path.basename(this.uri.fsPath);
@@ -110,31 +111,43 @@ export class FolderItem extends vscode.TreeItem {
         this.description = undefined;
         this.tooltip = `${this.uri.fsPath} (${t('Geöffnet')})`;
 
-        const dotIcon = getFileWithDotIconUri(isMarkdown, darkHex);
+        const dotIcon = getFileWithDotIconUri(fileKind, darkHex);
         if (dotIcon) {
           this.iconPath = dotIcon;
         } else if (this.extensionUri) {
-          const iconFile = isMarkdown ? 'markdown.svg' : 'file.svg';
           this.iconPath = {
             light: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
             dark: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
           };
         } else {
-          this.iconPath = isMarkdown ? new vscode.ThemeIcon('robot') : vscode.ThemeIcon.File;
+          this.iconPath = this._getFallbackThemeIcon(fileKind);
         }
       } else {
         this.description = undefined;
         this.tooltip = this.uri.fsPath;
         if (this.extensionUri) {
-          const iconFile = isMarkdown ? 'markdown.svg' : 'file.svg';
           this.iconPath = {
             light: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
             dark: vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons', iconFile),
           };
         } else {
-          this.iconPath = isMarkdown ? new vscode.ThemeIcon('robot') : vscode.ThemeIcon.File;
+          this.iconPath = this._getFallbackThemeIcon(fileKind);
         }
       }
+    }
+  }
+
+  private _getFallbackThemeIcon(fileKind: FileKind): vscode.ThemeIcon {
+    switch (fileKind) {
+      case 'markdown':
+        return new vscode.ThemeIcon('robot');
+      case 'code':
+        return new vscode.ThemeIcon('code');
+      case 'image':
+        return new vscode.ThemeIcon('file-media');
+      case 'file':
+      default:
+        return vscode.ThemeIcon.File;
     }
   }
 }
