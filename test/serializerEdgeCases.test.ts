@@ -381,6 +381,20 @@ describe('Serializer Edge Cases (Dirty DOM)', () => {
       assert.ok(md.includes('> Line 1'));
       assert.ok(md.includes('> Line 2'));
     });
+
+    it('keeps a space typed at the end of a bold section (space lands inside <strong>)', () => {
+      const md = serializeHtml(`
+        <blockquote class="editor-block" data-block-type="blockquote"><p>foo <strong>bold </strong>after</p></blockquote>
+      `);
+      assert.strictEqual(md.trim(), '> foo **bold** after');
+    });
+
+    it('moves leading/trailing whitespace outside italic and strikethrough markers', () => {
+      const md = serializeHtml(`
+        <blockquote class="editor-block" data-block-type="blockquote"><p>a<em> it </em>b<del>gone </del>c</p></blockquote>
+      `);
+      assert.strictEqual(md.trim(), '> a *it* b~~gone~~ c');
+    });
   });
 
   // -------------------------------------------------------------------

@@ -4,6 +4,17 @@
  */
 
 /**
+ * Wraps inline content in Markdown markers, moving leading/trailing whitespace
+ * outside the markers (e.g. `<strong>bold </strong>` -> `**bold** `) so it is
+ * retained instead of trimmed away.
+ */
+function wrapInline(raw: string, marker: string): string {
+  const match = raw.match(/^(\s*)([\s\S]*?)(\s*)$/);
+  const [, lead, inner, trail] = match || ['', '', raw, ''];
+  return inner ? `${lead}${marker}${inner}${marker}${trail}` : `${lead}${trail}`;
+}
+
+/**
  * Serializes inline child nodes of an element (spans, bold, italic, code, links)
  * to markdown format.
  */
@@ -57,26 +68,17 @@ export function serializeInlineNodes(container: Node): string {
       }
 
       if (tagName === 'strong' || tagName === 'b') {
-        const inner = serializeInlineNodes(el).trim();
-        if (inner) {
-          text += `**${inner}**`;
-        }
+        text += wrapInline(serializeInlineNodes(el), '**');
         continue;
       }
 
       if (tagName === 'em' || tagName === 'i') {
-        const inner = serializeInlineNodes(el).trim();
-        if (inner) {
-          text += `*${inner}*`;
-        }
+        text += wrapInline(serializeInlineNodes(el), '*');
         continue;
       }
 
       if (tagName === 'del' || tagName === 's' || tagName === 'strike') {
-        const inner = serializeInlineNodes(el).trim();
-        if (inner) {
-          text += `~~${inner}~~`;
-        }
+        text += wrapInline(serializeInlineNodes(el), '~~');
         continue;
       }
 
