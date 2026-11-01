@@ -21,6 +21,7 @@ import { wireBlockDelete } from './blockDelete';
 import { wireImageBlocks, applyPickedImage, updateImageBaseUri } from './imageBlocks';
 import { handleBlockKeyboardGuards, handleTaskCheckboxBackspace } from './keyboardGuards';
 import { wireAllTaskListControls } from './taskListInteractions';
+import { handleInlineCodeArrowKey, wireInlineCodeCaret } from './inlineCodeCaret';
 import { getWebviewLanguage, setWebviewLanguage, tWebview, WebviewLanguage } from './i18n';
 import {
   wireSelectionCowork,
@@ -519,6 +520,11 @@ export function handleCanvasKeyDown(e: KeyboardEvent): void {
     return;
   }
   if (target?.closest('input:not(.task-checkbox)')) {
+    return;
+  }
+
+  // ← / → between the inside and outside caret positions at inline code edges
+  if (handleInlineCodeArrowKey(e, canvas)) {
     return;
   }
 
@@ -2445,6 +2451,7 @@ export function initMarkdownEditor(): void {
     }
   });
   canvas.addEventListener('keydown', handleCanvasKeyDown);
+  wireInlineCodeCaret(canvas);
 
   // Resize raw textarea and line numbers when window width / wrapped lines change
   window.addEventListener('resize', () => {

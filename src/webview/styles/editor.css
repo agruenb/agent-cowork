@@ -116,6 +116,58 @@ code.inline-code:hover {
   border-color: var(--border-muted, #cbd5e1);
 }
 
+/*
+ * Caret at inline code edges. Browsers draw one caret for both the inside and the
+ * outside position at each edge, so while the caret sits on an edge the native caret
+ * is hidden and a zero-advance pseudo-element marks the chosen side.
+ */
+.editor-canvas.inline-code-caret-active {
+  caret-color: transparent;
+}
+
+code.inline-code[data-caret-edge='outside-start']::before,
+code.inline-code[data-caret-edge='inside-start']::before,
+code.inline-code[data-caret-edge='inside-end']::after,
+code.inline-code[data-caret-edge='outside-end']::after {
+  --caret-w: 2px;
+  /* Distance from the content edge to just beyond the border box (padding + border + gap) */
+  --caret-out: 9px;
+  content: '';
+  display: inline-block;
+  width: var(--caret-w);
+  height: 1.25em;
+  vertical-align: -0.25em;
+  margin-left: 0;
+  margin-right: calc(-1 * var(--caret-w));
+  background-color: var(--text, #1e293b);
+  pointer-events: none;
+  animation: inline-code-caret-blink 1.06s steps(1, end) infinite;
+}
+
+code.inline-code[data-caret-edge='outside-start']::before {
+  margin-left: calc(-1 * var(--caret-out));
+  margin-right: calc(var(--caret-out) - var(--caret-w));
+}
+
+code.inline-code[data-caret-edge='inside-end']::after {
+  margin-left: calc(-1 * var(--caret-w));
+  margin-right: 0;
+}
+
+code.inline-code[data-caret-edge='outside-end']::after {
+  margin-left: calc(var(--caret-out) - var(--caret-w));
+  margin-right: calc(-1 * var(--caret-out));
+}
+
+@keyframes inline-code-caret-blink {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
 /* Horizontal Rule */
 hr.editor-block {
   border: none;
